@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.54.0",
+    "@clerk/nextjs": "^6.21.0",
     "lucide-react": "^0.514.0",
     "next": "15.3.3",
     "postcss": "^8.5.5",
