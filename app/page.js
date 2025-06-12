@@ -27,7 +27,7 @@ export default function Home() {
         <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow">
           <div className="text-center">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              💰 Personal Spending Analyzer
+              🌱 Penny Sprout
             </h2>
             <p className="text-gray-600 mb-8">
               Analyze your spending habits with AI-powered insights
@@ -48,13 +48,13 @@ export default function Home() {
       {/* Header with user info and navigation */}
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-4xl font-bold">
-          💰 Personal Spending Analyzer
+          🌱 Penny Sprout
         </h1>
         <div className="flex items-center space-x-4">
           <span className="text-gray-600">
             Welcome, {user.firstName || user.emailAddresses[0].emailAddress}!
           </span>
-          <UserButton afterSignOutUrl="/" />
+          <UserButton/>
         </div>
       </div>
 
