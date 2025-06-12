@@ -1,9 +1,9 @@
-import { useAuth } from '@clerk/nextjs'
+import { auth } from '@clerk/nextjs/server'  // ← Updated import path
 import { deleteUserFile } from '@/lib/fileStorage'
 
 export async function DELETE(request, { params }) {
   try {
-    const { userId } = useAuth()
+    const { userId } = auth()  // ← Change this from useAuth() to auth()
     if (!userId) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
