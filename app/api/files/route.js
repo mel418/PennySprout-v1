@@ -10,7 +10,7 @@ export async function GET() {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const files = getUserFiles(user.id)
+    const files = await getUserFiles(user.id)  // ← ADD await HERE!
     return Response.json({ files })
   } catch (error) {
     console.error('Error fetching files:', error)
@@ -30,7 +30,7 @@ export async function POST(request) {
     const fileData = await request.json()
     console.log('Saving file for user:', user.id, 'File:', fileData.name)
     
-    const savedFile = saveUserFile(user.id, fileData)
+    const savedFile = await saveUserFile(user.id, fileData)  // ← ADD await HERE too!
     console.log('File saved successfully:', savedFile.id)
     
     return Response.json({ file: savedFile })

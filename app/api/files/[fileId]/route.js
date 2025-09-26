@@ -9,7 +9,7 @@ export async function DELETE(request, { params }) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    deleteUserFile(user.id, params.fileId)
+    await deleteUserFile(user.id, params.fileId)  // ← ADD await HERE!
     return Response.json({ success: true })
   } catch (error) {
     console.error('Error deleting file:', error)
