@@ -27,6 +27,18 @@ export default function SpendingDashboard({ data, analysis, onAnalysisComplete }
       
       const result = await response.json()
       onAnalysisComplete(result.analysis)
+
+      // Save analysis to file if we have a fileId
+      if (data.fileId) {
+        await fetch('api/files/analysis', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileId: data.fileId,
+            analysis: result.analysis
+          })
+        })
+      }
     } catch (error) {
       console.error('Analysis failed:', error)
     } finally {
