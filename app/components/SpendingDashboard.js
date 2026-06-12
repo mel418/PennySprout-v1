@@ -73,15 +73,27 @@ export default function SpendingDashboard({ data, analysis, onAnalysisComplete }
   // Returns transactions for a category, sorted largest first.
   // The special value '__spending__' returns all spending transactions
   // (everything except Income and Bills & Payments).
+  const parseTransactionDate = (t) => {
+    const raw = t['Trans. Date'] || t['Date'] || t['Transaction Date'] || ''
+    if (!raw) return 0
+    const parts = raw.split('/')
+    if (parts.length === 3) {
+      const [m, d, y] = parts
+      const year = y.length === 2 ? 2000 + parseInt(y) : parseInt(y)
+      return new Date(year, parseInt(m) - 1, parseInt(d)).getTime()
+    }
+    return new Date(raw).getTime() || 0
+  }
+
   const getCategoryTransactions = (categoryName) => {
-    const sorted = (arr) => arr.sort((a, b) => Math.abs(parseFloat(b.Amount) || 0) - Math.abs(parseFloat(a.Amount) || 0))
+    const byDateDesc = (arr) => arr.sort((a, b) => parseTransactionDate(b) - parseTransactionDate(a))
     if (categoryName === '__spending__') {
-      return sorted(data.data.filter(t => {
+      return byDateDesc(data.data.filter(t => {
         const cat = normalizeCategory(t.Category, t.Amount)
         return cat !== 'Income' && cat !== 'Bills & Payments'
       }))
     }
-    return sorted(data.data.filter(t => normalizeCategory(t.Category, t.Amount) === categoryName))
+    return byDateDesc(data.data.filter(t => normalizeCategory(t.Category, t.Amount) === categoryName))
   }
 
   const prepareChartData = () => {
@@ -124,7 +136,7 @@ export default function SpendingDashboard({ data, analysis, onAnalysisComplete }
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <button
           onClick={() => setSelectedCategory('__spending__')}
-          className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm text-left hover:border-indigo-200 hover:shadow-md transition-all group"
+          className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm text-left hover:border-sage-300 hover:shadow-md transition-all group"
         >
           <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Spending</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">${totalSpending.toFixed(2)}</p>
@@ -133,10 +145,10 @@ export default function SpendingDashboard({ data, analysis, onAnalysisComplete }
 
         <button
           onClick={() => setSelectedCategory('Income')}
-          className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm text-left hover:border-emerald-200 hover:shadow-md transition-all group"
+          className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm text-left hover:border-sage-300 hover:shadow-md transition-all group"
         >
           <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Income</p>
-          <p className="text-2xl font-bold text-emerald-600 mt-1">${totalIncome.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-sage-600 mt-1">${totalIncome.toFixed(2)}</p>
           <p className="text-xs text-gray-400 mt-1">click to view</p>
         </button>
 
@@ -150,7 +162,7 @@ export default function SpendingDashboard({ data, analysis, onAnalysisComplete }
           <p className="text-2xl font-bold text-gray-900 mt-1">
             {analysis ? `${analysis.healthScore}/10` : '—'}
           </p>
-          {isAnalyzing && <p className="text-xs text-indigo-400 mt-1">analyzing...</p>}
+          {isAnalyzing && <p className="text-xs text-sage-500 mt-1">analyzing...</p>}
         </div>
       </div>
 
@@ -163,14 +175,14 @@ export default function SpendingDashboard({ data, analysis, onAnalysisComplete }
           </div>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={chartData} margin={{ bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f4ee" />
               <XAxis dataKey="category" angle={-35} textAnchor="end" height={80} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} />
               <Tooltip
                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                 formatter={(value) => [`$${value.toFixed(2)}`, 'Amount']}
               />
-              <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(entry) => setSelectedCategory(entry.category)} />
+              <Bar dataKey="amount" fill="#507c5c" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(entry) => setSelectedCategory(entry.category)} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -209,7 +221,7 @@ export default function SpendingDashboard({ data, analysis, onAnalysisComplete }
       {billsTransactions.length > 0 && (
         <button
           onClick={() => setSelectedCategory('Bills & Payments')}
-          className="w-full text-left bg-white border border-gray-100 rounded-xl p-5 shadow-sm hover:border-indigo-200 hover:shadow-md transition-all group"
+          className="w-full text-left bg-white border border-gray-100 rounded-xl p-5 shadow-sm hover:border-sage-300 hover:shadow-md transition-all group"
         >
           <div className="flex justify-between items-center">
             <div>
@@ -217,16 +229,16 @@ export default function SpendingDashboard({ data, analysis, onAnalysisComplete }
               <p className="text-xl font-bold text-gray-900">${billsTotal.toFixed(2)}</p>
               <p className="text-xs text-gray-400 mt-1">{billsTransactions.length} transaction{billsTransactions.length !== 1 ? 's' : ''} · excluded from spending total</p>
             </div>
-            <span className="text-gray-300 group-hover:text-indigo-400 transition-colors text-xl">›</span>
+            <span className="text-gray-300 group-hover:text-sage-500 transition-colors text-xl">›</span>
           </div>
         </button>
       )}
 
       {/* Analyzing state */}
       {isAnalyzing && (
-        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5 flex items-center gap-3">
-          <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-400 border-t-transparent flex-shrink-0" />
-          <p className="text-sm text-indigo-700">Analyzing your spending patterns...</p>
+        <div className="bg-sage-50 border border-sage-200 rounded-xl p-5 flex items-center gap-3">
+          <div className="animate-spin rounded-full h-4 w-4 border-2 border-sage-500 border-t-transparent flex-shrink-0" />
+          <p className="text-sm text-sage-700">Analyzing your spending patterns...</p>
         </div>
       )}
 
@@ -245,7 +257,7 @@ export default function SpendingDashboard({ data, analysis, onAnalysisComplete }
           </div>
 
           <div className="p-6 space-y-6">
-            <div className="bg-gray-50 rounded-lg p-4">
+            <div className="bg-sage-50 rounded-lg p-4">
               <p className="text-sm text-gray-700 leading-relaxed">{analysis.summary}</p>
             </div>
 
@@ -254,7 +266,7 @@ export default function SpendingDashboard({ data, analysis, onAnalysisComplete }
               <ul className="space-y-3">
                 {analysis.recommendations?.map((rec, index) => (
                   <li key={index} className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 text-xs flex items-center justify-center font-semibold mt-0.5">
+                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-sage-100 text-sage-700 text-xs flex items-center justify-center font-semibold mt-0.5">
                       {index + 1}
                     </span>
                     <p className="text-sm text-gray-700 leading-relaxed">{rec}</p>
@@ -268,7 +280,7 @@ export default function SpendingDashboard({ data, analysis, onAnalysisComplete }
               <ul className="space-y-2">
                 {analysis.patterns?.map((pattern, index) => (
                   <li key={index} className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-indigo-300 mt-1 flex-shrink-0">–</span>
+                    <span className="text-sage-400 mt-1 flex-shrink-0">–</span>
                     <span className="leading-relaxed">{pattern}</span>
                   </li>
                 ))}
@@ -328,7 +340,7 @@ export default function SpendingDashboard({ data, analysis, onAnalysisComplete }
                     const amount = Math.abs(parseFloat(t.Amount) || 0)
 
                     return (
-                      <div key={i} className="flex justify-between items-start p-3 bg-gray-50 rounded-lg">
+                      <div key={i} className="flex justify-between items-start p-3 bg-sage-50 rounded-lg">
                         <div className="flex-1 min-w-0 mr-4">
                           {/* truncate cuts off long merchant names with "..." instead of wrapping */}
                           <p className="text-sm font-medium text-gray-900 truncate">{description}</p>

@@ -4,7 +4,7 @@ import { Upload, FileText } from 'lucide-react'
 
 // userId: the logged-in user's Clerk ID (passed down from page.js)
 // onDataLoaded: callback that tells page.js to switch to the dashboard view
-export default function FileUpload({ userId, onDataLoaded }) {
+export default function FileUpload({ onDataLoaded }) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -168,21 +168,28 @@ export default function FileUpload({ userId, onDataLoaded }) {
 
   return (
     <div className="space-y-4">
-      <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
-        <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-1">Upload Bank Statements</h3>
-        <p className="text-sm text-gray-500 mb-4">
+      <div className="border-2 border-dashed border-sage-200 rounded-2xl p-8 sm:p-12 text-center hover:border-sage-400 hover:bg-sage-50 transition-all">
+        <div className="w-14 h-14 bg-sage-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <Upload className="h-6 w-6 text-sage-600" />
+        </div>
+        <h3 className="text-base font-semibold text-gray-900 mb-1">Upload Bank Statements</h3>
+        <p className="text-sm text-gray-500 mb-6 max-w-xs mx-auto">
           Accepts CSV (credit cards) and PDF (bank statements) — select multiple files at once
         </p>
 
-        <input
-          type="file"
-          accept=".csv,.pdf"  // limits the file picker to only show CSV and PDF files
-          multiple            // allows selecting more than one file at a time
-          onChange={handleFileUpload}
-          disabled={isLoading}
-          className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
-        />
+        <label className={`inline-flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm cursor-pointer transition-colors ${isLoading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-sage-600 hover:bg-sage-700 active:bg-sage-800 text-white'}`}>
+          <Upload className="h-4 w-4" />
+          Choose Files
+          <input
+            type="file"
+            accept=".csv,.pdf"
+            multiple
+            onChange={handleFileUpload}
+            disabled={isLoading}
+            className="sr-only"
+          />
+        </label>
+        <p className="text-xs text-gray-400 mt-3">CSV or PDF · Multiple files supported</p>
       </div>
 
       {/* Per-file status list — only appears once files are selected */}
@@ -199,8 +206,8 @@ export default function FileUpload({ userId, onDataLoaded }) {
                   <span className="text-gray-400">Waiting...</span>
                 )}
                 {f.status === 'processing' && (
-                  <span className="text-blue-600 flex items-center gap-1">
-                    <span className="animate-spin inline-block w-3 h-3 border border-blue-600 border-t-transparent rounded-full" />
+                  <span className="text-sage-600 flex items-center gap-1">
+                    <span className="animate-spin inline-block w-3 h-3 border border-sage-500 border-t-transparent rounded-full" />
                     Processing...
                   </span>
                 )}

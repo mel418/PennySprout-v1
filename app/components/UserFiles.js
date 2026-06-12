@@ -85,7 +85,7 @@ export default function UserFiles({ userId, onFileSelected }) {
   if (isLoading) {
     return (
       <div className="flex justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-400"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sage-500"></div>
       </div>
     )
   }
@@ -132,10 +132,10 @@ export default function UserFiles({ userId, onFileSelected }) {
                         if (e.key === 'Enter') saveTitle(file.id)
                         if (e.key === 'Escape') cancelEditing()
                       }}
-                      className="text-base font-semibold border-b-2 border-indigo-400 outline-none flex-1 bg-transparent text-gray-900"
+                      className="text-base font-semibold border-b-2 border-sage-500 outline-none flex-1 bg-transparent text-gray-900"
                     />
                     {/* Check saves, X cancels */}
-                    <button onClick={() => saveTitle(file.id)} className="text-green-500 hover:text-green-700 flex-shrink-0">
+                    <button onClick={() => saveTitle(file.id)} className="text-sage-600 hover:text-sage-800 flex-shrink-0">
                       <Check className="h-4 w-4" />
                     </button>
                     <button onClick={cancelEditing} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
@@ -171,8 +171,8 @@ export default function UserFiles({ userId, onFileSelected }) {
                 </div>
 
                 {file.analysis && (
-                  <div className="bg-emerald-50 border border-emerald-100 px-3 py-2 rounded-lg">
-                    <p className="text-xs text-emerald-700">
+                  <div className="bg-sage-50 border border-sage-200 px-3 py-2 rounded-lg">
+                    <p className="text-xs text-sage-700">
                       Analysis complete · Health Score: {file.analysis.healthScore}/10
                     </p>
                   </div>
@@ -183,7 +183,7 @@ export default function UserFiles({ userId, onFileSelected }) {
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button
                   onClick={() => selectFile(file)}
-                  className="px-3 py-1.5 bg-indigo-500 text-white text-sm rounded-lg hover:bg-indigo-600 transition-colors"
+                  className="px-3 py-1.5 bg-sage-600 text-white text-sm rounded-lg hover:bg-sage-700 transition-colors"
                 >
                   Analyze
                 </button>

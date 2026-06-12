@@ -1,10 +1,91 @@
 @import "tailwindcss";
 
-/* @layer utilities {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  background-color: #f8fafc;
+/* Scale everything up 10% on desktop screens.
+   Tailwind uses rem for all font sizes, padding, margin, gap, and border-radius,
+   so bumping the root font-size here scales the whole layout proportionally.
+   Breakpoints are defined in px so they're unaffected. */
+@media (min-width: 768px) {
+  html { font-size: 17.6px; }
 }
 
-.container {
-  @apply px-4 sm:px-6 lg:px-8;
-} */
+/* Sage color tokens (used by @theme for design-token awareness) */
+@theme {
+  --color-sage-50:  #e4ede0;
+  --color-sage-100: #c8d9c0;
+  --color-sage-200: #adc4a3;
+  --color-sage-300: #90ae86;
+  --color-sage-400: #7d9b78;
+  --color-sage-500: #5c7a55;
+  --color-sage-600: #4a6741;
+  --color-sage-700: #3a5232;
+  --color-sage-800: #2a3d24;
+  --color-sage-900: #1a2817;
+}
+
+/* Explicit utility classes — these are the reliable path when @theme JIT
+   has caching issues with Turbopack. Defined in @layer utilities so they
+   sit at the same specificity as generated Tailwind classes. */
+@layer utilities {
+  .bg-sage-50  { background-color: #e4ede0; }
+  .bg-sage-100 { background-color: #c8d9c0; }
+  .bg-sage-200 { background-color: #adc4a3; }
+  .bg-sage-300 { background-color: #90ae86; }
+  .bg-sage-400 { background-color: #7d9b78; }
+  .bg-sage-500 { background-color: #5c7a55; }
+  .bg-sage-600 { background-color: #4a6741; }
+  .bg-sage-700 { background-color: #3a5232; }
+  .bg-sage-800 { background-color: #2a3d24; }
+
+  .text-sage-400 { color: #7d9b78; }
+  .text-sage-500 { color: #5c7a55; }
+  .text-sage-600 { color: #4a6741; }
+  .text-sage-700 { color: #3a5232; }
+  .text-sage-800 { color: #2a3d24; }
+
+  .border-sage-100 { border-color: #c8d9c0; }
+  .border-sage-200 { border-color: #adc4a3; }
+  .border-sage-300 { border-color: #90ae86; }
+  .border-sage-400 { border-color: #7d9b78; }
+  .border-sage-500 { border-color: #5c7a55; }
+  .border-sage-600 { border-color: #4a6741; }
+
+  .hover\:bg-sage-50:hover  { background-color: #e4ede0; }
+  .hover\:bg-sage-600:hover { background-color: #4a6741; }
+  .hover\:bg-sage-700:hover { background-color: #3a5232; }
+  .hover\:bg-sage-800:hover { background-color: #2a3d24; }
+
+  .hover\:text-sage-600:hover { color: #4a6741; }
+  .hover\:text-sage-700:hover { color: #3a5232; }
+  .hover\:text-sage-800:hover { color: #2a3d24; }
+
+  .hover\:border-sage-300:hover { border-color: #90ae86; }
+  .hover\:border-sage-400:hover { border-color: #7d9b78; }
+
+  .active\:bg-sage-700:active { background-color: #3a5232; }
+  .active\:bg-sage-800:active { background-color: #2a3d24; }
+}
+
+@keyframes blob {
+  0%,100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(30px, -50px) scale(1.1); }
+  66%      { transform: translate(-20px, 20px) scale(0.9); }
+}
+
+@keyframes float {
+  0%,100% { transform: translateY(0px); }
+  50%     { transform: translateY(-12px); }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-blob    { animation: blob 8s infinite ease-in-out; }
+.animate-float   { animation: float 4s infinite ease-in-out; }
+.animate-fade-up { animation: fade-up 0.6s ease-out both; }
+.delay-100  { animation-delay: 0.1s; }
+.delay-200  { animation-delay: 0.2s; }
+.delay-300  { animation-delay: 0.3s; }
+.delay-2000 { animation-delay: 2s; }
+.delay-4000 { animation-delay: 4s; }
