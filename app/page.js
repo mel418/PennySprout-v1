@@ -96,32 +96,39 @@ export default function Home() {
 
       {/* Content based on active view */}
       {activeView === 'upload' && (
-        <FileUpload 
+        <FileUpload
           onDataLoaded={(data) => {
             setSpendingData(data)
+            setAnalysis(null)  // clear any previous analysis when uploading a new file
             setActiveView('dashboard')
-          }} 
+          }}
           userId={user.id}
         />
       )}
-      
+
       {activeView === 'files' && (
-        <UserFiles 
+        <UserFiles
           userId={user.id}
           onFileSelected={(data) => {
             setSpendingData(data)
+            setAnalysis(data.analysis || null)  // load saved analysis if it exists
             setActiveView('dashboard')
           }}
         />
       )}
-      
-      {activeView === 'dashboard' && spendingData && (
-        <SpendingDashboard 
-          data={spendingData} 
-          analysis={analysis}
-          onAnalysisComplete={setAnalysis}
-          userId={user.id}
-        />
+
+      {/* SpendingDashboard stays mounted once data exists — only hidden via CSS.
+          Conditional mounting (activeView === 'dashboard') would unmount it on every
+          tab switch, causing useEffect to re-run and trigger a new analysis each time. */}
+      {spendingData && (
+        <div style={{ display: activeView === 'dashboard' ? 'block' : 'none' }}>
+          <SpendingDashboard
+            data={spendingData}
+            analysis={analysis}
+            onAnalysisComplete={setAnalysis}
+            userId={user.id}
+          />
+        </div>
       )}
     </main>
   )
