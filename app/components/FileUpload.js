@@ -141,27 +141,54 @@ export default function FileUpload({ onDataLoaded }) {
     setIsLoading(false)
   }
 
-  // parseCSV converts raw CSV text into an array of objects.
-  // "Trans. Date,Amount\n01/01/26,-50" → [{ "Trans. Date": "01/01/26", Amount: "-50" }]
+  // Columns we keep from CSVs — anything not matching is silently dropped.
+  // This acts as a privacy filter: account numbers, holder names, addresses,
+  // routing numbers, and any other PII columns never get stored.
+  const ALLOWED_HEADERS = [
+    /^trans\.?\s*date$/i,
+    /^post\.?\s*date$/i,
+    /^transaction\s*date$/i,
+    /^date$/i,
+    /^posting\s*date$/i,
+    /^description$/i,
+    /^desc$/i,
+    /^memo$/i,
+    /^payee$/i,
+    /^merchant$/i,
+    /^narrative$/i,
+    /^details$/i,
+    /^amount$/i,
+    /^debit$/i,
+    /^credit$/i,
+    /^transaction\s*amount$/i,
+    /^category$/i,
+    /^type$/i,
+    /^transaction\s*type$/i,
+  ]
+
+  const isAllowedHeader = (h) => ALLOWED_HEADERS.some(pattern => pattern.test(h.trim()))
+
+  // parseCSV converts raw CSV text into an array of objects,
+  // keeping only transaction-relevant columns.
   const parseCSV = (text) => {
     const lines = text.split('\n').filter(line => line.trim())
 
-    // First line is always the header row
-    const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim())
+    const allHeaders = lines[0].split(',').map(h => h.replace(/"/g, '').trim())
+
+    // Only keep indices whose header is in our allowlist
+    const allowedIndices = allHeaders
+      .map((h, i) => ({ h, i }))
+      .filter(({ h }) => isAllowedHeader(h))
+
+    const headers = allowedIndices.map(({ h }) => h)
 
     const data = lines.slice(1).map(line => {
       const values = line.split(',')
-
-      // headers.reduce zips the two arrays together into one object.
-      // On each iteration, obj[header] = value builds up the row object.
-      return headers.reduce((obj, header, index) => {
-        obj[header] = (values[index] || '').replace(/"/g, '').trim()
+      return allowedIndices.reduce((obj, { h, i }) => {
+        obj[h] = (values[i] || '').replace(/"/g, '').trim()
         return obj
       }, {})
-    }).filter(row =>
-      // Drop rows where every single value is empty (trailing blank lines)
-      Object.values(row).some(v => v)
-    )
+    }).filter(row => Object.values(row).some(v => v))
 
     return { headers, data }
   }

@@ -51,16 +51,24 @@ export async function POST(request) {
             type: 'text',
             text: `Extract all real spending transactions from this bank statement.
 
-Rules:
+PRIVACY — do NOT extract or include anywhere in the output:
+- Account holder name, address, phone number, or email
+- Account numbers, routing numbers, or any full or partial account identifiers
+- Social Security numbers or tax IDs
+- Bank branch information
+- Any other personally identifiable information (PII)
+
+Transaction extraction rules:
 - EXCLUDE internal transfers between accounts (lines containing "Home Banking Transfer", "Transfer To Share", "Transfer From Share") — these are just moving money between the same person's accounts and would cause double-counting
 - INCLUDE real purchases, bill payments, subscriptions, payroll deposits, Zelle transfers, etc.
 - Withdrawals and payments: Amount must be a negative number
 - Deposits and income: Amount must be a positive number
+- Description field: use only the merchant or payee name — never include account numbers, reference numbers, or personal details
 
 Return ONLY a valid JSON array, no explanation or extra text. Each object must have exactly these keys:
 {
   "Trans. Date": "MM/DD/YY",
-  "Description": "merchant or description text",
+  "Description": "merchant or payee name only",
   "Amount": -12.34,
   "Category": "one of: Shopping, Food, Entertainment, Bills, Subscriptions, Income, Fitness, Transfer, Other"
 }`
