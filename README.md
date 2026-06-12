@@ -4,37 +4,41 @@ An AI-powered personal finance analyzer that helps you understand your spending 
 
 ## Features
 
-- **CSV Upload & Analysis**: Upload bank statement CSV files for instant analysis
-- **AI-Powered Insights**: Get personalized spending recommendations using Claude AI
-- **Visual Analytics**: Interactive charts showing spending patterns and category breakdowns
-- **File Management**: Save and manage multiple financial files with analysis history
-- **User Authentication**: Secure login with Clerk authentication
-- **Health Score**: Get a financial health score from 1-10 based on your spending patterns
+- **Multi-format Upload**: Upload CSV files (credit cards) and PDF bank statements — select multiple files at once to combine accounts
+- **AI-Powered Insights**: Get personalized spending analysis, recommendations, and a financial health score powered by Claude AI
+- **Interactive Dashboard**: Clickable charts showing spending by category and distribution — tap any category to see individual transactions
+- **Spending Calendar**: Month-by-month calendar view across all saved files showing daily spending and income at a glance
+- **Income & Bills Separation**: Income and Bills & Payments are tracked separately and excluded from your spending total for an accurate picture
+- **Zelle / Transfer Detection**: Automatically distinguishes received transfers (income) from sent transfers (spending)
+- **File Management**: Save, rename, and manage multiple statement files with persistent analysis history
+- **User Authentication**: Secure login with Clerk
+- **Mobile Friendly**: Responsive layout with a bottom navigation bar on mobile
 
 ## Tech Stack
 
-- **Frontend**: Next.js 14, React, Tailwind CSS
-- **Charts**: Recharts for data visualization
+- **Frontend**: Next.js 15, React 19, Tailwind CSS v4
+- **Charts**: Recharts
 - **Authentication**: Clerk
-- **AI**: Anthropic Claude API
-- **Storage**: File-based JSON storage (⚠️for now, will be creating a database for it in the near future)
+- **AI**: Anthropic Claude API (analysis + native PDF parsing)
+- **Database**: Supabase (PostgreSQL)
 - **Icons**: Lucide React
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ 
-- npm or yarn
+- Node.js 18+
+- npm
 - Anthropic API key
 - Clerk account and API keys
+- Supabase project
 
 ### Installation
 
 1. Clone the repository:
 ```bash
 git clone <your-repo-url>
-cd penny-sprout
+cd spending-analyzer
 ```
 
 2. Install dependencies:
@@ -42,12 +46,20 @@ cd penny-sprout
 npm install
 ```
 
-3. Set up environment variables:
-Create a `.env.local` file in the root directory:
+3. Create a `.env.local` file in the root directory:
 ```env
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+ANTHROPIC_API_KEY=your_anthropic_api_key
+
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 CLERK_SECRET_KEY=your_clerk_secret_key
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/
+NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/
 ```
 
 4. Run the development server:
@@ -57,136 +69,119 @@ npm run dev
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+### Supabase Setup
+
+Create a `user_files` table in your Supabase project:
+
+```sql
+create table user_files (
+  id uuid default gen_random_uuid() primary key,
+  user_id text not null,
+  file_name text not null,
+  transactions jsonb not null,
+  analysis jsonb,
+  total_amount numeric,
+  transaction_count integer,
+  created_at timestamp with time zone default now()
+);
+```
+
 ## Usage
 
 ### 1. Sign In
-- Click "Sign In to Get Started" to authenticate with Clerk
-- Create an account or sign in with existing credentials
+Click **Get Started Free** on the landing page and authenticate with Clerk.
 
-![Sign In Page](public/image.png)
+### 2. Upload Statements
+- Go to **Upload** and select one or more CSV or PDF files
+- CSV files (e.g. Discover, Chase) are parsed in the browser
+- PDF bank statements are sent to Claude for extraction
+- Multiple files are combined into one saved record
 
-### 2. Upload CSV Files
-- Navigate to "Upload New File"
-- Select a CSV file from your bank or financial institution
-- The app will automatically parse and save your transaction data
+### 3. View Your Dashboard
+After upload the AI analyzes your transactions and shows:
+- Total spending (excluding income and bills)
+- Income total
+- Financial health score (1–10)
+- Spending by category (bar chart) and distribution (pie chart)
+- Click any chart bar or category to see individual transactions
+- Bills & Payments shown separately below the charts
 
-![Upload Page](public/image-1.png)
+### 4. Spending Calendar
+The **Calendar** tab shows every month covered by your saved files. Each date shows daily spending (orange) and income (green). Click a date to see transactions grouped by category, then click a category to expand individual transactions.
 
-### 3. View Analysis
-- After upload, the AI will analyze your spending patterns
-- View interactive charts showing:
-  - Spending by category
-  - Category distribution
-  - Transaction summaries
-- Get personalized recommendations and insights
+### 5. My Files
+- See all saved statement files with spending totals that match the dashboard
+- Click the pencil icon on any file name to rename it
+- Click **Analyze** to reload a file into the dashboard
+- Delete files you no longer need
 
-![Analysis Page](public/image-2.png)
+## Supported File Formats
 
-### 4. Manage Files
-- Access "My Files" to see all uploaded financial data
-- View analysis history and health scores
-- Delete files when no longer needed
+### CSV
+Any CSV with these columns (exact names may vary by bank):
 
-![Files Page](public/image-3.png)
-
-## CSV Format Requirements
-
-Your CSV file should include columns for:
-- **Date**: Transaction date (various formats supported)
-- **Description**: Transaction description
-- **Amount**: Transaction amount (positive or negative)
-- **Category**: Spending category (optional)
-
-Example CSV structure:
-```csv
-Trans. Date,Description,Amount,Category
-2024-01-15,Coffee Shop,-4.50,Food
-2024-01-16,Salary,2500.00,Income
-2024-01-17,Gas Station,-45.20,Transportation
+```
+Trans. Date, Description, Amount, Category
+01/15/2026, Coffee Shop, -4.50, Food & Drink
+01/16/2026, Payroll, 2500.00, Income
 ```
 
-## AI Analysis Features
+Both positive-purchase (Discover) and negative-purchase (most banks) sign conventions are handled automatically.
 
-The Claude AI provides:
-- **Top Spending Categories**: Breakdown of where your money goes
-- **Spending Patterns**: Identification of habits and trends
-- **Money-Saving Opportunities**: Actionable advice to reduce expenses
-- **Budget Recommendations**: Personalized budgeting suggestions
-- **Health Score**: Overall financial wellness rating (1-10)
+### PDF
+Standard bank statement PDFs. Claude reads the PDF natively and extracts transactions — no OCR required.
 
 ## Project Structure
 
 ```
-penny-sprout/
+spending-analyzer/
 ├── app/
 │   ├── api/
-│   │   ├── analyze/          # AI analysis endpoint
-│   │   └── files/            # File management endpoints
+│   │   ├── analyze/          # Claude AI analysis endpoint
+│   │   ├── files/            # File CRUD endpoints
+│   │   │   ├── [fileId]/     # DELETE (delete) + PATCH (rename)
+│   │   │   └── analysis/     # Save analysis results
+│   │   └── parse-pdf/        # PDF → transactions via Claude
 │   ├── components/
-│   │   ├── FileUpload.js     # CSV upload component
-│   │   ├── SpendingDashboard.js # Main analytics dashboard
-│   │   └── UserFiles.js      # File management UI
-│   ├── globals.css           # Global styles
-│   ├── layout.js             # Root layout with Clerk
-│   └── page.js               # Main application page
+│   │   ├── FileUpload.js     # Multi-file CSV + PDF upload
+│   │   ├── SpendingCalendar.js # Month calendar view
+│   │   ├── SpendingDashboard.js # Charts, cards, AI insights
+│   │   └── UserFiles.js      # Saved files list with rename
+│   ├── globals.css           # Sage color palette + animations
+│   ├── layout.js             # Root layout with Clerk + metadata
+│   └── page.js               # App shell + botanical landing page
 ├── lib/
-│   └── fileStorage.js        # File system storage utilities
-└── data/                     # JSON file storage (created automatically)
+│   ├── categories.js         # Shared normalizeCategory + calcSpending
+│   ├── fileStorage.js        # Supabase CRUD helpers
+│   └── supabase.js           # Supabase client (service role)
+└── public/
+    └── sprout-svgrepo-com.svg # App logo / favicon
 ```
 
 ## API Endpoints
 
-- `POST /api/analyze` - Analyze spending data with AI
-- `GET /api/files` - Get user's uploaded files
-- `POST /api/files` - Save new file
-- `DELETE /api/files/[fileId]` - Delete specific file
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/analyze` | Analyze transactions with Claude AI |
+| `GET` | `/api/files` | List user's saved files |
+| `POST` | `/api/files` | Save a new file |
+| `DELETE` | `/api/files/[fileId]` | Delete a file |
+| `PATCH` | `/api/files/[fileId]` | Rename a file |
+| `POST` | `/api/files/analysis` | Persist analysis result to a file |
+| `POST` | `/api/parse-pdf` | Extract transactions from a PDF |
 
-## Security & Privacy
+## Category Logic
 
-- User authentication handled by Clerk
-- File data stored locally per user
-- No sensitive financial data sent to external services except Anthropic for analysis
-- Transaction data is limited to first 50 entries for AI analysis
+All category normalization lives in `lib/categories.js` and is shared between the dashboard and file list:
 
-## Customization
-
-### Adding New Chart Types
-Extend the `SpendingDashboard.js` component with additional Recharts components.
-
-### Modifying AI Analysis
-Update the prompt in `app/api/analyze/route.js` to request different insights or analysis formats.
-
-### Styling
-The app uses Tailwind CSS for styling. Customize colors and layout in the component files.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature-name`
-3. Commit changes: `git commit -am 'Add new feature'`
-4. Push to branch: `git push origin feature-name`
-5. Submit a Pull Request
+- `"Payments and Credits"`, `"Bills"` → **Bills & Payments** (excluded from spending total)
+- `"Transfer"` with a positive amount → **Income** (Zelle received)
+- `"Transfer"` with a negative amount → counted as spending (Zelle sent)
+- Everything else is shown as-is in the charts
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Support
-
-For issues and questions:
-- Check existing GitHub issues
-- Create a new issue with detailed description
-- Include error messages and steps to reproduce
-
-## Roadmap
-
-Future enhancements may include:
-- Database integration (PostgreSQL/MongoDB)
-- Export functionality for reports
-- Goal setting and tracking
-- Mobile app version
-- Integration with banking APIs
-- Multi-currency support
+This project is licensed under the MIT License — see the LICENSE file for details.
 
 ---
 
