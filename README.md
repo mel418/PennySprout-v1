@@ -7,11 +7,13 @@ An AI-powered personal finance analyzer that helps you understand your spending 
 - **Multi-format Upload**: Upload CSV files (credit cards) and PDF bank statements — select multiple files at once to combine accounts
 - **AI-Powered Insights**: Get personalized spending analysis, recommendations, and a financial health score powered by Claude AI
 - **Interactive Dashboard**: Clickable charts showing spending by category and distribution — tap any category to see individual transactions
-- **Spending Calendar**: Month-by-month calendar view across all saved files showing daily spending and income at a glance
+- **Spending Calendar**: Month-by-month calendar view across all saved files showing daily spending and income at a glance, with color-coded categories in the daily breakdown
+- **Cash Flow Trends**: A collapsible, mobile-optimized chart on the calendar plots daily income/spending and a cumulative net-balance line for the selected month
 - **Income & Bills Separation**: Income and Bills & Payments are tracked separately and excluded from your spending total for an accurate picture
 - **Zelle / Transfer Detection**: Automatically distinguishes received transfers (income) from sent transfers (spending)
 - **File Management**: Save, rename, and manage multiple statement files with persistent analysis history
-- **User Authentication**: Secure login with Clerk
+- **Privacy by Design**: Statements are de-identified before storage — only merchant, date, amount, and category are kept (no names, account numbers, or other PII)
+- **Secure Data Access**: Clerk-authenticated sessions, server-only database access via the service-role key, and Row Level Security on the data table
 - **Mobile Friendly**: Responsive layout with a bottom navigation bar on mobile
 
 ## Tech Stack
@@ -86,6 +88,8 @@ create table user_files (
 );
 ```
 
+Then **enable Row Level Security** by running [`supabase/enable-rls.sql`](supabase/enable-rls.sql) in the Supabase SQL Editor. This is required: the anon key is public (it ships in the browser bundle), so without RLS anyone could read every user's data directly. The app reaches the table only through the server-side service-role key (which bypasses RLS by design) and filters every query by the Clerk `user_id`.
+
 ## Usage
 
 ### 1. Sign In
@@ -147,13 +151,16 @@ spending-analyzer/
 │   │   ├── SpendingCalendar.js # Month calendar view
 │   │   ├── SpendingDashboard.js # Charts, cards, AI insights
 │   │   └── UserFiles.js      # Saved files list with rename
+│   ├── privacy/              # Privacy policy page (/privacy)
 │   ├── globals.css           # Sage color palette + animations
 │   ├── layout.js             # Root layout with Clerk + metadata
 │   └── page.js               # App shell + botanical landing page
 ├── lib/
-│   ├── categories.js         # Shared normalizeCategory + calcSpending
+│   ├── categories.js         # Shared normalizeCategory, calcSpending, categoryColor
 │   ├── fileStorage.js        # Supabase CRUD helpers
-│   └── supabase.js           # Supabase client (service role)
+│   └── supabase.js           # Supabase client (service role, server-only)
+├── supabase/
+│   └── enable-rls.sql        # One-time Row Level Security setup
 └── public/
     └── sprout-svgrepo-com.svg # App logo / favicon
 ```
@@ -178,6 +185,15 @@ All category normalization lives in `lib/categories.js` and is shared between th
 - `"Transfer"` with a positive amount → **Income** (Zelle received)
 - `"Transfer"` with a negative amount → counted as spending (Zelle sent)
 - Everything else is shown as-is in the charts
+
+## Privacy & Security
+
+- **De-identification at the source**: When a statement is parsed, the model is instructed to drop all PII (names, addresses, account/routing numbers, SSNs). Only merchant, date, amount, and category are ever stored. The uploaded file itself is processed in memory and not retained.
+- **Server-only data access**: All database access goes through the service-role key in `lib/supabase.js`, which imports `server-only` so the key can never be bundled into client code. The public anon key is not used for data access.
+- **Row Level Security**: RLS is enabled on `user_files` (see [`supabase/enable-rls.sql`](supabase/enable-rls.sql)); the public anon key returns zero rows.
+- **Authenticated routes**: Every API route requires a signed-in Clerk user, including `/api/analyze` (so the Anthropic API can't be abused anonymously).
+- **Encryption**: Data is encrypted in transit (TLS) and at rest (AES-256) by Supabase. Note this is *not* end-to-end encryption — the server reads transactions to generate charts and insights.
+- **MFA**: Not enabled yet (gated behind Clerk's paid plan); on the roadmap for launch. See the in-app [privacy policy](app/privacy/page.js) at `/privacy`.
 
 ## License
 

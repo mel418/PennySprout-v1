@@ -1,3 +1,4 @@
+import { currentUser } from '@clerk/nextjs/server'
 import Anthropic from '@anthropic-ai/sdk'
 
 const anthropic = new Anthropic({
@@ -6,6 +7,13 @@ const anthropic = new Anthropic({
 
 export async function POST(request) {
   try {
+    // Require a signed-in user. Without this, anyone could POST to this route and
+    // run up Anthropic API charges on your account.
+    const user = await currentUser()
+    if (!user) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { transactions } = await request.json()
     
     // Prepare data for AI analysis

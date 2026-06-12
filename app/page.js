@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 import { useUser, SignInButton, UserButton } from '@clerk/nextjs'
 import { Upload, FolderOpen, BarChart2, CalendarDays, Sparkles, TrendingUp, ArrowRight } from 'lucide-react'
 import FileUpload from './components/FileUpload'
@@ -104,7 +105,10 @@ function LandingPage() {
         </div>
 
         <p className="mt-10 text-xs text-sage-400 animate-fade-up delay-300">
-          Powered by Claude AI · Your data stays private
+          Powered by Claude AI ·{' '}
+          <Link href="/privacy" className="underline decoration-sage-300 underline-offset-2 hover:text-sage-600">
+            Your data stays private
+          </Link>
         </p>
       </div>
     </div>
