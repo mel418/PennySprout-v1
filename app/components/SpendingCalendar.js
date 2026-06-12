@@ -1,7 +1,8 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightSm, CalendarDays } from 'lucide-react'
-import { normalizeCategory } from '@/lib/categories'
+import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+import { normalizeCategory, categoryColor } from '@/lib/categories'
 
 const DAYS   = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['January','February','March','April','May','June','July',
@@ -32,6 +33,7 @@ export default function SpendingCalendar() {
   const [currentMonth, setCurrentMonth]       = useState(null)
   const [selectedDate, setSelectedDate]       = useState(null)
   const [expandedCategory, setExpandedCategory] = useState(null)
+  const [chartOpen, setChartOpen]             = useState(true)
 
   useEffect(() => {
     fetch('/api/files')
@@ -69,6 +71,40 @@ export default function SpendingCalendar() {
     })
     return map
   }, [allTransactions])
+
+  // Daily spending / income / cumulative net for the visible month → cashflow trend chart
+  const monthlyTrend = useMemo(() => {
+    if (!currentMonth) return []
+    const y = currentMonth.getFullYear()
+    const m = currentMonth.getMonth()
+    const daysInMonth = new Date(y, m + 1, 0).getDate()
+
+    let running = 0
+    const rows = []
+    for (let day = 1; day <= daysInMonth; day++) {
+      const key  = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+      const txns = byDate[key] || []
+
+      const spending = txns.reduce((s, t) => {
+        const cat = normalizeCategory(t.Category, t.Amount)
+        return (cat === 'Income' || cat === 'Bills & Payments') ? s : s + Math.abs(parseFloat(t.Amount) || 0)
+      }, 0)
+      const income = txns.reduce((s, t) =>
+        normalizeCategory(t.Category, t.Amount) === 'Income'
+          ? s + Math.abs(parseFloat(t.Amount) || 0)
+          : s
+      , 0)
+
+      running += income - spending
+      rows.push({ day, spending, income, net: income - spending, cumulative: running })
+    }
+    return rows
+  }, [currentMonth, byDate])
+
+  const monthHasActivity = useMemo(
+    () => monthlyTrend.some(r => r.spending > 0 || r.income > 0),
+    [monthlyTrend]
+  )
 
   // Categories + transactions for the currently selected date
   const selectedDateData = useMemo(() => {
@@ -246,8 +282,9 @@ export default function SpendingCalendar() {
           <div className="divide-y divide-gray-50">
             {selectedDateData.map(({ category, transactions, total }) => {
               const isOpen = expandedCategory === category
+              const color = categoryColor(category)
               return (
-                <div key={category}>
+                <div key={category} style={{ borderLeft: `3px solid ${color}` }}>
                   {/* Category header — click to toggle transaction list */}
                   <button
                     onClick={() => setExpandedCategory(isOpen ? null : category)}
@@ -258,6 +295,7 @@ export default function SpendingCalendar() {
                         ? <ChevronDown className="h-4 w-4 text-sage-500 flex-shrink-0" />
                         : <ChevronRightSm className="h-4 w-4 text-gray-300 flex-shrink-0" />
                       }
+                      <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
                       <span className="text-sm font-medium text-gray-800">{category}</span>
                       <span className="text-xs text-gray-400">
                         {transactions.length} txn{transactions.length !== 1 ? 's' : ''}
@@ -294,6 +332,87 @@ export default function SpendingCalendar() {
           </div>
         </div>
       )}
+
+      {/* ── Cashflow trend for the month ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        {/* Header — tap to collapse/expand */}
+        <button
+          onClick={() => setChartOpen(o => !o)}
+          aria-expanded={chartOpen}
+          className="w-full flex items-center justify-between gap-2 px-4 sm:px-6 py-4 hover:bg-sage-50 transition-colors text-left"
+        >
+          <span className="flex items-center gap-2 min-w-0">
+            <ChevronDown
+              className={`h-4 w-4 text-sage-500 flex-shrink-0 transition-transform ${chartOpen ? '' : '-rotate-90'}`}
+            />
+            <span className="text-sm font-semibold text-gray-900 truncate">
+              Cash Flow — {MONTHS[month]} {year}
+            </span>
+          </span>
+          <div className="hidden md:flex items-center gap-3 text-xs text-gray-400 flex-shrink-0">
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-sage-500" />Income</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-orange-400" />Spending</span>
+            <span className="flex items-center gap-1.5"><span className="h-0.5 w-3.5 bg-sage-700" />Net balance</span>
+          </div>
+        </button>
+
+        {chartOpen && (
+          <div className="px-1 sm:px-4 pb-4">
+            {/* Compact legend for small screens */}
+            <div className="flex md:hidden items-center gap-3 text-xs text-gray-400 px-3 pb-2">
+              <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-sage-500" />Income</span>
+              <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-orange-400" />Spending</span>
+              <span className="flex items-center gap-1.5"><span className="h-0.5 w-3.5 bg-sage-700" />Net</span>
+            </div>
+
+            {monthHasActivity ? (
+              <div className="h-[220px] sm:h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={monthlyTrend} margin={{ top: 10, right: 4, left: -12, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f4ee" />
+                  <XAxis
+                    dataKey="day"
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    minTickGap={8}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={44}
+                    tickFormatter={v => `$${Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}`}
+                  />
+                  <Tooltip
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}
+                    labelFormatter={d => `${MONTHS[month]} ${d}`}
+                    formatter={(value, name) => [`$${Number(value).toFixed(2)}`, name]}
+                  />
+                  <ReferenceLine y={0} stroke="#d1d5db" strokeWidth={1} />
+                  <Bar dataKey="income"   name="Income"      fill="#88a892" radius={[3, 3, 0, 0]} maxBarSize={14} />
+                  <Bar dataKey="spending" name="Spending"    fill="#fb923c" radius={[3, 3, 0, 0]} maxBarSize={14} />
+                  <Line
+                    type="monotone"
+                    dataKey="cumulative"
+                    name="Net balance"
+                    stroke="#3f6650"
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[160px] text-sm text-gray-400">
+                No activity this month.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
