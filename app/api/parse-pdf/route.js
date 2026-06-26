@@ -1,5 +1,6 @@
 import { currentUser } from '@clerk/nextjs/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { extractJson } from '@/lib/aiJson'
 
 // Same Anthropic client we use in /api/analyze
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -32,7 +33,7 @@ export async function POST(request) {
     // Send the PDF directly to Claude using the 'document' content block type.
     // Claude can read PDFs natively — no PDF parsing library needed.
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       messages: [{
         role: 'user',
@@ -77,21 +78,19 @@ Return ONLY a valid JSON array, no explanation or extra text. Each object must h
       }]
     })
 
-    // Pull the text out of Claude's response (same pattern as /api/analyze)
-    const responseText = message.content[0].text
-
-    // Claude sometimes wraps JSON in a ```json code block — strip that if present
-    let transactions
-    if (responseText.includes('```json')) {
-      const match = responseText.match(/```json\s*([\s\S]*?)\s*```/)
-      transactions = JSON.parse(match[1])
-    } else {
-      transactions = JSON.parse(responseText)
+    // A truncated response means the JSON array is incomplete and unparseable.
+    if (message.stop_reason === 'max_tokens') {
+      throw new Error('Statement too long — response was truncated (max_tokens).')
     }
+
+    // Pull the text out of Claude's response and parse it robustly
+    // (handles bare/json code fences and surrounding prose).
+    const responseText = message.content.find(b => b.type === 'text')?.text || ''
+    const transactions = extractJson(responseText)
 
     return Response.json({ transactions })
   } catch (error) {
     console.error('PDF parse error:', error)
-    return Response.json({ error: 'Failed to parse PDF' }, { status: 500 })
+    return Response.json({ error: `Failed to parse PDF: ${error.message}` }, { status: 500 })
   }
 }

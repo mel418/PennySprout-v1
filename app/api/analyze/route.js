@@ -1,5 +1,6 @@
 import { currentUser } from '@clerk/nextjs/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { extractJson } from '@/lib/aiJson'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -43,7 +44,7 @@ Format your response as JSON with these keys:
 - summary: brief overview`
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       messages: [{
         role: 'user',
@@ -51,27 +52,19 @@ Format your response as JSON with these keys:
       }]
     })
 
-    // Parse AI response (handle markdown code blocks)
-    const responseText = message.content[0].text
-    let analysis
-
-    // Check if response is wrapped in code blocks
-    if (responseText.includes('```json')) {
-      // Extract JSON from markdown code blocks
-      const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/)
-      if (jsonMatch) {
-        analysis = JSON.parse(jsonMatch[1])
-      } else {
-        throw new Error('Could not extract JSON from response')
-      }
-    } else {
-      // Try parsing as direct JSON
-      analysis = JSON.parse(responseText)
+    // If the model ran out of tokens the JSON is truncated and unparseable —
+    // report that clearly instead of a confusing parse error.
+    if (message.stop_reason === 'max_tokens') {
+      throw new Error('Response was truncated (max_tokens). Try fewer transactions.')
     }
-    
+
+    const responseText = message.content.find(b => b.type === 'text')?.text || ''
+    const analysis = extractJson(responseText)
+
     return Response.json({ analysis })
   } catch (error) {
     console.error('Analysis error:', error)
-    return Response.json({ error: 'Analysis failed' }, { status: 500 })
+    // Surface the real reason so the UI can show something actionable.
+    return Response.json({ error: `Analysis failed: ${error.message}` }, { status: 500 })
   }
 }

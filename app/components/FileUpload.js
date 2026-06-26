@@ -195,16 +195,16 @@ export default function FileUpload({ onDataLoaded }) {
 
   return (
     <div className="space-y-4">
-      <div className="border-2 border-dashed border-sage-200 rounded-2xl p-8 sm:p-12 text-center hover:border-sage-400 hover:bg-sage-50 transition-all">
-        <div className="w-14 h-14 bg-sage-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+      <div className="bg-surface border-2 border-dashed border-sage-200 rounded-2xl p-8 sm:p-12 text-center hover:border-sage-400 hover:bg-surface-hover transition-all">
+        <div className="w-14 h-14 bg-sage-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <Upload className="h-6 w-6 text-sage-600" />
         </div>
-        <h3 className="text-base font-semibold text-gray-900 mb-1">Upload Bank Statements</h3>
-        <p className="text-sm text-gray-500 mb-6 max-w-xs mx-auto">
+        <h3 className="text-base font-semibold text-ink mb-1">Upload Bank Statements</h3>
+        <p className="text-sm text-ink-soft mb-6 max-w-xs mx-auto">
           Accepts CSV (credit cards) and PDF (bank statements) — select multiple files at once
         </p>
 
-        <label className={`inline-flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm cursor-pointer transition-colors ${isLoading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-sage-600 hover:bg-sage-700 active:bg-sage-800 text-white'}`}>
+        <label className={`inline-flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm cursor-pointer transition-colors ${isLoading ? 'bg-surface-2 text-ink-faint cursor-not-allowed' : 'bg-sage-600 hover:bg-sage-700 active:bg-sage-800 text-white'}`}>
           <Upload className="h-4 w-4" />
           Choose Files
           <input
@@ -216,21 +216,21 @@ export default function FileUpload({ onDataLoaded }) {
             className="sr-only"
           />
         </label>
-        <p className="text-xs text-gray-400 mt-3">CSV or PDF · Multiple files supported</p>
+        <p className="text-xs text-ink-faint mt-3">CSV or PDF · Multiple files supported</p>
       </div>
 
       {/* Per-file status list — only appears once files are selected */}
       {fileStatuses.length > 0 && (
         <div className="space-y-2">
           {fileStatuses.map((f, i) => (
-            <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm">
+            <div key={i} className="flex items-center justify-between p-3 bg-surface border border-line rounded-lg text-sm">
               <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                <span className="text-gray-700 truncate">{f.name}</span>
+                <FileText className="h-4 w-4 text-ink-faint flex-shrink-0" />
+                <span className="text-ink-soft truncate">{f.name}</span>
               </div>
               <div className="ml-4 flex-shrink-0">
                 {f.status === 'pending' && (
-                  <span className="text-gray-400">Waiting...</span>
+                  <span className="text-ink-faint">Waiting...</span>
                 )}
                 {f.status === 'processing' && (
                   <span className="text-sage-600 flex items-center gap-1">
@@ -239,10 +239,10 @@ export default function FileUpload({ onDataLoaded }) {
                   </span>
                 )}
                 {f.status === 'done' && (
-                  <span className="text-green-600">✓ {f.count} transactions</span>
+                  <span className="text-sage-600 font-medium">✓ {f.count} transactions</span>
                 )}
                 {f.status === 'error' && (
-                  <span className="text-red-500">Failed to parse</span>
+                  <span className="text-peach-600">Failed to parse</span>
                 )}
               </div>
             </div>
@@ -251,8 +251,8 @@ export default function FileUpload({ onDataLoaded }) {
       )}
 
       {error && (
-        <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
-          <p className="text-red-800 text-sm">{error}</p>
+        <div className="bg-peach-50 border border-peach-200 p-4 rounded-lg">
+          <p className="text-peach-600 text-sm">{error}</p>
         </div>
       )}
     </div>
