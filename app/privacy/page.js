@@ -11,24 +11,24 @@ const CONTACT = 'melodygatan@gmail.com' // ← change to your support address if
 function Section({ title, children }) {
   return (
     <section className="mt-8">
-      <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-      <div className="mt-2 space-y-3 text-sm leading-relaxed text-gray-600">{children}</div>
+      <h2 className="text-lg font-semibold text-ink">{title}</h2>
+      <div className="mt-2 space-y-3 text-sm leading-relaxed text-ink-soft">{children}</div>
     </section>
   )
 }
 
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen bg-sage-50/40">
+    <main className="min-h-screen bg-app">
       <div className="mx-auto max-w-2xl px-5 py-12 sm:py-16">
         <Link href="/" className="text-sm font-medium text-sage-600 hover:text-sage-700">
           ← Back to Penny Sprout
         </Link>
 
-        <h1 className="mt-6 text-2xl font-bold text-gray-900">Privacy Policy</h1>
-        <p className="mt-1 text-xs text-gray-400">Last updated {UPDATED}</p>
+        <h1 className="mt-6 text-2xl font-bold text-ink">Privacy Policy</h1>
+        <p className="mt-1 text-xs text-ink-faint">Last updated {UPDATED}</p>
 
-        <p className="mt-6 text-sm leading-relaxed text-gray-600">
+        <p className="mt-6 text-sm leading-relaxed text-ink-soft">
           Penny Sprout helps you understand your own spending. We designed it to hold as little
           of your personal information as possible. This page explains, in plain language, exactly
           what we do and do not do with your data.

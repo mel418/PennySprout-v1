@@ -92,21 +92,21 @@ export default function UserFiles({ userId, onFileSelected }) {
 
   if (files.length === 0) {
     return (
-      <div className="text-center p-12">
-        <FileText className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-        <h3 className="text-base font-medium text-gray-900 mb-1">No files uploaded yet</h3>
-        <p className="text-sm text-gray-500">Upload a CSV or PDF statement to get started.</p>
+      <div className="bg-surface border border-line rounded-2xl shadow-sm text-center p-12">
+        <FileText className="mx-auto h-12 w-12 text-sage-300 mb-4" />
+        <h3 className="text-base font-semibold text-ink mb-1">No files uploaded yet</h3>
+        <p className="text-sm text-ink-soft">Upload a CSV or PDF statement to get started.</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-3">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Uploaded Files</h2>
+      <h2 className="text-lg font-semibold text-ink mb-4">Your Uploaded Files</h2>
 
       {deleteError && (
-        <div className="bg-red-50 border border-red-100 p-3 rounded-lg">
-          <p className="text-red-700 text-sm">{deleteError}</p>
+        <div className="bg-peach-50 border border-peach-200 p-3 rounded-lg">
+          <p className="text-peach-600 text-sm">{deleteError}</p>
         </div>
       )}
 
@@ -117,7 +117,7 @@ export default function UserFiles({ userId, onFileSelected }) {
         const isEditing = editingId === file.id
 
         return (
-          <div key={file.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+          <div key={file.id} className="bg-surface rounded-xl border border-line shadow-sm p-5 hover:border-sage-300 transition-colors">
             <div className="flex justify-between items-start gap-4">
               <div className="flex-1 min-w-0">
 
@@ -132,23 +132,23 @@ export default function UserFiles({ userId, onFileSelected }) {
                         if (e.key === 'Enter') saveTitle(file.id)
                         if (e.key === 'Escape') cancelEditing()
                       }}
-                      className="text-base font-semibold border-b-2 border-sage-500 outline-none flex-1 bg-transparent text-gray-900"
+                      className="text-base font-semibold border-b-2 border-sage-500 outline-none flex-1 bg-transparent text-ink"
                     />
                     {/* Check saves, X cancels */}
                     <button onClick={() => saveTitle(file.id)} className="text-sage-600 hover:text-sage-800 flex-shrink-0">
                       <Check className="h-4 w-4" />
                     </button>
-                    <button onClick={cancelEditing} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+                    <button onClick={cancelEditing} className="text-ink-faint hover:text-ink flex-shrink-0">
                       <X className="h-4 w-4" />
                     </button>
                   </div>
                 ) : (
                   // group + group-hover makes the pencil icon only visible on hover
                   <div className="flex items-center gap-2 mb-3 group">
-                    <h3 className="text-base font-semibold text-gray-900 truncate">{file.name}</h3>
+                    <h3 className="text-base font-semibold text-ink truncate">{file.name}</h3>
                     <button
                       onClick={() => startEditing(file)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-gray-500 flex-shrink-0"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-ink-faint hover:text-ink-soft flex-shrink-0"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
@@ -156,7 +156,7 @@ export default function UserFiles({ userId, onFileSelected }) {
                 )}
 
                 {/* Metadata row */}
-                <div className="flex flex-wrap gap-4 text-xs text-gray-400 mb-3">
+                <div className="flex flex-wrap gap-4 text-xs text-ink-faint mb-3">
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3.5 w-3.5" />
                     {new Date(file.uploadDate).toLocaleDateString()}
@@ -165,7 +165,7 @@ export default function UserFiles({ userId, onFileSelected }) {
                     <FileText className="h-3.5 w-3.5" />
                     {file.transactionCount} transactions
                   </span>
-                  <span className="flex items-center gap-1 font-medium text-gray-600">
+                  <span className="flex items-center gap-1 font-medium text-ink-soft">
                     ${spending.toFixed(2)} spending
                   </span>
                 </div>
@@ -189,7 +189,7 @@ export default function UserFiles({ userId, onFileSelected }) {
                 </button>
                 <button
                   onClick={() => deleteFile(file.id)}
-                  className="p-1.5 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors"
+                  className="p-1.5 text-ink-faint hover:text-peach-600 hover:bg-peach-50 rounded-lg transition-colors"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
