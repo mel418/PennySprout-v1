@@ -2,8 +2,9 @@
 import { useState, useEffect } from 'react'
 import { Trash2, FileText, Calendar, Pencil, Check, X } from 'lucide-react'
 import { calcSpending } from '@/lib/categories'
+import { parseDate } from '@/lib/date'
 
-export default function UserFiles({ userId, onFileSelected }) {
+export default function UserFiles({ userId }) {
   const [files, setFiles] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [deleteError, setDeleteError] = useState(null)
@@ -12,6 +13,9 @@ export default function UserFiles({ userId, onFileSelected }) {
   // editingName: the live value of the input while editing
   const [editingId, setEditingId] = useState(null)
   const [editingName, setEditingName] = useState('')
+
+  // reviewFile: the file whose transactions are shown in the read-only modal (null = closed)
+  const [reviewFile, setReviewFile] = useState(null)
 
   useEffect(() => {
     fetchFiles()
@@ -71,15 +75,6 @@ export default function UserFiles({ userId, onFileSelected }) {
     } catch (error) {
       console.error('Error renaming file:', error)
     }
-  }
-
-  const selectFile = (file) => {
-    onFileSelected({
-      headers: Object.keys(file.transactions[0] || {}),
-      data: file.transactions,
-      fileId: file.id,
-      analysis: file.analysis
-    })
   }
 
   if (isLoading) {
@@ -169,23 +164,15 @@ export default function UserFiles({ userId, onFileSelected }) {
                     ${spending.toFixed(2)} spending
                   </span>
                 </div>
-
-                {file.analysis && (
-                  <div className="bg-sage-50 border border-sage-200 px-3 py-2 rounded-lg">
-                    <p className="text-xs text-sage-700">
-                      Analysis complete · Health Score: {file.analysis.healthScore}/10
-                    </p>
-                  </div>
-                )}
               </div>
 
               {/* Action buttons */}
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button
-                  onClick={() => selectFile(file)}
+                  onClick={() => setReviewFile(file)}
                   className="px-3 py-1.5 bg-sage-600 text-white text-sm rounded-lg hover:bg-sage-700 transition-colors"
                 >
-                  Analyze
+                  Review
                 </button>
                 <button
                   onClick={() => deleteFile(file.id)}
@@ -198,6 +185,62 @@ export default function UserFiles({ userId, onFileSelected }) {
           </div>
         )
       })}
+
+      {/* Read-only review modal — lists the transactions in the selected file */}
+      {reviewFile && (() => {
+        const transactions = (reviewFile.transactions || [])
+          .slice()
+          .sort((a, b) => (parseDate(b)?.getTime() || 0) - (parseDate(a)?.getTime() || 0))
+
+        return (
+          <div
+            className="fixed inset-0 bg-ink/40 z-50 flex items-center justify-center p-4"
+            onClick={() => setReviewFile(null)}
+          >
+            <div
+              className="bg-surface rounded-2xl shadow-sm border border-line w-full max-w-lg flex flex-col"
+              style={{ maxHeight: '80vh' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-start p-6 border-b border-line">
+                <div className="min-w-0 mr-4">
+                  <h3 className="text-xl font-semibold text-ink truncate">{reviewFile.name}</h3>
+                  <p className="text-sm text-ink-soft mt-1">
+                    {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+                <button onClick={() => setReviewFile(null)} className="text-ink-faint hover:text-ink flex-shrink-0">
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto p-4 space-y-2">
+                {transactions.length === 0 ? (
+                  <p className="text-ink-soft text-sm text-center py-4">No transactions found.</p>
+                ) : (
+                  transactions.map((t, i) => {
+                    const date = t['Trans. Date'] || t['Date'] || t['Transaction Date'] || ''
+                    const description = t['Description'] || ''
+                    const category = t['Category'] || ''
+                    const amount = Math.abs(parseFloat(t.Amount) || 0)
+                    return (
+                      <div key={i} className="flex justify-between items-start p-3 bg-surface-2 rounded-lg">
+                        <div className="flex-1 min-w-0 mr-4">
+                          <p className="text-sm font-medium text-ink truncate">{description}</p>
+                          <p className="text-xs text-ink-faint mt-0.5">
+                            {date}{category ? ` · ${category}` : ''}
+                          </p>
+                        </div>
+                        <span className="text-sm font-semibold text-ink flex-shrink-0">${amount.toFixed(2)}</span>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

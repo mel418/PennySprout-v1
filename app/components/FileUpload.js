@@ -25,11 +25,13 @@ export default function FileUpload({ onDataLoaded }) {
     // Set every file to 'pending' immediately so the UI shows all of them right away
     setFileStatuses(files.map(f => ({ name: f.name, status: 'pending' })))
 
-    // allTransactions will hold every transaction from every file combined
-    const allTransactions = []
+    // Track how many files actually saved, so we know whether to navigate away.
+    let savedCount = 0
 
     // Process files one at a time (not in parallel) so the status updates
-    // appear in order and we don't overwhelm the API with simultaneous requests
+    // appear in order and we don't overwhelm the API with simultaneous requests.
+    // Each file is saved as its OWN record — no more combining — so the My Files
+    // list reflects exactly what was uploaded.
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
 
@@ -72,9 +74,30 @@ export default function FileUpload({ onDataLoaded }) {
           transactions = result.transactions
         }
 
-        // Spread operator (...) pushes all items from this file's array
-        // into the combined array, instead of creating a nested array-of-arrays
-        allTransactions.push(...transactions)
+        if (transactions.length === 0) {
+          throw new Error('No transactions found')
+        }
+
+        // Sum up this file's transaction amounts (absolute value) for its total.
+        // Math.abs() converts negative withdrawals to positive before summing.
+        const totalAmount = transactions.reduce(
+          (sum, t) => sum + Math.abs(parseFloat(t.Amount) || 0),
+          0
+        )
+
+        // Save THIS file as its own record via the existing /api/files endpoint.
+        const saveResponse = await fetch('/api/files', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: file.name,
+            transactions,
+            totalAmount,
+            transactionCount: transactions.length
+          })
+        })
+        if (!saveResponse.ok) throw new Error('Save failed')
+        savedCount++
 
         // Mark this file done, showing how many transactions were found
         setFileStatuses(prev =>
@@ -91,54 +114,16 @@ export default function FileUpload({ onDataLoaded }) {
       }
     }
 
-    if (allTransactions.length === 0) {
+    setIsLoading(false)
+
+    if (savedCount === 0) {
       setError('No transactions could be extracted from the uploaded files.')
-      setIsLoading(false)
       return
     }
 
-    // Build a descriptive name for what gets saved.
-    // Single file → use its filename. Multiple files → describe the combination.
-    const combinedName = files.length === 1
-      ? files[0].name
-      : `Combined Statement (${files.length} files)`
-
-    // Sum up all transaction amounts (absolute value) for the total spending figure.
-    // Math.abs() converts negative withdrawals to positive before summing.
-    const totalAmount = allTransactions.reduce(
-      (sum, t) => sum + Math.abs(parseFloat(t.Amount) || 0),
-      0
-    )
-
-    try {
-      // Save the combined transaction set to Supabase via the existing /api/files endpoint
-      const response = await fetch('/api/files', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: combinedName,
-          transactions: allTransactions,
-          totalAmount,
-          transactionCount: allTransactions.length
-        })
-      })
-      const result = await response.json()
-
-      // Extract column names from the first transaction's keys so the dashboard
-      // knows what fields exist: e.g. ['Trans. Date', 'Description', 'Amount', 'Category']
-      const headers = allTransactions.length > 0 ? Object.keys(allTransactions[0]) : []
-
-      // Tell page.js we're done — this triggers the switch to the dashboard view
-      onDataLoaded({
-        headers,
-        data: allTransactions,
-        fileId: result.file?.id  // ?. (optional chaining) safely handles if saving failed
-      })
-    } catch (err) {
-      setError('Transactions parsed but failed to save. Please try again.')
-    }
-
-    setIsLoading(false)
+    // Hand control back to page.js, which sends the user to My Files so they can
+    // see exactly what landed (analysis now lives on its own month-based tab).
+    onDataLoaded()
   }
 
   // Columns we keep from CSVs — anything not matching is silently dropped.

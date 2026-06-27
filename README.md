@@ -88,7 +88,20 @@ create table user_files (
 );
 ```
 
-Then **enable Row Level Security** by running [`supabase/enable-rls.sql`](supabase/enable-rls.sql) in the Supabase SQL Editor. This is required: the anon key is public (it ships in the browser bundle), so without RLS anyone could read every user's data directly. The app reaches the table only through the server-side service-role key (which bypasses RLS by design) and filters every query by the Clerk `user_id`.
+Also create a `monthly_analysis` table, which caches each calendar month's AI analysis (pooled across all files) so reopening a month is instant. Run [`supabase/monthly-analysis.sql`](supabase/monthly-analysis.sql) in the Supabase SQL Editor:
+
+```sql
+create table monthly_analysis (
+  id uuid default gen_random_uuid() primary key,
+  user_id text not null,
+  month_key text not null,         -- 'YYYY-MM' (calendar month)
+  analysis jsonb not null,
+  updated_at timestamptz default now(),
+  unique (user_id, month_key)
+);
+```
+
+Then **enable Row Level Security** by running [`supabase/enable-rls.sql`](supabase/enable-rls.sql) in the Supabase SQL Editor (`monthly-analysis.sql` enables RLS on its own table). This is required: the anon key is public (it ships in the browser bundle), so without RLS anyone could read every user's data directly. The app reaches the tables only through the server-side service-role key (which bypasses RLS by design) and filters every query by the Clerk `user_id`.
 
 ## Usage
 
@@ -99,24 +112,25 @@ Click **Get Started Free** on the landing page and authenticate with Clerk.
 - Go to **Upload** and select one or more CSV or PDF files
 - CSV files (e.g. Discover, Chase) are parsed in the browser
 - PDF bank statements are sent to Claude for extraction
-- Multiple files are combined into one saved record
+- Each file is saved as its own record so you can track exactly what you uploaded
 
 ### 3. View Your Dashboard
-After upload the AI analyzes your transactions and shows:
-- Total spending (excluding income and bills)
-- Income total
-- Financial health score (1–10)
+The **Analysis** tab works by **calendar month** — pick a month and it analyzes every transaction from that month, pooled across all your files (not per file). Statements that close mid-month no longer skew the numbers. For the selected month it shows:
+- Total spending (excluding income and bills) and income total
+- Financial health score (1–10) from the AI analysis
 - Spending by category (bar chart) and distribution (pie chart)
 - Click any chart bar or category to see individual transactions
 - Bills & Payments shown separately below the charts
+
+The AI analysis is cached per month, with a **Re-analyze** button to refresh it after new uploads.
 
 ### 4. Spending Calendar
 The **Calendar** tab shows every month covered by your saved files. Each date shows daily spending (orange) and income (green). Click a date to see transactions grouped by category, then click a category to expand individual transactions.
 
 ### 5. My Files
-- See all saved statement files with spending totals that match the dashboard
+- See all saved statement files with spending totals
 - Click the pencil icon on any file name to rename it
-- Click **Analyze** to reload a file into the dashboard
+- Click **Review** to see that file's transactions
 - Delete files you no longer need
 
 ## Supported File Formats
@@ -174,7 +188,8 @@ spending-analyzer/
 | `POST` | `/api/files` | Save a new file |
 | `DELETE` | `/api/files/[fileId]` | Delete a file |
 | `PATCH` | `/api/files/[fileId]` | Rename a file |
-| `POST` | `/api/files/analysis` | Persist analysis result to a file |
+| `GET` | `/api/monthly-analysis?month=YYYY-MM` | Load a month's cached analysis |
+| `POST` | `/api/monthly-analysis` | Save a month's analysis result |
 | `POST` | `/api/parse-pdf` | Extract transactions from a PDF |
 
 ## Category Logic
