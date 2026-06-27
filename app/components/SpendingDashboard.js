@@ -1,9 +1,9 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
-import { Lightbulb, X } from 'lucide-react'
+import { Lightbulb, X, Sparkles, RefreshCw } from 'lucide-react'
 import { normalizeCategory, categoryColor, calcSpending, calcIncome, categoryTotals } from '@/lib/categories'
-import { parseDate } from '@/lib/date'
+import { parseDate, periodRange, monthKey, monthKeyLabel, monthKeyToDate } from '@/lib/date'
 
 // The model returns insights as either plain strings or structured objects
 // (e.g. { action, detail, priority, estimatedImpact }). Coerce both into a
@@ -19,37 +19,115 @@ function toInsight(item) {
   return { title: title || JSON.stringify(item), detail: detailParts[0] || null }
 }
 
-export default function SpendingDashboard({ data, analysis, onAnalysisComplete }) {
+// Analysis is now keyed by CALENDAR MONTH, pooled across every uploaded file —
+// not per file. The component fetches all transactions itself, lets the user
+// pick a month, and analyzes/loads that month's cached result.
+export default function SpendingDashboard() {
+  const [allTxns, setAllTxns] = useState([])
+  const [isLoadingFiles, setIsLoadingFiles] = useState(true)
+
+  const [selectedMonth, setSelectedMonth] = useState(null)
+
+  const [analysis, setAnalysis] = useState(null)
+  const [analyzedAt, setAnalyzedAt] = useState(null)
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisError, setAnalysisError] = useState(null)
 
   // null = modal closed. A category name string = modal open showing that category's transactions.
   const [selectedCategory, setSelectedCategory] = useState(null)
 
+  // Pull every file's transactions on mount and pool them together.
   useEffect(() => {
-    if (data && !analysis) analyzeSpending()
-  }, [data, analysis])
+    const load = async () => {
+      try {
+        const res = await fetch('/api/files')
+        const data = await res.json()
+        setAllTxns((data.files || []).flatMap(f => f.transactions || []))
+      } catch (err) {
+        console.error('Error loading transactions:', err)
+      } finally {
+        setIsLoadingFiles(false)
+      }
+    }
+    load()
+  }, [])
 
-  const analyzeSpending = async () => {
+  // Distinct calendar months that have activity, newest first ('YYYY-MM').
+  const months = useMemo(() => {
+    const set = new Set()
+    for (const t of allTxns) {
+      const d = parseDate(t)
+      if (d) set.add(monthKey(d))
+    }
+    return [...set].sort().reverse()
+  }, [allTxns])
+
+  // Default to the most recent month once data arrives (or if the selection
+  // no longer exists, e.g. after deletions).
+  useEffect(() => {
+    if (months.length && !months.includes(selectedMonth)) {
+      setSelectedMonth(months[0])
+    }
+  }, [months, selectedMonth])
+
+  // Transactions that fall inside the selected calendar month.
+  const monthTxns = useMemo(() => {
+    if (!selectedMonth) return []
+    const [start, end] = periodRange('month', monthKeyToDate(selectedMonth))
+    const startMs = start.getTime()
+    const endMs = end.getTime() + 86_400_000 // include the whole last day
+    return allTxns.filter(t => {
+      const d = parseDate(t)
+      if (!d) return false
+      const ms = d.getTime()
+      return ms >= startMs && ms < endMs
+    })
+  }, [allTxns, selectedMonth])
+
+  // Load the cached analysis for the selected month (if any).
+  useEffect(() => {
+    if (!selectedMonth) return
+    let cancelled = false
+    setAnalysis(null)
+    setAnalyzedAt(null)
+    setAnalysisError(null)
+    setIsLoadingAnalysis(true)
+    fetch(`/api/monthly-analysis?month=${selectedMonth}`)
+      .then(res => res.json())
+      .then(data => {
+        if (cancelled) return
+        if (data.record) {
+          setAnalysis(data.record.analysis)
+          setAnalyzedAt(data.record.updatedAt)
+        }
+      })
+      .catch(err => console.error('Error loading monthly analysis:', err))
+      .finally(() => { if (!cancelled) setIsLoadingAnalysis(false) })
+    return () => { cancelled = true }
+  }, [selectedMonth])
+
+  const analyzeMonth = async () => {
+    if (!selectedMonth || monthTxns.length === 0) return
     setIsAnalyzing(true)
     setAnalysisError(null)
     try {
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactions: data.data })
+        body: JSON.stringify({ transactions: monthTxns })
       })
       if (!response.ok) throw new Error('Analysis request failed')
       const result = await response.json()
       if (result.error) throw new Error(result.error)
-      onAnalysisComplete(result.analysis)
-      if (data.fileId) {
-        await fetch('/api/files/analysis', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileId: data.fileId, analysis: result.analysis })
-        })
-      }
+      setAnalysis(result.analysis)
+      setAnalyzedAt(new Date().toISOString())
+      // Persist so reopening this month is instant.
+      await fetch('/api/monthly-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ month: selectedMonth, analysis: result.analysis })
+      })
     } catch (error) {
       console.error('Analysis failed:', error)
       setAnalysisError('Analysis failed. Please try again.')
@@ -63,25 +141,87 @@ export default function SpendingDashboard({ data, analysis, onAnalysisComplete }
   const getCategoryTransactions = (categoryName) => {
     const byDateDesc = (arr) => arr.slice().sort((a, b) => (parseDate(b)?.getTime() || 0) - (parseDate(a)?.getTime() || 0))
     if (categoryName === '__spending__') {
-      return byDateDesc(data.data.filter(t => {
+      return byDateDesc(monthTxns.filter(t => {
         const cat = normalizeCategory(t.Category, t.Amount)
         return cat !== 'Income' && cat !== 'Bills & Payments'
       }))
     }
-    return byDateDesc(data.data.filter(t => normalizeCategory(t.Category, t.Amount) === categoryName))
+    return byDateDesc(monthTxns.filter(t => normalizeCategory(t.Category, t.Amount) === categoryName))
   }
 
-  const chartData = useMemo(() => categoryTotals(data.data).slice(0, 10), [data])
+  const chartData = useMemo(() => categoryTotals(monthTxns).slice(0, 10), [monthTxns])
   const pieColors = chartData.slice(0, 5).map(d => categoryColor(d.category))
 
-  const totalSpending = calcSpending(data.data)
-  const totalIncome = calcIncome(data.data)
-  const billsTransactions = data.data.filter(t => normalizeCategory(t.Category, t.Amount) === 'Bills & Payments')
+  const totalSpending = calcSpending(monthTxns)
+  const totalIncome = calcIncome(monthTxns)
+  const billsTransactions = monthTxns.filter(t => normalizeCategory(t.Category, t.Amount) === 'Bills & Payments')
   const billsTotal = billsTransactions.reduce((sum, t) => sum + Math.abs(parseFloat(t.Amount) || 0), 0)
   const catMax = chartData[0]?.amount || 1
 
+  if (isLoadingFiles) {
+    return (
+      <div className="flex justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sage-500" />
+      </div>
+    )
+  }
+
+  if (months.length === 0) {
+    return (
+      <div className="bg-surface border border-line rounded-2xl shadow-sm text-center p-12">
+        <Sparkles className="mx-auto h-12 w-12 text-sage-300 mb-4" />
+        <h3 className="text-base font-semibold text-ink mb-1">Nothing to analyze yet</h3>
+        <p className="text-sm text-ink-soft">Upload a statement, then pick a month to see its analysis.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
+
+      {/* Month picker + analyze controls */}
+      <div className="bg-surface rounded-xl border border-line shadow-sm p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium text-ink-faint uppercase tracking-wide mb-1.5">Analyzing month</p>
+          <select
+            value={selectedMonth || ''}
+            onChange={e => setSelectedMonth(e.target.value)}
+            className="text-lg font-semibold text-ink bg-transparent border-b-2 border-sage-300 outline-none focus:border-sage-500 transition-colors pr-2"
+          >
+            {months.map(m => (
+              <option key={m} value={m}>{monthKeyLabel(m)}</option>
+            ))}
+          </select>
+          <p className="text-xs text-ink-faint mt-1.5">{monthTxns.length} transaction{monthTxns.length !== 1 ? 's' : ''} this month</p>
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {analyzedAt && (
+            <span className="hidden sm:inline text-xs text-ink-faint">
+              Analyzed {new Date(analyzedAt).toLocaleDateString()}
+            </span>
+          )}
+          {analysis ? (
+            <button
+              onClick={analyzeMonth}
+              disabled={isAnalyzing || monthTxns.length === 0}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-line text-ink-soft hover:border-sage-300 hover:text-sage-700 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${isAnalyzing ? 'animate-spin' : ''}`} />
+              {isAnalyzing ? 'Analyzing…' : 'Re-analyze'}
+            </button>
+          ) : (
+            <button
+              onClick={analyzeMonth}
+              disabled={isAnalyzing || isLoadingAnalysis || monthTxns.length === 0}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-sage-600 text-white hover:bg-sage-700 active:bg-sage-800 transition-colors disabled:opacity-50"
+            >
+              <Sparkles className="h-4 w-4" />
+              {isAnalyzing ? 'Analyzing…' : 'Analyze this month'}
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Summary cards — 2 columns on mobile, 4 on desktop */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -105,7 +245,7 @@ export default function SpendingDashboard({ data, analysis, onAnalysisComplete }
 
         <div className="bg-surface rounded-xl p-5 border border-line shadow-sm">
           <p className="text-xs font-medium text-ink-faint uppercase tracking-wide">Transactions</p>
-          <p className="text-2xl font-bold text-ink mt-1">{data.data.length}</p>
+          <p className="text-2xl font-bold text-ink mt-1">{monthTxns.length}</p>
         </div>
 
         <div className="bg-surface rounded-xl p-5 border border-line shadow-sm">
@@ -216,7 +356,7 @@ export default function SpendingDashboard({ data, analysis, onAnalysisComplete }
       {isAnalyzing && (
         <div className="bg-sage-50 border border-sage-200 rounded-xl p-5 flex items-center gap-3">
           <div className="animate-spin rounded-full h-4 w-4 border-2 border-sage-500 border-t-transparent flex-shrink-0" />
-          <p className="text-sm text-sage-700">Analyzing your spending patterns...</p>
+          <p className="text-sm text-sage-700">Analyzing this month&apos;s spending patterns...</p>
         </div>
       )}
 
@@ -226,12 +366,20 @@ export default function SpendingDashboard({ data, analysis, onAnalysisComplete }
         </div>
       )}
 
+      {/* Prompt to run analysis when none is cached for this month yet */}
+      {!analysis && !isAnalyzing && !isLoadingAnalysis && !analysisError && monthTxns.length > 0 && (
+        <div className="bg-surface border border-dashed border-sage-200 rounded-xl p-6 text-center">
+          <Sparkles className="mx-auto h-8 w-8 text-sage-300 mb-2" />
+          <p className="text-sm text-ink-soft">No AI insights for {monthKeyLabel(selectedMonth)} yet — click <span className="font-medium text-ink">Analyze this month</span> above.</p>
+        </div>
+      )}
+
       {/* AI Insights */}
       {analysis && (
         <div className="bg-surface rounded-xl border border-line shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-line flex items-center gap-2">
             <Lightbulb className="h-4 w-4 text-peach-400" />
-            <h3 className="text-sm font-semibold text-ink">AI Insights</h3>
+            <h3 className="text-sm font-semibold text-ink">AI Insights · {monthKeyLabel(selectedMonth)}</h3>
           </div>
 
           <div className="p-6 space-y-6">

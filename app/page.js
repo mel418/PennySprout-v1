@@ -92,8 +92,6 @@ const NAV_ITEMS = [
 
 export default function Home() {
   const { isSignedIn, user, isLoaded } = useUser()
-  const [spendingData, setSpendingData]   = useState(null)
-  const [analysis, setAnalysis]           = useState(null)
   const [activeView, setActiveView]       = useState('overview')
 
   if (!isLoaded) {
@@ -106,8 +104,9 @@ export default function Home() {
 
   if (!isSignedIn) return <LandingPage />
 
-  // Analysis tab only appears once a file has been loaded for analysis.
-  const visibleTabs = NAV_ITEMS.filter(t => t.id !== 'dashboard' || spendingData)
+  // The Analysis tab is always available now — it picks a month and analyzes
+  // pooled transactions itself (showing its own empty state when there's no data).
+  const visibleTabs = NAV_ITEMS
 
   return (
     <div className="min-h-screen bg-app flex flex-col">
@@ -158,40 +157,16 @@ export default function Home() {
 
         {activeView === 'upload' && (
           <FileUpload
-            onDataLoaded={(data) => {
-              setSpendingData(data)
-              setAnalysis(null)
-              setActiveView('dashboard')
-            }}
+            onDataLoaded={() => setActiveView('files')}
             userId={user.id}
           />
         )}
 
-        {activeView === 'files' && (
-          <UserFiles
-            userId={user.id}
-            onFileSelected={(data) => {
-              setSpendingData(data)
-              setAnalysis(data.analysis || null)
-              setActiveView('dashboard')
-            }}
-          />
-        )}
+        {activeView === 'files' && <UserFiles userId={user.id} />}
 
         {activeView === 'calendar' && <SpendingCalendar />}
 
-        {/* SpendingDashboard stays mounted once data exists — CSS-hidden not unmounted.
-            Unmounting on tab switch re-triggers useEffect and re-analyzes every time. */}
-        {spendingData && (
-          <div style={{ display: activeView === 'dashboard' ? 'block' : 'none' }}>
-            <SpendingDashboard
-              data={spendingData}
-              analysis={analysis}
-              onAnalysisComplete={setAnalysis}
-              userId={user.id}
-            />
-          </div>
-        )}
+        {activeView === 'dashboard' && <SpendingDashboard />}
       </main>
 
       {/* ── Mobile bottom nav ── */}
