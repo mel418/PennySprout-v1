@@ -62,6 +62,11 @@ NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/
 NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/
+
+# Optional — error monitoring (create a free project at sentry.io).
+# Leave unset and Sentry is a silent no-op.
+SENTRY_DSN=your_sentry_dsn
+NEXT_PUBLIC_SENTRY_DSN=your_sentry_dsn
 ```
 
 4. Run the development server:
@@ -100,6 +105,8 @@ create table monthly_analysis (
   unique (user_id, month_key)
 );
 ```
+
+Also run [`supabase/api-usage.sql`](supabase/api-usage.sql), which creates the `api_usage` table and `increment_api_usage` function used to enforce per-user daily limits on the AI-backed routes (`/api/analyze`, `/api/parse-pdf`) so Anthropic costs are capped.
 
 Then **enable Row Level Security** by running [`supabase/enable-rls.sql`](supabase/enable-rls.sql) in the Supabase SQL Editor (`monthly-analysis.sql` enables RLS on its own table). This is required: the anon key is public (it ships in the browser bundle), so without RLS anyone could read every user's data directly. The app reaches the tables only through the server-side service-role key (which bypasses RLS by design) and filters every query by the Clerk `user_id`.
 

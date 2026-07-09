@@ -1,6 +1,7 @@
 import { currentUser } from '@clerk/nextjs/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { extractJson } from '@/lib/aiJson'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -13,6 +14,15 @@ export async function POST(request) {
     const user = await currentUser()
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Auth alone doesn't cap Anthropic spend — enforce a per-user daily limit.
+    const { allowed, limit } = await checkRateLimit(user.id, 'analyze')
+    if (!allowed) {
+      return Response.json(
+        { error: `Daily analysis limit reached (${limit}/day). Try again tomorrow.` },
+        { status: 429 }
+      )
     }
 
     const { transactions } = await request.json()
