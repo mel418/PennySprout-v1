@@ -79,7 +79,7 @@ export default function PrivacyPage() {
         <Section title="Service providers we use">
           <p>We rely on a small number of trusted providers to operate the app. We share only what each one needs to do its job:</p>
           <ul className="list-disc space-y-1.5 pl-5">
-            <li><strong>Clerk</strong> — handles sign-in and account security (including optional multi-factor authentication).</li>
+            <li><strong>Clerk</strong> — handles sign-in and account security.</li>
             <li><strong>Supabase</strong> — stores your de-identified transaction data.</li>
             <li>
               <strong>Anthropic (Claude API)</strong> — parses your uploaded statements and generates

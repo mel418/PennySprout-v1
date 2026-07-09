@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { Upload, FileText } from 'lucide-react'
+import { parseTransactionsCsv } from '@/lib/csv'
 
 // userId: the logged-in user's Clerk ID (passed down from page.js)
 // onDataLoaded: callback that tells page.js to switch to the dashboard view
@@ -46,9 +47,11 @@ export default function FileUpload({ onDataLoaded }) {
         let transactions = []
 
         if (file.name.toLowerCase().endsWith('.csv')) {
-          // CSV files are plain text — we can read and parse them entirely in the browser
+          // CSV files are plain text — we can read and parse them entirely in the
+          // browser. Parsing lives in lib/csv.js (proper quoted-field handling +
+          // the PII column allowlist) so it's shared with the test suite.
           const text = await file.text()  // reads the file as a UTF-8 string
-          const parsed = parseCSV(text)
+          const parsed = parseTransactionsCsv(text)
           transactions = parsed.data
 
         } else if (file.name.toLowerCase().endsWith('.pdf')) {
@@ -124,58 +127,6 @@ export default function FileUpload({ onDataLoaded }) {
     // Hand control back to page.js, which sends the user to My Files so they can
     // see exactly what landed (analysis now lives on its own month-based tab).
     onDataLoaded()
-  }
-
-  // Columns we keep from CSVs — anything not matching is silently dropped.
-  // This acts as a privacy filter: account numbers, holder names, addresses,
-  // routing numbers, and any other PII columns never get stored.
-  const ALLOWED_HEADERS = [
-    /^trans\.?\s*date$/i,
-    /^post\.?\s*date$/i,
-    /^transaction\s*date$/i,
-    /^date$/i,
-    /^posting\s*date$/i,
-    /^description$/i,
-    /^desc$/i,
-    /^memo$/i,
-    /^payee$/i,
-    /^merchant$/i,
-    /^narrative$/i,
-    /^details$/i,
-    /^amount$/i,
-    /^debit$/i,
-    /^credit$/i,
-    /^transaction\s*amount$/i,
-    /^category$/i,
-    /^type$/i,
-    /^transaction\s*type$/i,
-  ]
-
-  const isAllowedHeader = (h) => ALLOWED_HEADERS.some(pattern => pattern.test(h.trim()))
-
-  // parseCSV converts raw CSV text into an array of objects,
-  // keeping only transaction-relevant columns.
-  const parseCSV = (text) => {
-    const lines = text.split('\n').filter(line => line.trim())
-
-    const allHeaders = lines[0].split(',').map(h => h.replace(/"/g, '').trim())
-
-    // Only keep indices whose header is in our allowlist
-    const allowedIndices = allHeaders
-      .map((h, i) => ({ h, i }))
-      .filter(({ h }) => isAllowedHeader(h))
-
-    const headers = allowedIndices.map(({ h }) => h)
-
-    const data = lines.slice(1).map(line => {
-      const values = line.split(',')
-      return allowedIndices.reduce((obj, { h, i }) => {
-        obj[h] = (values[i] || '').replace(/"/g, '').trim()
-        return obj
-      }, {})
-    }).filter(row => Object.values(row).some(v => v))
-
-    return { headers, data }
   }
 
   return (

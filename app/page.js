@@ -74,6 +74,10 @@ function LandingPage() {
           <Link href="/privacy" className="underline decoration-sage-300 underline-offset-2 hover:text-sage-600">
             Your data stays private
           </Link>
+          {' '}·{' '}
+          <Link href="/terms" className="underline decoration-sage-300 underline-offset-2 hover:text-sage-600">
+            Terms
+          </Link>
         </p>
       </div>
     </div>
