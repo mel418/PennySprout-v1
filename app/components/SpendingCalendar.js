@@ -266,7 +266,7 @@ function DayInspector({ dateKey, data, txCount, totals, expandedCategory, setExp
 
       {(totals.spending > 0 || totals.income > 0) && (
         <div className="flex gap-4 mt-3 pb-3 border-b border-line text-sm">
-          {totals.spending > 0 && <span className="font-semibold text-blue-600">−{money(totals.spending)}</span>}
+          {totals.spending > 0 && <span className="font-semibold text-spend-600">−{money(totals.spending)}</span>}
           {totals.income > 0 && <span className="font-semibold text-sage-600">+{money(totals.income)}</span>}
         </div>
       )}
@@ -325,11 +325,11 @@ function PeriodInspector({ scale, summary }) {
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-ink-soft">Spending</span>
-          <span className="font-semibold text-blue-600">−{money(summary.spending)}</span>
+          <span className="font-semibold text-spend-600">−{money(summary.spending)}</span>
         </div>
         <div className="flex items-center justify-between text-sm pt-2.5 border-t border-line">
           <span className="text-ink-soft">Net</span>
-          <span className={`font-semibold ${net >= 0 ? 'text-sage-600' : 'text-blue-600'}`}>
+          <span className={`font-semibold ${net >= 0 ? 'text-sage-600' : 'text-spend-600'}`}>
             {net >= 0 ? '+' : '−'}{money(net)}
           </span>
         </div>
@@ -401,7 +401,7 @@ function MonthGrid({ anchor, byDate, dayTotals, selectedDate, selectDate, latest
               {hasData && (
                 <span className="mt-auto flex flex-col items-center leading-tight">
                   {spending > 0 && (
-                    <span className="text-[10px] sm:text-[11px] font-medium text-blue-600">−{money0(spending)}</span>
+                    <span className="text-[10px] sm:text-[11px] font-medium text-spend-600">−{money0(spending)}</span>
                   )}
                   {income > 0 && (
                     <span className="text-[10px] sm:text-[11px] font-medium text-sage-600">+{money0(income)}</span>
@@ -459,7 +459,7 @@ function WeekGrid({ anchor, byDate, dayTotals, selectedDate, selectDate }) {
             </div>
             {(spending > 0 || income > 0) && (
               <div className="mt-1.5 pt-1.5 border-t border-line flex items-center justify-between text-[10px]">
-                {spending > 0 && <span className="text-blue-600 font-medium">−{money0(spending)}</span>}
+                {spending > 0 && <span className="text-spend-600 font-medium">−{money0(spending)}</span>}
                 {income > 0 && <span className="text-sage-600 font-medium">+{money0(income)}</span>}
               </div>
             )}
@@ -471,7 +471,7 @@ function WeekGrid({ anchor, byDate, dayTotals, selectedDate, selectDate }) {
 }
 
 // ── Year view: twelve mini month calendars (Apple Calendar style) ───────────
-// Each day is a heat-tinted cell — sage for net-positive days, dusty blue for
+// Each day is a heat-tinted cell — sage for net-positive days, plum for
 // net-negative, darker = larger. Month names drill into that month.
 function YearGrid({ anchor, byDate, dayTotals, selectedDate, selectDate, openMonth }) {
   const year = anchor.getFullYear()
@@ -495,7 +495,7 @@ function YearGrid({ anchor, byDate, dayTotals, selectedDate, selectDate, openMon
       </div>
       <div className="flex items-center gap-3 mt-4 px-1 text-[10px] text-ink-faint">
         <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-sage-500" />net positive</span>
-        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-blue-500" />net negative</span>
+        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-spend-500" />net negative</span>
         <span>· darker = larger · click a day for detail</span>
       </div>
     </div>
@@ -526,7 +526,7 @@ function MiniMonth({ year, month, byDate, dayTotals, max, selectedDate, selectDa
           const mag = max > 0 ? Math.min(1, Math.abs(net) / max) : 0
           let bg = 'var(--surface-2)'
           if (has && net > 0) bg = `rgba(92,122,85,${0.25 + mag * 0.6})`
-          else if (has && net < 0) bg = `rgba(111,140,171,${0.25 + mag * 0.6})`
+          else if (has && net < 0) bg = `rgba(var(--spend-heat-rgb),${0.25 + mag * 0.6})`
           const isSelected = selectedDate === key
           return (
             <button

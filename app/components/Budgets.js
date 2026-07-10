@@ -12,9 +12,9 @@ const money = (n) => `$${Math.abs(n).toLocaleString('en-US', { maximumFractionDi
 const moneyExact = (n) => `$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 // Budget progress states: calm green while comfortably under, gold as the
-// limit approaches, dusty blue once it's crossed — informed, never punished.
+// limit approaches, plum once it's crossed — informed, never punished.
 function progressTone(ratio) {
-  if (ratio >= 1) return { bar: 'var(--blue-600)', label: 'over budget', text: 'text-blue-600' }
+  if (ratio >= 1) return { bar: 'var(--spend-600)', label: 'over budget', text: 'text-spend-600' }
   if (ratio >= 0.8) return { bar: '#C2A06B', label: 'getting close', text: 'text-amber-600' }
   return { bar: 'var(--sage-500)', label: 'on track', text: 'text-sage-600' }
 }

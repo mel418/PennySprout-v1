@@ -17,9 +17,9 @@ import { getSubscription } from '@/lib/subscriptionStorage'
 // Every table that stores user data, in child-before-parent order.
 const USER_TABLES = [
   'transactions',
-  'monthly_analysis',
   'budgets',
   'goals',
+  'email_log',
   'api_usage',
   'subscriptions',
   'user_files',

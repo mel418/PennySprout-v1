@@ -65,7 +65,16 @@
   --blue-tx-500: #6f8cab;
   --blue-tx-600: #5b789a;
 
-  /* Muted rose — errors / destructive actions only (spending uses dusty blue) */
+  /* Muted plum — the spending / negative accent. SEMANTIC scale: everything
+     that means "money out" uses spend-*, so recoloring spending is a
+     values-only change in this file. (Dusty blue stays for neutral
+     highlights: bills, goals, recurring.) */
+  --spend-500: #9b7fad;
+  --spend-600: #82689a;
+  --spend-tx-600: #7c6294;
+  --spend-heat-rgb: 155, 127, 173;   /* --spend-500 as r,g,b for heat tints */
+
+  /* Muted rose — errors / destructive actions only (spending uses plum) */
   --danger-50:  #faeeed;
   --danger-200: #efcfcd;
   --danger-400: #d98f8b;
@@ -118,6 +127,11 @@
   --blue-600: #7D99B8;
   --blue-tx-500: #8FA9C4;
   --blue-tx-600: #9DB4CC;
+
+  --spend-500: #a48bb8;
+  --spend-600: #8f74a6;
+  --spend-tx-600: #bda2cf;
+  --spend-heat-rgb: 164, 139, 184;
 
   --danger-50:  #2f2222;
   --danger-200: #4a3230;
@@ -251,6 +265,10 @@ select option {
   .text-blue-500 { color: var(--blue-tx-500); }
   .text-blue-600 { color: var(--blue-tx-600); }
   .border-blue-200 { border-color: var(--blue-200); }
+
+  /* Muted plum — spending / negative */
+  .bg-spend-500  { background-color: var(--spend-500); }
+  .text-spend-600 { color: var(--spend-tx-600); }
 
   /* Muted rose — errors / destructive actions */
   .bg-danger-50  { background-color: var(--danger-50); }

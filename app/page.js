@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useUser, SignInButton, UserButton } from '@clerk/nextjs'
-import { FolderOpen, BarChart2, CalendarDays, LayoutGrid, Sparkles, TrendingUp, ArrowRight, Target, Settings } from 'lucide-react'
+import { FolderOpen, BarChart2, CalendarDays, LayoutGrid, Sparkles, TrendingUp, ArrowRight, Target, Settings, Keyboard } from 'lucide-react'
 import FileUpload from './components/FileUpload'
 import SpendingDashboard from './components/SpendingDashboard'
 import UserFiles from './components/UserFiles'
@@ -12,6 +12,7 @@ import Overview from './components/Overview'
 import Budgets from './components/Budgets'
 import Spinner from './components/ui/Spinner'
 import ThemeToggle from './components/ui/ThemeToggle'
+import Modal from './components/ui/Modal'
 
 // ─── Landing page ─────────────────────────────────────────────────────────────
 
@@ -93,6 +94,26 @@ function LandingPage() {
   )
 }
 
+// ─── Keyboard shortcuts reference ────────────────────────────────────────────
+
+function ShortcutGroup({ heading, rows }) {
+  return (
+    <div>
+      <h4 className="text-xs font-semibold text-ink-faint uppercase tracking-wide mb-2">{heading}</h4>
+      <div className="space-y-1.5">
+        {rows.map(([keys, label]) => (
+          <div key={label} className="flex items-center justify-between gap-4 text-sm">
+            <span className="text-ink-soft">{label}</span>
+            <kbd className="px-2 py-0.5 rounded-md bg-surface-2 border border-line text-xs font-sans font-medium text-ink flex-shrink-0">
+              {keys}
+            </kbd>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── Main app ─────────────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
@@ -137,6 +158,34 @@ export default function Home() {
     window.history.pushState(null, '', url)
   }, [])
 
+  // ── Keyboard shortcuts ──
+  // 1–5 switch tabs, ? opens the reference. Only plain keypresses count:
+  // anything typed into a field, or chorded with a modifier, passes through.
+  // (The Calendar adds its own ←/→/T/Esc handling while it's mounted.)
+  const [showShortcuts, setShowShortcuts] = useState(false)
+  const closeShortcuts = useCallback(() => setShowShortcuts(false), [])
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      const t = e.target
+      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable) return
+
+      if (e.key === '?') {
+        e.preventDefault()
+        setShowShortcuts(s => !s)
+        return
+      }
+      const index = ['1', '2', '3', '4', '5'].indexOf(e.key)
+      if (index !== -1 && NAV_ITEMS[index]) {
+        e.preventDefault()
+        setActiveView(NAV_ITEMS[index].id)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [setActiveView])
+
   if (!isLoaded) return <Spinner className="min-h-screen bg-app" />
 
   if (!isSignedIn) return <LandingPage />
@@ -160,6 +209,10 @@ export default function Home() {
               className="p-1.5 text-ink-faint hover:text-sage-700 transition-colors">
               <Settings className="h-4 w-4" />
             </Link>
+            <button onClick={() => setShowShortcuts(true)} aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)"
+              className="hidden sm:block p-1.5 text-ink-faint hover:text-sage-700 transition-colors">
+              <Keyboard className="h-4 w-4" />
+            </button>
             <ThemeToggle />
             <span className="hidden sm:block text-sm text-ink-soft truncate max-w-[160px]">
               {user.firstName || user.emailAddresses[0].emailAddress}
@@ -218,6 +271,31 @@ export default function Home() {
           {activeView === 'budgets' && <Budgets />}
         </div>
       </main>
+
+      {/* ── Keyboard shortcuts reference ── */}
+      <Modal isOpen={showShortcuts} onClose={closeShortcuts} title="Keyboard shortcuts" subtitle="Available anywhere except while typing">
+        <div className="p-6 space-y-5 overflow-y-auto">
+          <ShortcutGroup
+            heading="Navigate"
+            rows={NAV_ITEMS.map((item, i) => [String(i + 1), `Go to ${item.label}`])}
+          />
+          <ShortcutGroup
+            heading="Calendar"
+            rows={[
+              ['←  →', 'Previous / next period'],
+              ['T', 'Jump to latest activity'],
+              ['Esc', 'Deselect day'],
+            ]}
+          />
+          <ShortcutGroup
+            heading="Anywhere"
+            rows={[
+              ['?', 'Show or hide this reference'],
+              ['Esc', 'Close dialogs'],
+            ]}
+          />
+        </div>
+      </Modal>
 
       {/* ── Mobile bottom nav ── */}
       <nav aria-label="Primary" className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-line">
