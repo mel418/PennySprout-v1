@@ -8,138 +8,267 @@
   html { font-size: 17.6px; }
 }
 
+/* ── Theme variables ────────────────────────────────────────────────────────
+   Calm "Google Calendar for money" palette: off-white backgrounds, warm light
+   gray surfaces, muted sage accents, dusty blue highlights, soft peach
+   warnings, charcoal typography. Minimal saturation, no harsh black.
+
+   Every color the app uses lives here as a custom property. Light values sit
+   on :root; the `.dark` class on <html> (set by ThemeToggle + the inline
+   bootstrap script in layout.js) swaps in the dark palette. Component markup
+   never changes between themes.
+
+   Text accents get their own --*-tx-* variables because dark mode needs the
+   *opposite* adjustment for text (lighten) vs. backgrounds (darken): a green
+   that works as a button background is illegible as text on a dark page. */
+:root {
+  color-scheme: light;
+
+  /* Surfaces & lines */
+  --bg:            #FAF9F5;
+  --surface:       #FFFFFF;
+  --surface-2:     #F2F1EC;
+  --surface-hover: #F4F3EE;
+  --line:          #EAE8E1;
+
+  /* Charcoal ink */
+  --ink:       #33322E;
+  --ink-soft:  #6E6B63;
+  --ink-faint: #9A968C;
+
+  /* Sage — muted green accent (backgrounds, borders, fills) */
+  --sage-50:  #e4ede0;
+  --sage-100: #c8d9c0;
+  --sage-200: #adc4a3;
+  --sage-300: #90ae86;
+  --sage-400: #7d9b78;
+  --sage-500: #5c7a55;
+  --sage-600: #4a6741;
+  --sage-700: #3a5232;
+  --sage-800: #2a3d24;
+
+  /* Sage as text */
+  --sage-tx-300: #90ae86;
+  --sage-tx-400: #7d9b78;
+  --sage-tx-500: #5c7a55;
+  --sage-tx-600: #4a6741;
+  --sage-tx-700: #3a5232;
+  --sage-tx-800: #2a3d24;
+
+  /* Dusty blue — highlight */
+  --blue-50:  #eef2f6;
+  --blue-100: #d8e2ec;
+  --blue-200: #c2d2e1;
+  --blue-300: #a9bfd4;
+  --blue-500: #6f8cab;
+  --blue-600: #5b789a;
+  --blue-tx-500: #6f8cab;
+  --blue-tx-600: #5b789a;
+
+  /* Soft peach — warning / spending */
+  --peach-50:  #fbf0e8;
+  --peach-100: #f6dcc9;
+  --peach-200: #f0cbb0;
+  --peach-400: #e8a87c;
+  --peach-600: #d18a5b;
+  --peach-tx-400: #e8a87c;
+  --peach-tx-600: #d18a5b;
+
+  /* Charts */
+  --chart-net: #3f6650;   /* cumulative net line */
+}
+
+.dark {
+  color-scheme: dark;
+
+  /* Warm charcoal — never pure black, matching the "no harsh black" rule */
+  --bg:            #181715;
+  --surface:       #201F1C;
+  --surface-2:     #2A2925;
+  --surface-hover: #2D2C28;
+  --line:          #363430;
+
+  --ink:       #E9E7E0;
+  --ink-soft:  #A9A599;
+  --ink-faint: #7F7B70;
+
+  /* Sage backgrounds darken… */
+  --sage-50:  #252E21;
+  --sage-100: #2F3B29;
+  --sage-200: #3C4B34;
+  --sage-300: #4E6144;
+  --sage-400: #627A57;
+  --sage-500: #79966F;
+  --sage-600: #4E6C46;
+  --sage-700: #5C7D52; /* hover lightens in dark */
+  --sage-800: #6B8F60; /* pressed lightens further */
+
+  /* …while sage text lightens for contrast on dark surfaces */
+  --sage-tx-300: #566A4D;
+  --sage-tx-400: #7D9B78;
+  --sage-tx-500: #8FAC89;
+  --sage-tx-600: #9DB897;
+  --sage-tx-700: #B1C9AB;
+  --sage-tx-800: #C5DABF;
+
+  --blue-50:  #242A33;
+  --blue-100: #2C3542;
+  --blue-200: #364252;
+  --blue-300: #405063;
+  --blue-500: #6F8CAB;
+  --blue-600: #7D99B8;
+  --blue-tx-500: #8FA9C4;
+  --blue-tx-600: #9DB4CC;
+
+  --peach-50:  #302620;
+  --peach-100: #3D2F25;
+  --peach-200: #4D3B2C;
+  --peach-400: #D69A6E;
+  --peach-600: #C98753;
+  --peach-tx-400: #E8A87C;
+  --peach-tx-600: #E09B6C;
+
+  --chart-net: #8FAC89;
+}
+
 body {
-  background-color: #FAF9F5; /* soft off-white */
-  color: #33322E;            /* charcoal ink — never pure black */
+  background-color: var(--bg);
+  color: var(--ink);
   font-feature-settings: "cv11", "ss01";
 }
 
-/* ── Design tokens ──────────────────────────────────────────────────────────
-   Calm "Google Calendar for money" palette: off-white backgrounds, warm light
-   gray surfaces, muted sage accents, dusty blue highlights, soft peach warnings,
-   charcoal typography. Minimal saturation, no harsh black. */
-@theme {
+/* Native <select> popups don't inherit the page theme (notably on Windows,
+   which paints a default-light list) — style the options explicitly so
+   month pickers stay readable in both themes. */
+select option {
+  background-color: var(--surface);
+  color: var(--ink);
+}
+
+/* Tailwind theme tokens map onto the runtime variables (`inline` keeps the
+   var() reference inside generated utilities, so classes Tailwind generates —
+   divide-line, ring-sage-300, accent-sage-600, text-ink-faint/50, … — follow
+   the light/dark swap automatically). */
+@theme inline {
   /* Typography — clean modern sans-serif */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
-  /* Surfaces & lines */
-  --color-bg:            #FAF9F5;
-  --color-surface:       #FFFFFF;
-  --color-surface-2:     #F2F1EC;
-  --color-surface-hover: #F4F3EE;
-  --color-line:          #EAE8E1;
+  --color-bg:            var(--bg);
+  --color-surface:       var(--surface);
+  --color-surface-2:     var(--surface-2);
+  --color-surface-hover: var(--surface-hover);
+  --color-line:          var(--line);
 
-  /* Charcoal ink */
-  --color-ink:       #33322E;
-  --color-ink-soft:  #6E6B63;
-  --color-ink-faint: #9A968C;
+  --color-ink:       var(--ink);
+  --color-ink-soft:  var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
 
-  /* Sage — muted green accent */
-  --color-sage-50:  #e4ede0;
-  --color-sage-100: #c8d9c0;
-  --color-sage-200: #adc4a3;
-  --color-sage-300: #90ae86;
-  --color-sage-400: #7d9b78;
-  --color-sage-500: #5c7a55;
-  --color-sage-600: #4a6741;
-  --color-sage-700: #3a5232;
-  --color-sage-800: #2a3d24;
-  --color-sage-900: #1a2817;
+  --color-sage-50:  var(--sage-50);
+  --color-sage-100: var(--sage-100);
+  --color-sage-200: var(--sage-200);
+  --color-sage-300: var(--sage-300);
+  --color-sage-400: var(--sage-400);
+  --color-sage-500: var(--sage-500);
+  --color-sage-600: var(--sage-600);
+  --color-sage-700: var(--sage-700);
+  --color-sage-800: var(--sage-800);
 
-  /* Dusty blue — highlight */
-  --color-blue-50:  #eef2f6;
-  --color-blue-100: #d8e2ec;
-  --color-blue-200: #c2d2e1;
-  --color-blue-300: #a9bfd4;
-  --color-blue-500: #6f8cab;
-  --color-blue-600: #5b789a;
+  --color-blue-50:  var(--blue-50);
+  --color-blue-100: var(--blue-100);
+  --color-blue-200: var(--blue-200);
+  --color-blue-300: var(--blue-300);
+  --color-blue-500: var(--blue-500);
+  --color-blue-600: var(--blue-600);
 
-  /* Soft peach — warning / spending */
-  --color-peach-50:  #fbf0e8;
-  --color-peach-100: #f6dcc9;
-  --color-peach-200: #f0cbb0;
-  --color-peach-400: #e8a87c;
-  --color-peach-600: #d18a5b;
+  --color-peach-50:  var(--peach-50);
+  --color-peach-100: var(--peach-100);
+  --color-peach-200: var(--peach-200);
+  --color-peach-400: var(--peach-400);
+  --color-peach-600: var(--peach-600);
 }
 
 /* Explicit utility classes — the reliable path when @theme JIT has caching
    issues with Turbopack. Defined in @layer utilities so they sit at the same
-   specificity as generated Tailwind classes. */
+   specificity as generated Tailwind classes (and, coming later in the source,
+   win when both exist — which lets text-sage-* use the -tx- variables). */
 @layer utilities {
   /* Surfaces */
-  .bg-app          { background-color: #FAF9F5; }
-  .bg-surface      { background-color: #FFFFFF; }
-  .bg-surface-2    { background-color: #F2F1EC; }
-  .bg-surface-hover{ background-color: #F4F3EE; }
-  .border-line     { border-color: #EAE8E1; }
-  .hover\:bg-surface-hover:hover { background-color: #F4F3EE; }
+  .bg-app          { background-color: var(--bg); }
+  .bg-surface      { background-color: var(--surface); }
+  .bg-surface-2    { background-color: var(--surface-2); }
+  .bg-surface-hover{ background-color: var(--surface-hover); }
+  .border-line     { border-color: var(--line); }
+  .hover\:bg-surface-hover:hover { background-color: var(--surface-hover); }
+
+  /* Modal overlay — always a dark scrim, in both themes */
+  .bg-overlay { background-color: rgb(0 0 0 / 0.45); }
 
   /* Charcoal ink */
-  .text-ink       { color: #33322E; }
-  .text-ink-soft  { color: #6E6B63; }
-  .text-ink-faint { color: #9A968C; }
+  .text-ink       { color: var(--ink); }
+  .text-ink-soft  { color: var(--ink-soft); }
+  .text-ink-faint { color: var(--ink-faint); }
 
   /* Sage */
-  .bg-sage-50  { background-color: #e4ede0; }
-  .bg-sage-100 { background-color: #c8d9c0; }
-  .bg-sage-200 { background-color: #adc4a3; }
-  .bg-sage-300 { background-color: #90ae86; }
-  .bg-sage-400 { background-color: #7d9b78; }
-  .bg-sage-500 { background-color: #5c7a55; }
-  .bg-sage-600 { background-color: #4a6741; }
-  .bg-sage-700 { background-color: #3a5232; }
-  .bg-sage-800 { background-color: #2a3d24; }
+  .bg-sage-50  { background-color: var(--sage-50); }
+  .bg-sage-100 { background-color: var(--sage-100); }
+  .bg-sage-200 { background-color: var(--sage-200); }
+  .bg-sage-300 { background-color: var(--sage-300); }
+  .bg-sage-400 { background-color: var(--sage-400); }
+  .bg-sage-500 { background-color: var(--sage-500); }
+  .bg-sage-600 { background-color: var(--sage-600); }
+  .bg-sage-700 { background-color: var(--sage-700); }
+  .bg-sage-800 { background-color: var(--sage-800); }
 
-  .text-sage-400 { color: #7d9b78; }
-  .text-sage-500 { color: #5c7a55; }
-  .text-sage-600 { color: #4a6741; }
-  .text-sage-700 { color: #3a5232; }
-  .text-sage-800 { color: #2a3d24; }
+  .text-sage-300 { color: var(--sage-tx-300); }
+  .text-sage-400 { color: var(--sage-tx-400); }
+  .text-sage-500 { color: var(--sage-tx-500); }
+  .text-sage-600 { color: var(--sage-tx-600); }
+  .text-sage-700 { color: var(--sage-tx-700); }
+  .text-sage-800 { color: var(--sage-tx-800); }
 
-  .border-sage-100 { border-color: #c8d9c0; }
-  .border-sage-200 { border-color: #adc4a3; }
-  .border-sage-300 { border-color: #90ae86; }
-  .border-sage-400 { border-color: #7d9b78; }
-  .border-sage-500 { border-color: #5c7a55; }
-  .border-sage-600 { border-color: #4a6741; }
+  .border-sage-100 { border-color: var(--sage-100); }
+  .border-sage-200 { border-color: var(--sage-200); }
+  .border-sage-300 { border-color: var(--sage-300); }
+  .border-sage-400 { border-color: var(--sage-400); }
+  .border-sage-500 { border-color: var(--sage-500); }
+  .border-sage-600 { border-color: var(--sage-600); }
 
-  .hover\:bg-sage-50:hover  { background-color: #e4ede0; }
-  .hover\:bg-sage-600:hover { background-color: #4a6741; }
-  .hover\:bg-sage-700:hover { background-color: #3a5232; }
-  .hover\:bg-sage-800:hover { background-color: #2a3d24; }
-  .hover\:text-sage-600:hover { color: #4a6741; }
-  .hover\:text-sage-700:hover { color: #3a5232; }
-  .hover\:text-sage-800:hover { color: #2a3d24; }
-  .hover\:border-sage-300:hover { border-color: #90ae86; }
-  .hover\:border-sage-400:hover { border-color: #7d9b78; }
-  .active\:bg-sage-700:active { background-color: #3a5232; }
-  .active\:bg-sage-800:active { background-color: #2a3d24; }
+  .hover\:bg-sage-50:hover  { background-color: var(--sage-50); }
+  .hover\:bg-sage-600:hover { background-color: var(--sage-600); }
+  .hover\:bg-sage-700:hover { background-color: var(--sage-700); }
+  .hover\:bg-sage-800:hover { background-color: var(--sage-800); }
+  .hover\:text-sage-600:hover { color: var(--sage-tx-600); }
+  .hover\:text-sage-700:hover { color: var(--sage-tx-700); }
+  .hover\:text-sage-800:hover { color: var(--sage-tx-800); }
+  .hover\:border-sage-300:hover { border-color: var(--sage-300); }
+  .hover\:border-sage-400:hover { border-color: var(--sage-400); }
+  .active\:bg-sage-700:active { background-color: var(--sage-700); }
+  .active\:bg-sage-800:active { background-color: var(--sage-800); }
 
   /* Dusty blue */
-  .bg-blue-50  { background-color: #eef2f6; }
-  .bg-blue-100 { background-color: #d8e2ec; }
-  .bg-blue-200 { background-color: #c2d2e1; }
-  .bg-blue-500 { background-color: #6f8cab; }
-  .bg-blue-600 { background-color: #5b789a; }
-  .text-blue-500 { color: #6f8cab; }
-  .text-blue-600 { color: #5b789a; }
-  .border-blue-200 { border-color: #c2d2e1; }
+  .bg-blue-50  { background-color: var(--blue-50); }
+  .bg-blue-100 { background-color: var(--blue-100); }
+  .bg-blue-200 { background-color: var(--blue-200); }
+  .bg-blue-500 { background-color: var(--blue-500); }
+  .bg-blue-600 { background-color: var(--blue-600); }
+  .text-blue-500 { color: var(--blue-tx-500); }
+  .text-blue-600 { color: var(--blue-tx-600); }
+  .border-blue-200 { border-color: var(--blue-200); }
 
   /* Soft peach */
-  .bg-peach-50  { background-color: #fbf0e8; }
-  .bg-peach-100 { background-color: #f6dcc9; }
-  .bg-peach-200 { background-color: #f0cbb0; }
-  .bg-peach-400 { background-color: #e8a87c; }
-  .bg-peach-600 { background-color: #d18a5b; }
-  .text-peach-400 { color: #e8a87c; }
-  .text-peach-600 { color: #d18a5b; }
-  .border-peach-200 { border-color: #f0cbb0; }
-}
+  .bg-peach-50  { background-color: var(--peach-50); }
+  .bg-peach-100 { background-color: var(--peach-100); }
+  .bg-peach-200 { background-color: var(--peach-200); }
+  .bg-peach-400 { background-color: var(--peach-400); }
+  .bg-peach-600 { background-color: var(--peach-600); }
+  .text-peach-400 { color: var(--peach-tx-400); }
+  .text-peach-600 { color: var(--peach-tx-600); }
+  .border-peach-200 { border-color: var(--peach-200); }
 
-@keyframes blob {
-  0%,100% { transform: translate(0, 0) scale(1); }
-  33%      { transform: translate(30px, -50px) scale(1.1); }
-  66%      { transform: translate(-20px, 20px) scale(0.9); }
+  /* Interactive lift for clickable cards — pairs with an existing transition-*
+     class on the element */
+  .hover-lift:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgb(0 0 0 / 0.06); }
+  .hover-lift:active { transform: translateY(0); }
 }
 
 @keyframes float {
@@ -158,33 +287,77 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.animate-blob    { animation: blob 8s infinite ease-in-out; }
-.animate-float   { animation: float 4s infinite ease-in-out; }
-.animate-fade-up { animation: fade-up 0.6s ease-out both; }
-.animate-expand  { animation: expand 0.18s ease-out both; }
+/* Subtle content entrance when switching tabs */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Modal entrance: scrim fades, panel scales up from 96% */
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Progress bars grow in from the left on mount */
+@keyframes grow-x {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+.animate-float      { animation: float 4s infinite ease-in-out; }
+.animate-fade-up    { animation: fade-up 0.6s ease-out both; }
+.animate-expand     { animation: expand 0.18s ease-out both; }
+/* `backwards`, not `both`: a persisted transform (even translateY(0)) would
+   make this wrapper the containing block for position:fixed descendants,
+   breaking viewport-centered modals opened inside the tab content. */
+.animate-page-in    { animation: page-in 0.25s ease-out backwards; }
+.animate-overlay-in { animation: overlay-in 0.15s ease-out both; }
+.animate-modal-in   { animation: modal-in 0.18s ease-out both; }
+.animate-grow-x     { animation: grow-x 0.5s ease-out both; transform-origin: left; }
 .delay-100  { animation-delay: 0.1s; }
 .delay-200  { animation-delay: 0.2s; }
 .delay-300  { animation-delay: 0.3s; }
-.delay-2000 { animation-delay: 2s; }
-.delay-4000 { animation-delay: 4s; }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-hover) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: 0.5rem;
+}
 
 /* Respect the OS-level "reduce motion" setting: decorative animations stop,
-   and entrance animations jump straight to their final state (fade-up/expand
-   use `both` fill, so forcing duration to ~0 lands them visible, not hidden).
+   and entrance animations jump straight to their final state (the `both` fill
+   means forcing duration to ~0 lands them visible, not hidden).
    Vestibular-disorder users get a still interface; nobody loses content. */
 @media (prefers-reduced-motion: reduce) {
-  .animate-blob,
-  .animate-float {
+  .animate-float,
+  .skeleton {
     animation: none;
   }
   .animate-fade-up,
-  .animate-expand {
+  .animate-expand,
+  .animate-page-in,
+  .animate-overlay-in,
+  .animate-modal-in,
+  .animate-grow-x {
     animation-duration: 0.01ms;
     animation-delay: 0ms;
   }
   .animate-spin {
     animation-duration: 1.5s; /* keep spinners meaningful but calmer */
   }
+  .hover-lift:hover { transform: none; }
   * {
     transition-duration: 0.01ms !important;
   }

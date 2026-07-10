@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useUser, SignInButton } from '@clerk/nextjs'
 import { Check, Sparkles, ArrowLeft, CreditCard } from 'lucide-react'
 
@@ -85,7 +86,7 @@ export default function PricingPage() {
         </Link>
 
         <div className="text-center mb-10">
-          <img src="/sprout-svgrepo-com.svg" alt="" className="w-12 h-12 mx-auto mb-3" />
+          <Image src="/sprout-svgrepo-com.svg" alt="" width={48} height={48} className="w-12 h-12 mx-auto mb-3" />
           <h1 className="text-3xl sm:text-4xl font-bold text-ink tracking-tight mb-2">Simple pricing</h1>
           <p className="text-sm sm:text-base text-ink-soft max-w-md mx-auto">
             Start free. Upgrade if you want more room to grow — either way, your bank login stays yours.

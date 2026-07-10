@@ -3,16 +3,24 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Trash2, FileText, Calendar, Pencil, Check, X, StickyNote } from 'lucide-react'
 import { calcSpending, STANDARD_CATEGORIES } from '@/lib/categories'
 import { parseDate } from '@/lib/date'
-import { useDialog } from './useDialog'
+import { moneyExact } from '@/lib/format'
 import { useTransactions } from './useTransactions'
 import LoadError from './LoadError'
+import { ListSkeleton } from './ui/Skeletons'
+import EmptyState from './ui/EmptyState'
+import Modal from './ui/Modal'
 
 export default function UserFiles({ userId }) {
   // File METADATA from /api/files; transaction rows come from the shared
   // hook (normalized table) and are grouped by fileId below.
   const [files, setFiles] = useState([])
   const [isLoadingFiles, setIsLoadingFiles] = useState(true)
-  const [deleteError, setDeleteError] = useState(null)
+  // metaError: the /api/files metadata fetch failed — never disguise it as
+  // "no files yet." actionError: a later delete/rename failed (banner).
+  const [metaError, setMetaError] = useState(null)
+  const [actionError, setActionError] = useState(null)
+  // Two-step delete: first click arms this file's row, second click deletes.
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState(null)
 
   const {
     transactions: allTransactions,
@@ -35,25 +43,29 @@ export default function UserFiles({ userId }) {
   const [noteEditId, setNoteEditId] = useState(null)
   const [noteDraft, setNoteDraft] = useState('')
 
-  // Stable close handler — useDialog takes it as an effect dependency.
+  // Stable close handler — Modal's useDialog takes it as an effect dependency.
   const closeReview = useCallback(() => { setReviewFile(null); setNoteEditId(null) }, [])
-  const dialogRef = useDialog(!!reviewFile, closeReview)
 
-  useEffect(() => {
-    fetchFiles()
-  }, [])
-
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
+    setIsLoadingFiles(true)
+    setMetaError(null)
     try {
       const response = await fetch('/api/files')
+      if (response.status === 401) throw { kind: 'auth' }
+      if (!response.ok) throw { kind: 'server' }
       const data = await response.json()
       setFiles(data.files || [])
     } catch (error) {
       console.error('Error fetching files:', error)
+      setMetaError({ kind: error.kind || 'network' })
     } finally {
       setIsLoadingFiles(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchFiles()
+  }, [fetchFiles])
 
   // fileId → its transaction rows.
   const byFile = useMemo(() => {
@@ -65,15 +77,15 @@ export default function UserFiles({ userId }) {
   }, [allTransactions])
 
   const deleteFile = async (fileId) => {
-    if (!confirm('Are you sure you want to delete this file?')) return
-    setDeleteError(null)
+    setConfirmingDeleteId(null)
+    setActionError(null)
     try {
       const response = await fetch(`/api/files/${fileId}`, { method: 'DELETE' })
       if (!response.ok) throw new Error('Delete failed')
       setFiles(files.filter(f => f.id !== fileId))
     } catch (error) {
       console.error('Error deleting file:', error)
-      setDeleteError('Failed to delete file. Please try again.')
+      setActionError('Failed to delete file. Please try again.')
     }
   }
 
@@ -91,6 +103,7 @@ export default function UserFiles({ userId }) {
     const trimmed = editingName.trim()
     if (!trimmed) return cancelEditing()
 
+    setActionError(null)
     try {
       const response = await fetch(`/api/files/${fileId}`, {
         method: 'PATCH',
@@ -105,6 +118,7 @@ export default function UserFiles({ userId }) {
       cancelEditing()
     } catch (error) {
       console.error('Error renaming file:', error)
+      setActionError("Couldn't rename the file. Please try again.")
     }
   }
 
@@ -138,23 +152,18 @@ export default function UserFiles({ userId }) {
     setNoteEditId(null)
   }
 
-  if (isLoadingFiles || isLoadingTxns) {
-    return (
-      <div className="flex justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sage-500"></div>
-      </div>
-    )
-  }
+  if (isLoadingFiles || isLoadingTxns) return <ListSkeleton />
 
   if (txnError) return <LoadError error={txnError} onRetry={retry} />
+  if (metaError) return <LoadError error={metaError} onRetry={fetchFiles} />
 
   if (files.length === 0) {
     return (
-      <div className="bg-surface border border-line rounded-2xl shadow-sm text-center p-12">
-        <FileText className="mx-auto h-12 w-12 text-sage-300 mb-4" />
-        <h3 className="text-base font-semibold text-ink mb-1">No files uploaded yet</h3>
-        <p className="text-sm text-ink-soft">Upload a CSV or PDF statement to get started.</p>
-      </div>
+      <EmptyState
+        icon={FileText}
+        title="No files uploaded yet"
+        description="Upload a CSV or PDF statement to get started."
+      />
     )
   }
 
@@ -162,9 +171,9 @@ export default function UserFiles({ userId }) {
     <div className="space-y-3">
       <h2 className="text-lg font-semibold text-ink mb-4">Your Uploaded Files</h2>
 
-      {deleteError && (
-        <div className="bg-peach-50 border border-peach-200 p-3 rounded-lg">
-          <p className="text-peach-600 text-sm">{deleteError}</p>
+      {actionError && (
+        <div role="alert" className="bg-peach-50 border border-peach-200 p-3 rounded-lg">
+          <p className="text-peach-600 text-sm">{actionError}</p>
         </div>
       )}
 
@@ -175,7 +184,7 @@ export default function UserFiles({ userId }) {
         const isEditing = editingId === file.id
 
         return (
-          <div key={file.id} className="bg-surface rounded-xl border border-line shadow-sm p-5 hover:border-sage-300 transition-colors">
+          <div key={file.id} className="bg-surface rounded-2xl border border-line shadow-sm p-5 hover:border-sage-300 transition-colors">
             <div className="flex justify-between items-start gap-4">
               <div className="flex-1 min-w-0">
 
@@ -193,11 +202,11 @@ export default function UserFiles({ userId }) {
                       className="text-base font-semibold border-b-2 border-sage-500 outline-none flex-1 bg-transparent text-ink"
                     />
                     {/* Check saves, X cancels */}
-                    <button onClick={() => saveTitle(file.id)} className="text-sage-600 hover:text-sage-800 flex-shrink-0">
-                      <Check className="h-4 w-4" />
+                    <button onClick={() => saveTitle(file.id)} aria-label="Save name" className="text-sage-600 hover:text-sage-800 flex-shrink-0">
+                      <Check className="h-4 w-4" aria-hidden="true" />
                     </button>
-                    <button onClick={cancelEditing} className="text-ink-faint hover:text-ink flex-shrink-0">
-                      <X className="h-4 w-4" />
+                    <button onClick={cancelEditing} aria-label="Cancel rename" className="text-ink-faint hover:text-ink flex-shrink-0">
+                      <X className="h-4 w-4" aria-hidden="true" />
                     </button>
                   </div>
                 ) : (
@@ -206,9 +215,10 @@ export default function UserFiles({ userId }) {
                     <h3 className="text-base font-semibold text-ink truncate">{file.name}</h3>
                     <button
                       onClick={() => startEditing(file)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity text-ink-faint hover:text-ink-soft flex-shrink-0"
+                      aria-label={`Rename ${file.name}`}
+                      className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity text-ink-faint hover:text-ink-soft flex-shrink-0"
                     >
-                      <Pencil className="h-3.5 w-3.5" />
+                      <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                     </button>
                   </div>
                 )}
@@ -224,25 +234,46 @@ export default function UserFiles({ userId }) {
                     {file.transactionCount} transactions
                   </span>
                   <span className="flex items-center gap-1 font-medium text-ink-soft">
-                    ${spending.toFixed(2)} spending
+                    {moneyExact(spending)} spending
                   </span>
                 </div>
               </div>
 
-              {/* Action buttons */}
+              {/* Action buttons — delete is two-step: arm, then confirm inline */}
               <div className="flex items-center gap-2 flex-shrink-0">
-                <button
-                  onClick={() => setReviewFile(file)}
-                  className="px-3 py-1.5 bg-sage-600 text-white text-sm rounded-lg hover:bg-sage-700 transition-colors"
-                >
-                  Review
-                </button>
-                <button
-                  onClick={() => deleteFile(file.id)}
-                  className="p-1.5 text-ink-faint hover:text-peach-600 hover:bg-peach-50 rounded-lg transition-colors"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                {confirmingDeleteId === file.id ? (
+                  <>
+                    <span className="text-xs text-ink-soft">Delete this file?</span>
+                    <button
+                      onClick={() => deleteFile(file.id)}
+                      className="px-3 py-1.5 bg-peach-600 text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      onClick={() => setConfirmingDeleteId(null)}
+                      className="px-3 py-1.5 text-sm rounded-lg text-ink-soft hover:bg-surface-hover transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setReviewFile(file)}
+                      className="px-3 py-1.5 bg-sage-600 text-white text-sm rounded-lg hover:bg-sage-700 transition-colors"
+                    >
+                      Review
+                    </button>
+                    <button
+                      onClick={() => setConfirmingDeleteId(file.id)}
+                      aria-label={`Delete ${file.name}`}
+                      className="p-1.5 text-ink-faint hover:text-peach-600 hover:bg-peach-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -265,31 +296,13 @@ export default function UserFiles({ userId }) {
         ])].sort()
 
         return (
-          <div
-            className="fixed inset-0 bg-ink/40 z-50 flex items-center justify-center p-4"
-            onClick={closeReview}
+          <Modal
+            isOpen
+            onClose={closeReview}
+            title={reviewFile.name}
+            subtitle={`${transactions.length} transaction${transactions.length !== 1 ? 's' : ''} · fix categories or add notes`}
+            ariaLabel={`Transactions in ${reviewFile.name}`}
           >
-            <div
-              ref={dialogRef}
-              role="dialog"
-              aria-modal="true"
-              aria-label={`Transactions in ${reviewFile.name}`}
-              className="bg-surface rounded-2xl shadow-sm border border-line w-full max-w-lg flex flex-col"
-              style={{ maxHeight: '80vh' }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-start p-6 border-b border-line">
-                <div className="min-w-0 mr-4">
-                  <h3 className="text-xl font-semibold text-ink truncate">{reviewFile.name}</h3>
-                  <p className="text-sm text-ink-soft mt-1">
-                    {transactions.length} transaction{transactions.length !== 1 ? 's' : ''} · fix categories or add notes
-                  </p>
-                </div>
-                <button onClick={closeReview} aria-label="Close" className="text-ink-faint hover:text-ink flex-shrink-0 p-1">
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-
               {editError && (
                 <div role="alert" className="mx-4 mt-3 bg-peach-50 border border-peach-200 p-3 rounded-lg">
                   <p className="text-peach-600 text-sm">{editError}</p>
@@ -336,7 +349,7 @@ export default function UserFiles({ userId }) {
                             {!category && <option value="">—</option>}
                             {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
-                          <span className="text-sm font-semibold text-ink flex-shrink-0">${amount.toFixed(2)}</span>
+                          <span className="text-sm font-semibold text-ink flex-shrink-0">{moneyExact(amount)}</span>
                         </div>
 
                         {/* Saved note (when not editing) */}
@@ -388,8 +401,7 @@ export default function UserFiles({ userId }) {
                   })
                 )}
               </div>
-            </div>
-          </div>
+          </Modal>
         )
       })()}
     </div>

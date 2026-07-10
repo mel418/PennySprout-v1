@@ -1,6 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useUser, SignInButton, UserButton } from '@clerk/nextjs'
 import { Upload, FolderOpen, BarChart2, CalendarDays, LayoutGrid, Sparkles, TrendingUp, ArrowRight, Target, Settings } from 'lucide-react'
 import FileUpload from './components/FileUpload'
@@ -9,6 +10,8 @@ import UserFiles from './components/UserFiles'
 import SpendingCalendar from './components/SpendingCalendar'
 import Overview from './components/Overview'
 import Budgets from './components/Budgets'
+import Spinner from './components/ui/Spinner'
+import ThemeToggle from './components/ui/ThemeToggle'
 
 // ─── Landing page ─────────────────────────────────────────────────────────────
 
@@ -28,14 +31,15 @@ function LandingPage() {
       <div className="absolute top-[28%] -left-24 w-80 h-80 bg-sage-100 rounded-full opacity-40 pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-52 h-52 bg-blue-100 rounded-full opacity-40 pointer-events-none"
            style={{ transform: 'translate(30%, 30%)' }} />
-      <img src="/sprout-svgrepo-com.svg" alt="" className="absolute top-0 right-0 w-36 h-36 opacity-25 pointer-events-none"
+      <Image src="/sprout-svgrepo-com.svg" alt="" width={144} height={144}
+           className="absolute top-0 right-0 w-36 h-36 opacity-25 pointer-events-none"
            style={{ transform: 'rotate(15deg) translate(8px, -8px)' }} />
 
       {/* ── Hero content ── */}
       <div className="relative z-10 flex flex-col items-center justify-center flex-1 px-6 pt-16 pb-16 text-center">
 
         <div className="mb-5 animate-float">
-          <img src="/sprout-svgrepo-com.svg" alt="Penny Sprout" className="w-20 h-20" />
+          <Image src="/sprout-svgrepo-com.svg" alt="Penny Sprout" width={80} height={80} priority className="w-20 h-20" />
         </div>
 
         <h1 className="text-5xl sm:text-6xl font-bold text-ink mb-4 tracking-tight animate-fade-up">
@@ -100,23 +104,39 @@ const NAV_ITEMS = [
   { id: 'upload',    label: 'Upload',   Icon: Upload       },
 ]
 
+const VALID_VIEWS = NAV_ITEMS.map(i => i.id)
+const viewFromUrl = () => {
+  const tab = new URLSearchParams(window.location.search).get('tab')
+  return VALID_VIEWS.includes(tab) ? tab : 'overview'
+}
+
 export default function Home() {
   const { isSignedIn, user, isLoaded } = useUser()
-  const [activeView, setActiveView]       = useState('overview')
 
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-app">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-sage-500 border-t-transparent" />
-      </div>
-    )
-  }
+  // The active tab lives in the URL (?tab=calendar) so refresh, back/forward,
+  // and shared links all land on the right view. State mirrors the URL; it's
+  // read in an effect (not the initializer) so server and client first-render
+  // the same markup.
+  const [activeView, setActiveViewState] = useState('overview')
+
+  useEffect(() => {
+    setActiveViewState(viewFromUrl())
+    const onPop = () => setActiveViewState(viewFromUrl())
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  const setActiveView = useCallback((id) => {
+    setActiveViewState(id)
+    const url = id === 'overview'
+      ? window.location.pathname
+      : `${window.location.pathname}?tab=${id}`
+    window.history.pushState(null, '', url)
+  }, [])
+
+  if (!isLoaded) return <Spinner className="min-h-screen bg-app" />
 
   if (!isSignedIn) return <LandingPage />
-
-  // The Analysis tab is always available now — it picks a month and analyzes
-  // pooled transactions itself (showing its own empty state when there's no data).
-  const visibleTabs = NAV_ITEMS
 
   return (
     <div className="min-h-screen bg-app flex flex-col">
@@ -125,10 +145,10 @@ export default function Home() {
       <header className="sticky top-0 z-40 bg-surface border-b border-line">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src="/sprout-svgrepo-com.svg" alt="" className="w-7 h-7" />
+            <Image src="/sprout-svgrepo-com.svg" alt="" width={28} height={28} className="w-7 h-7" />
             <span className="font-bold text-ink text-base">Penny Sprout</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Link href="/pricing"
               className="inline-flex items-center gap-1 text-xs font-semibold text-sage-700 hover:text-sage-800 bg-sage-50 hover:bg-sage-100 px-2.5 py-1.5 rounded-lg transition-colors">
               <Sparkles className="h-3.5 w-3.5" /> Pro
@@ -137,6 +157,7 @@ export default function Home() {
               className="p-1.5 text-ink-faint hover:text-sage-700 transition-colors">
               <Settings className="h-4 w-4" />
             </Link>
+            <ThemeToggle />
             <span className="hidden sm:block text-sm text-ink-soft truncate max-w-[160px]">
               {user.firstName || user.emailAddresses[0].emailAddress}
             </span>
@@ -145,62 +166,68 @@ export default function Home() {
         </div>
 
         {/* Desktop nav tabs */}
-        <div className="hidden sm:flex max-w-6xl mx-auto px-6 gap-1">
-          {visibleTabs.map(({ id, label, Icon }) => (
+        <nav aria-label="Primary" className="hidden sm:flex max-w-6xl mx-auto px-6 gap-1">
+          {NAV_ITEMS.map(({ id, label, Icon }) => (
             <button
               key={id}
               onClick={() => setActiveView(id)}
+              aria-current={activeView === id ? 'page' : undefined}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                 activeView === id
                   ? 'border-sage-600 text-sage-700'
                   : 'border-transparent text-ink-faint hover:text-sage-700'
               }`}
             >
-              <Icon className="h-3.5 w-3.5" />
+              <Icon className="h-3.5 w-3.5" aria-hidden="true" />
               {label}
             </button>
           ))}
-        </div>
+        </nav>
       </header>
 
       {/* ── Page content ── */}
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-6 pb-24 sm:pb-8">
+        {/* key remounts the wrapper per tab so each switch gets a soft entrance */}
+        <div key={activeView} className="animate-page-in">
 
-        {activeView === 'overview' && (
-          <Overview
-            onOpenCalendar={() => setActiveView('calendar')}
-            onOpenUpload={() => setActiveView('upload')}
-          />
-        )}
+          {activeView === 'overview' && (
+            <Overview
+              onOpenCalendar={() => setActiveView('calendar')}
+              onOpenUpload={() => setActiveView('upload')}
+              onOpenAnalysis={() => setActiveView('dashboard')}
+            />
+          )}
 
-        {activeView === 'upload' && (
-          <FileUpload
-            onDataLoaded={() => setActiveView('files')}
-            userId={user.id}
-          />
-        )}
+          {activeView === 'upload' && (
+            <FileUpload
+              onDataLoaded={() => setActiveView('files')}
+              userId={user.id}
+            />
+          )}
 
-        {activeView === 'files' && <UserFiles userId={user.id} />}
+          {activeView === 'files' && <UserFiles userId={user.id} />}
 
-        {activeView === 'calendar' && <SpendingCalendar />}
+          {activeView === 'calendar' && <SpendingCalendar />}
 
-        {activeView === 'dashboard' && <SpendingDashboard />}
+          {activeView === 'dashboard' && <SpendingDashboard />}
 
-        {activeView === 'budgets' && <Budgets />}
+          {activeView === 'budgets' && <Budgets />}
+        </div>
       </main>
 
       {/* ── Mobile bottom nav ── */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-line">
+      <nav aria-label="Primary" className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-line">
         <div className="flex">
-          {visibleTabs.map(({ id, label, Icon }) => (
+          {NAV_ITEMS.map(({ id, label, Icon }) => (
             <button
               key={id}
               onClick={() => setActiveView(id)}
+              aria-current={activeView === id ? 'page' : undefined}
               className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 text-xs font-medium transition-colors ${
                 activeView === id ? 'text-sage-700' : 'text-ink-faint hover:text-sage-600'
               }`}
             >
-              <Icon className={`h-5 w-5 ${activeView === id ? 'text-sage-600' : ''}`} />
+              <Icon className={`h-5 w-5 ${activeView === id ? 'text-sage-600' : ''}`} aria-hidden="true" />
               {label}
             </button>
           ))}
