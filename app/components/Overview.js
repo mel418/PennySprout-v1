@@ -185,7 +185,11 @@ export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis 
               Net flow by month
             </p>
             {trendData.length > 1 ? (
-              <div className="flex-1 min-h-[150px]">
+              // Fixed height below lg: the collapsed (non-grid) parent has no
+              // definite height, so the chart's height="100%" resolves to 0
+              // and it silently renders nothing. On lg+ the grid stretches
+              // the column, so flex-1 gives a real height to fill.
+              <div className="h-[150px] lg:h-auto lg:flex-1 lg:min-h-[150px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={trendData} margin={{ top: 8, right: 8, left: 8, bottom: 4 }}>
                     <defs>
