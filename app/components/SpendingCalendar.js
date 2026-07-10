@@ -109,18 +109,30 @@ export default function SpendingCalendar() {
     setSelectedDate(null)
   }, [latest])
 
-  // Keyboard: ←/→ change period, T jumps to latest activity, Esc deselects
+  const setScaleAndClear = useCallback((id) => {
+    setScale(id)
+    clearSelection()
+  }, [clearSelection])
+
+  // Keyboard: ←/→ change period, W/M/Y switch scale, T jumps to latest
+  // activity, Esc deselects. Suppressed while typing or with a modifier held.
   useEffect(() => {
     const onKey = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      const t = e.target
+      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable) return
+      const key = e.key.toLowerCase()
       if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1) }
       else if (e.key === 'ArrowRight') { e.preventDefault(); go(1) }
-      else if (e.key === 't' || e.key === 'T') { e.preventDefault(); jumpToLatest() }
+      else if (key === 'w') { e.preventDefault(); setScaleAndClear('week') }
+      else if (key === 'm') { e.preventDefault(); setScaleAndClear('month') }
+      else if (key === 'y') { e.preventDefault(); setScaleAndClear('year') }
+      else if (key === 't') { e.preventDefault(); jumpToLatest() }
       else if (e.key === 'Escape') { clearSelection() }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [go, jumpToLatest, clearSelection])
+  }, [go, jumpToLatest, clearSelection, setScaleAndClear])
 
   if (error) return <LoadError error={error} onRetry={retry} />
 
@@ -173,7 +185,7 @@ export default function SpendingCalendar() {
               {SCALES.map(s => (
                 <button
                   key={s.id}
-                  onClick={() => { setScale(s.id); clearSelection() }}
+                  onClick={() => setScaleAndClear(s.id)}
                   aria-pressed={scale === s.id}
                   className={`px-3 py-1 text-sm font-medium rounded-lg transition-colors ${
                     scale === s.id ? 'bg-surface text-ink shadow-sm' : 'text-ink-faint hover:text-ink'
@@ -215,7 +227,10 @@ export default function SpendingCalendar() {
             <p className="hidden lg:block text-[11px] text-ink-faint mt-3 px-1">
               <kbd className="px-1 py-0.5 rounded bg-surface-2 font-sans">←</kbd>{' '}
               <kbd className="px-1 py-0.5 rounded bg-surface-2 font-sans">→</kbd> move ·{' '}
-              <kbd className="px-1 py-0.5 rounded bg-surface-2 font-sans">T</kbd> latest ·{' '}
+              <kbd className="px-1 py-0.5 rounded bg-surface-2 font-sans">W</kbd>{' '}
+              <kbd className="px-1 py-0.5 rounded bg-surface-2 font-sans">M</kbd>{' '}
+              <kbd className="px-1 py-0.5 rounded bg-surface-2 font-sans">Y</kbd> scale ·{' '}
+              <kbd className="px-1 py-0.5 rounded bg-surface-2 font-sans">T</kbd> today ·{' '}
               <kbd className="px-1 py-0.5 rounded bg-surface-2 font-sans">Esc</kbd> deselect
             </p>
           </div>

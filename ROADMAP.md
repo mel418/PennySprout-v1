@@ -61,7 +61,7 @@ Must land before any public or paid launch.
 37. ~~Condense the nav.~~ ✅ **Done (2026-07-10)** — Upload merged into Files (dropzone at the top, list below, auto-refresh after each batch); 5 tabs. Old `?tab=upload` links map to Files.
 38. ~~AI chat replaces the one-shot analysis.~~ ✅ **Done (2026-07-10)** — `/api/chat` streams month-scoped answers (context built server-side: totals, categories, top transactions, budgets; notes never sent). `/api/analyze` and `/api/monthly-analysis` deleted; health score is now computed deterministically from savings rate. Partially closes item 30 (chat streams; PDF parse still doesn't). The `monthly_analysis` table was dropped later the same day (`drop_monthly_analysis` migration, applied).
 39. ~~Spending accent: blue → muted plum.~~ ✅ **Done (2026-07-10)** — spending now has its own semantic `spend-*` token scale (plum), so future recolors are a values-only edit in `globals.css`. Dusty blue returns to neutral highlights only (bills, goals, recurring).
-40. ~~Keyboard shortcuts.~~ ✅ **Done (2026-07-10)** — `1–5` switch tabs, `?` toggles a shortcuts reference modal (also reachable via the keyboard icon in the header); the Calendar keeps its `←/→/T/Esc` keys. Shortcuts are suppressed while typing in any field.
+40. ~~Keyboard shortcuts.~~ ✅ **Done (2026-07-10)** — deliberately calendar-only, where repeated navigation actually happens: `←/→` move, `W/M/Y` switch scale, `T` jumps to today/latest, `Esc` deselects (hinted inline under the grid). Global tab-switching shortcuts were built, then removed as not worth the surface area.
 34. Guided onboarding with a sample dataset so new users see value before uploading.
 35. PWA manifest + installability for home-screen return visits.
 

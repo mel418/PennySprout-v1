@@ -18,7 +18,7 @@ An AI-powered personal finance analyzer that helps you understand your spending 
 - **File Management**: Save, rename, and manage multiple statement files with persistent analysis history
 - **Privacy by Design**: Statements are de-identified before storage — only merchant, date, amount, and category are kept (no names, account numbers, or other PII)
 - **Secure Data Access**: Clerk-authenticated sessions, server-only database access via the service-role key, and Row Level Security on the data table
-- **Keyboard Shortcuts**: `1–5` switch tabs, `?` opens the shortcut reference, and the calendar supports `←/→`, `T` (latest), and `Esc`
+- **Keyboard Shortcuts**: the calendar supports `←/→` (move), `W`/`M`/`Y` (scale), `T` (today), and `Esc` (deselect)
 - **Mobile Friendly**: Responsive layout with a bottom navigation bar on mobile
 
 ## Tech Stack
