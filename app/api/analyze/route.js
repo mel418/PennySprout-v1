@@ -2,6 +2,7 @@ import { currentUser } from '@clerk/nextjs/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { extractJson } from '@/lib/aiJson'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { getPlan } from '@/lib/subscriptionStorage'
 import { calcSpending, calcIncome, categoryTotals } from '@/lib/categories'
 
 const anthropic = new Anthropic({
@@ -17,11 +18,14 @@ export async function POST(request) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Auth alone doesn't cap Anthropic spend — enforce a per-user daily limit.
-    const { allowed, limit } = await checkRateLimit(user.id, 'analyze')
+    // Auth alone doesn't cap Anthropic spend — enforce a per-user daily limit
+    // (Pro subscribers get a higher ceiling).
+    const plan = await getPlan(user.id)
+    const { allowed, limit } = await checkRateLimit(user.id, 'analyze', plan)
     if (!allowed) {
+      const upsell = plan === 'free' ? ' Upgrade to Pro for a higher daily limit.' : ''
       return Response.json(
-        { error: `Daily analysis limit reached (${limit}/day). Try again tomorrow.` },
+        { error: `Daily analysis limit reached (${limit}/day). Try again tomorrow.${upsell}` },
         { status: 429 }
       )
     }

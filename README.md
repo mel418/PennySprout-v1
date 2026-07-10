@@ -11,6 +11,10 @@ An AI-powered personal finance analyzer that helps you understand your spending 
 - **Cash Flow Trends**: A collapsible, mobile-optimized chart on the calendar plots daily income/spending and a cumulative net-balance line for the selected month
 - **Income & Bills Separation**: Income and Bills & Payments are tracked separately and excluded from your spending total for an accurate picture
 - **Zelle / Transfer Detection**: Automatically distinguishes received transfers (income) from sent transfers (spending)
+- **Budgets & Goals**: Per-category monthly spending limits with progress tracking, plus savings goals with logged contributions
+- **Subscriptions (Stripe)**: Free tier + $5/mo Pro tier (higher daily AI caps) via Stripe Checkout, customer portal, and webhook-synced plan state
+- **Email Nudges**: Budget-exceeded alerts on upload and a monthly "upload your statement" reminder (Resend, env-gated)
+- **Data Export & Account Deletion**: Self-serve CSV export of all transactions and immediate, complete account deletion from the Settings page
 - **File Management**: Save, rename, and manage multiple statement files with persistent analysis history
 - **Privacy by Design**: Statements are de-identified before storage — only merchant, date, amount, and category are kept (no names, account numbers, or other PII)
 - **Secure Data Access**: Clerk-authenticated sessions, server-only database access via the service-role key, and Row Level Security on the data table
@@ -67,6 +71,22 @@ NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/
 # Leave unset and Sentry is a silent no-op.
 SENTRY_DSN=your_sentry_dsn
 NEXT_PUBLIC_SENTRY_DSN=your_sentry_dsn
+
+# Optional — billing (Stripe). Leave all three unset and billing is a silent
+# no-op (the pricing page shows "not configured"). Set all three or none:
+# create a $5/mo recurring Price in the Stripe dashboard for STRIPE_PRICE_ID;
+# STRIPE_WEBHOOK_SECRET comes from `stripe listen` (dev) or the dashboard
+# webhook endpoint (prod, pointing at /api/billing/webhook).
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PRICE_ID=price_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# Optional — email nudges (Resend free tier). Leave unset and emails no-op.
+RESEND_API_KEY=re_...
+EMAIL_FROM="Penny Sprout <hello@yourdomain.com>"
+
+# Optional — protects /api/cron/* (Vercel cron sends it automatically).
+CRON_SECRET=any_long_random_string
 ```
 
 4. Run the development server:
@@ -78,39 +98,28 @@ npm run dev
 
 ### Supabase Setup
 
-Create a `user_files` table in your Supabase project:
+The database schema lives in versioned migrations under [`supabase/migrations/`](supabase/migrations) and is applied with the Supabase CLI (installed as a dev dependency — no global install needed):
 
-```sql
-create table user_files (
-  id uuid default gen_random_uuid() primary key,
-  user_id text not null,
-  file_name text not null,
-  transactions jsonb not null,
-  analysis jsonb,
-  total_amount numeric,
-  transaction_count integer,
-  created_at timestamp with time zone default now()
-);
+```bash
+# One-time: authenticate and link your Supabase project
+npx supabase login
+npx supabase link --project-ref <your-project-ref>   # ref is in your project's dashboard URL
+
+# Apply all pending migrations
+npm run db:push
 ```
 
-Also create a `monthly_analysis` table, which caches each calendar month's AI analysis (pooled across all files) so reopening a month is instant. Run [`supabase/monthly-analysis.sql`](supabase/monthly-analysis.sql) in the Supabase SQL Editor:
+`db:push` creates every table (`user_files`, `monthly_analysis`, `api_usage`, `transactions`, `budgets`, `goals`, `subscriptions`, `email_log`), enables Row Level Security on each, and records which migrations have run — so it's safe to run repeatedly and it never double-applies. The migrations are also idempotent, so a database that predates this tooling (tables created by hand) adopts cleanly: the first push just fills in whatever's missing.
 
-```sql
-create table monthly_analysis (
-  id uuid default gen_random_uuid() primary key,
-  user_id text not null,
-  month_key text not null,         -- 'YYYY-MM' (calendar month)
-  analysis jsonb not null,
-  updated_at timestamptz default now(),
-  unique (user_id, month_key)
-);
+To make a future schema change, never edit the database by hand — add a migration instead:
+
+```bash
+npm run db:new my_change_name    # creates supabase/migrations/<timestamp>_my_change_name.sql
+# ...write the SQL in the new file, then:
+npm run db:push
 ```
 
-Also run [`supabase/api-usage.sql`](supabase/api-usage.sql), which creates the `api_usage` table and `increment_api_usage` function used to enforce per-user daily limits on the AI-backed routes (`/api/analyze`, `/api/parse-pdf`) so Anthropic costs are capped.
-
-Then run [`supabase/transactions.sql`](supabase/transactions.sql), which creates the normalized `transactions` table (one row per transaction with a real date column) and backfills it from any existing `user_files` JSONB data. The app reads and writes transactions exclusively through this table.
-
-Then **enable Row Level Security** by running [`supabase/enable-rls.sql`](supabase/enable-rls.sql) in the Supabase SQL Editor (`monthly-analysis.sql` enables RLS on its own table). This is required: the anon key is public (it ships in the browser bundle), so without RLS anyone could read every user's data directly. The app reaches the tables only through the server-side service-role key (which bypasses RLS by design) and filters every query by the Clerk `user_id`.
+**Why RLS everywhere:** the anon key is public (it ships in the browser bundle), so every table has RLS enabled with **no** policies — the anon key reads zero rows. The app reaches the tables only through the server-side service-role key (which bypasses RLS by design) and filters every query by the Clerk `user_id`.
 
 ## Usage
 
@@ -183,7 +192,8 @@ spending-analyzer/
 │   ├── fileStorage.js        # Supabase CRUD helpers
 │   └── supabase.js           # Supabase client (service role, server-only)
 ├── supabase/
-│   └── enable-rls.sql        # One-time Row Level Security setup
+│   ├── config.toml           # Supabase CLI project config
+│   └── migrations/           # Versioned schema migrations (npm run db:push)
 └── public/
     └── sprout-svgrepo-com.svg # App logo / favicon
 ```
@@ -202,6 +212,16 @@ spending-analyzer/
 | `GET` | `/api/monthly-analysis?month=YYYY-MM` | Load a month's cached analysis |
 | `POST` | `/api/monthly-analysis` | Save a month's analysis result |
 | `POST` | `/api/parse-pdf` | Extract transactions from a PDF |
+| `GET`/`PUT`/`DELETE` | `/api/budgets` | List / upsert / remove category budgets |
+| `GET`/`POST` | `/api/goals` | List / create savings goals |
+| `PATCH`/`DELETE` | `/api/goals/[id]` | Update / delete one goal |
+| `POST` | `/api/billing/checkout` | Start Stripe Checkout for Pro |
+| `POST` | `/api/billing/portal` | Open the Stripe customer portal |
+| `GET` | `/api/billing/status` | Current plan (`free`/`pro`) |
+| `POST` | `/api/billing/webhook` | Stripe webhook (signature-authenticated) |
+| `GET` | `/api/export` | Download all transactions as CSV |
+| `DELETE` | `/api/account` | Self-serve account deletion (requires `{ confirm: "DELETE" }`) |
+| `GET` | `/api/cron/upload-reminder` | Monthly reminder cron (requires `CRON_SECRET` bearer) |
 
 ## Category Logic
 
@@ -216,7 +236,7 @@ All category normalization lives in `lib/categories.js` and is shared between th
 
 - **De-identification at the source**: When a statement is parsed, the model is instructed to drop all PII (names, addresses, account/routing numbers, SSNs). Only merchant, date, amount, and category are ever stored. The uploaded file itself is processed in memory and not retained.
 - **Server-only data access**: All database access goes through the service-role key in `lib/supabase.js`, which imports `server-only` so the key can never be bundled into client code. The public anon key is not used for data access.
-- **Row Level Security**: RLS is enabled on `user_files` and `transactions` (see [`supabase/enable-rls.sql`](supabase/enable-rls.sql) and [`supabase/transactions.sql`](supabase/transactions.sql)); the public anon key returns zero rows.
+- **Row Level Security**: RLS is enabled on every table by the migrations in [`supabase/migrations/`](supabase/migrations); the public anon key returns zero rows.
 - **Authenticated routes**: Every API route requires a signed-in Clerk user, including `/api/analyze` (so the Anthropic API can't be abused anonymously).
 - **Encryption**: Data is encrypted in transit (TLS) and at rest (AES-256) by Supabase. Note this is *not* end-to-end encryption — the server reads transactions to generate charts and insights.
 - **MFA**: Not enabled yet (gated behind Clerk's paid plan); on the roadmap for launch. See the in-app [privacy policy](app/privacy/page.js) at `/privacy`.

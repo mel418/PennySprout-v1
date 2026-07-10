@@ -6,8 +6,13 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 // that's data access, this is the gate.
 const isApiRoute = createRouteMatcher(['/api(.*)'])
 
+// Stripe webhooks and the cron scheduler call these server-to-server with no
+// Clerk session; each route authenticates itself instead (Stripe signature
+// check / CRON_SECRET bearer token).
+const isWebhookRoute = createRouteMatcher(['/api/billing/webhook', '/api/cron(.*)'])
+
 export default clerkMiddleware(async (auth, req) => {
-  if (isApiRoute(req)) {
+  if (isApiRoute(req) && !isWebhookRoute(req)) {
     const { userId } = await auth()
     if (!userId) {
       // Explicit JSON 401 (auth.protect() would redirect/404 here) — the

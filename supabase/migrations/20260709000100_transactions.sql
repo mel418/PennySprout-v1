@@ -1,24 +1,9 @@
--- ============================================================================
--- Normalize transactions into their own table (roadmap item 7)
--- ============================================================================
--- Run this ONCE in the Supabase dashboard:
---   Dashboard → SQL Editor → New query → paste this → Run
---
--- WHY THIS EXISTS
--- ---------------
--- Until now every transaction lived inside user_files.transactions as one big
--- JSONB array. That meant GET /api/files shipped every transaction ever
--- uploaded on every page load, dates were stored as unparsed strings in three
--- different formats, and editing one transaction required rewriting the whole
--- blob by array index. This table gives each transaction its own row with a
--- real date column, so queries can be scoped (by month, by file) and edits
--- target a stable id.
---
--- Same security model as the other tables: RLS ON with NO policy, so the
--- public anon key can read nothing. Only the server's service-role key
--- (which bypasses RLS) touches this table. ON DELETE CASCADE keeps the
--- existing "delete a file removes its transactions" behavior.
--- ============================================================================
+-- Normalize transactions into their own table (roadmap item 7). Previously
+-- every transaction lived inside user_files.transactions as one JSONB array:
+-- every page load shipped all history, dates were unparsed strings in three
+-- formats, and editing one transaction rewrote the whole blob by array index.
+-- Each transaction now has its own row with a real date column and stable id.
+-- ON DELETE CASCADE keeps "delete a file removes its transactions".
 
 CREATE TABLE IF NOT EXISTS public.transactions (
   id          uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -66,7 +51,8 @@ END $$;
 
 -- ─── Backfill ────────────────────────────────────────────────────────────────
 -- Idempotent: only migrates files that have no rows in transactions yet, so
--- re-running this script is safe.
+-- re-running is safe (including the first `db push` against a database where
+-- this already ran from the old hand-pasted script).
 
 INSERT INTO public.transactions (user_id, file_id, date, description, amount, category, note)
 SELECT
@@ -82,23 +68,8 @@ CROSS JOIN LATERAL jsonb_array_elements(f.transactions) AS t
 WHERE jsonb_typeof(f.transactions) = 'array'
   AND NOT EXISTS (SELECT 1 FROM public.transactions x WHERE x.file_id = f.id);
 
--- ─── Verify ──────────────────────────────────────────────────────────────────
--- Every file's migrated count should equal its transaction_count. A small
--- shortfall means some rows had no parseable content at all.
-
-SELECT
-  f.file_name,
-  f.transaction_count AS expected,
-  count(x.id)         AS migrated,
-  count(x.date)       AS with_valid_date
-FROM public.user_files f
-LEFT JOIN public.transactions x ON x.file_id = f.id
-GROUP BY f.id, f.file_name, f.transaction_count
-ORDER BY f.created_at;
-
--- ─── Later cleanup (do NOT run now) ─────────────────────────────────────────
+-- ─── Later cleanup (deliberately NOT part of this migration) ────────────────
 -- The old JSONB column stays as a rollback safety net. Once the app has run
--- happily on this table for a while, reclaim the space with:
+-- happily on this table for a while, reclaim the space in a NEW migration:
 --   ALTER TABLE public.user_files DROP COLUMN transactions;
 -- (The app writes '[]' to it for new files until then, since it's NOT NULL.)
--- ============================================================================
