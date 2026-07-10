@@ -5,7 +5,7 @@ export const metadata = {
   description: 'How Penny Sprout handles, stores, and protects your financial data.',
 }
 
-const UPDATED = 'June 12, 2026'
+const UPDATED = 'July 9, 2026'
 const CONTACT = 'melodygatan@gmail.com' // ← change to your support address if you add one
 
 function Section({ title, children }) {
@@ -84,6 +84,8 @@ export default function PrivacyPage() {
             <li>
               <strong>Anthropic (Claude API)</strong> — parses your uploaded statements and generates
               spending insights. Anthropic does not train its models on data sent through its API.
+              Personal notes you attach to transactions are <strong>not</strong> included in AI
+              analysis unless you explicitly opt in via the checkbox for that specific analysis.
             </li>
           </ul>
         </Section>

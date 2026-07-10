@@ -7,6 +7,8 @@ import {
   parseDate, toKey, fromKey, MONTHS_SHORT,
   periodRange, periodLabel, stepPeriod, startOfWeek, addDays,
 } from '@/lib/date'
+import { useTransactions } from './useTransactions'
+import LoadError from './LoadError'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const SCALES = [
@@ -18,8 +20,9 @@ const SCALES = [
 const money0 = (n) => `$${Math.round(Math.abs(n)).toLocaleString('en-US')}`
 
 export default function SpendingCalendar() {
-  const [allTransactions, setAllTransactions] = useState([])
-  const [isLoading, setIsLoading]   = useState(true)
+  // Shared hook distinguishes a failed load (expired session, server error)
+  // from a genuinely empty account — see useTransactions.js.
+  const { transactions: allTransactions, isLoading, error, retry } = useTransactions()
   const [scale, setScale]           = useState('month')
   const [anchor, setAnchor]         = useState(null)         // any date inside the active period
   const [latest, setLatest]         = useState(null)         // most recent active date
@@ -27,20 +30,14 @@ export default function SpendingCalendar() {
   const [expandedCategory, setExpandedCategory] = useState(null)
   const [chartOpen, setChartOpen]   = useState(true)
 
+  // Anchor the calendar on the most recent active date once data arrives.
   useEffect(() => {
-    fetch('/api/files')
-      .then(r => r.json())
-      .then(data => {
-        const all = (data.files || []).flatMap(f => f.transactions || [])
-        setAllTransactions(all)
-        const dates = all.map(parseDate).filter(Boolean)
-        const base = dates.length ? new Date(Math.max(...dates.map(d => d.getTime()))) : new Date()
-        setLatest(dates.length ? base : null)
-        setAnchor(new Date(base.getFullYear(), base.getMonth(), base.getDate()))
-      })
-      .catch(() => setAnchor(new Date()))
-      .finally(() => setIsLoading(false))
-  }, [])
+    if (isLoading) return
+    const dates = allTransactions.map(parseDate).filter(Boolean)
+    const base = dates.length ? new Date(Math.max(...dates.map(d => d.getTime()))) : new Date()
+    setLatest(dates.length ? base : null)
+    setAnchor(new Date(base.getFullYear(), base.getMonth(), base.getDate()))
+  }, [allTransactions, isLoading])
 
   // dateKey → transaction array
   const byDate = useMemo(() => {
@@ -117,6 +114,8 @@ export default function SpendingCalendar() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [go, jumpToLatest])
+
+  if (error) return <LoadError error={error} onRetry={retry} />
 
   if (isLoading || !anchor) {
     return (
@@ -438,7 +437,7 @@ function YearView({ anchor, byDate, dayTotals, selectedDate, setSelectedDate, se
           <div className="flex gap-1 mb-1 ml-0">
             {weeks.map((_, wi) => {
               const m = monthCols.find(mc => mc.col === wi)
-              return <div key={wi} className="w-3 text-[9px] text-ink-faint">{m ? MONTHS_SHORT[m.month] : ''}</div>
+              return <div key={wi} className="w-5 sm:w-3 text-[9px] text-ink-faint">{m ? MONTHS_SHORT[m.month] : ''}</div>
             })}
           </div>
           <div className="flex gap-1">
@@ -456,7 +455,10 @@ function YearView({ anchor, byDate, dayTotals, selectedDate, setSelectedDate, se
                       onClick={() => { if (!cell.has) return; setSelectedDate(isSelected ? null : cell.key); setExpandedCategory(null) }}
                       disabled={!cell.has}
                       title={cell.inYear ? `${cell.date.toLocaleDateString()} · net ${cell.net >= 0 ? '+' : '−'}${money0(cell.net)}` : ''}
-                      className={`h-3 w-3 rounded-sm ${cell.has ? 'cursor-pointer hover:ring-2 hover:ring-sage-300' : 'cursor-default'} ${isSelected ? 'ring-2 ring-sage-600' : ''}`}
+                      aria-label={cell.inYear ? `${cell.date.toLocaleDateString()}, net ${cell.net >= 0 ? 'positive' : 'negative'} ${money0(cell.net)}` : undefined}
+                      aria-pressed={isSelected}
+                      // 20px cells on touch screens (the grid scrolls), 12px on desktop
+                      className={`h-5 w-5 sm:h-3 sm:w-3 rounded-sm ${cell.has ? 'cursor-pointer hover:ring-2 hover:ring-sage-300' : 'cursor-default'} ${isSelected ? 'ring-2 ring-sage-600' : ''}`}
                       style={{ backgroundColor: bg }}
                     />
                   )

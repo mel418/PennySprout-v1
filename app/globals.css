@@ -167,3 +167,25 @@ body {
 .delay-300  { animation-delay: 0.3s; }
 .delay-2000 { animation-delay: 2s; }
 .delay-4000 { animation-delay: 4s; }
+
+/* Respect the OS-level "reduce motion" setting: decorative animations stop,
+   and entrance animations jump straight to their final state (fade-up/expand
+   use `both` fill, so forcing duration to ~0 lands them visible, not hidden).
+   Vestibular-disorder users get a still interface; nobody loses content. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-blob,
+  .animate-float {
+    animation: none;
+  }
+  .animate-fade-up,
+  .animate-expand {
+    animation-duration: 0.01ms;
+    animation-delay: 0ms;
+  }
+  .animate-spin {
+    animation-duration: 1.5s; /* keep spinners meaningful but calmer */
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -2,6 +2,7 @@ import { currentUser } from '@clerk/nextjs/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { extractJson } from '@/lib/aiJson'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { calcSpending, calcIncome, categoryTotals } from '@/lib/categories'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -25,19 +26,57 @@ export async function POST(request) {
       )
     }
 
-    const { transactions } = await request.json()
-    
-    // Prepare data for AI analysis
-    const dataForAnalysis = transactions.slice(0, 50).map(t => ({
-      date: t['Trans. Date'] || t['Date'],
-      description: t['Description'],
-      amount: parseFloat(t['Amount']) || 0,
-      category: t['Category'] || 'Unknown'
-    }))
+    // includeNotes: user-written transaction notes are PRIVATE by default and
+    // only leave our server when the user explicitly opts in per analysis
+    // (checkbox in the dashboard). Must be literally true, not merely truthy.
+    const { transactions, includeNotes } = await request.json()
+    const withNotes = includeNotes === true
 
-    const prompt = `Analyze this spending data and provide insights:
+    // The model doesn't need every raw transaction to give good insights, but
+    // it DOES need accurate totals. So: compute the real aggregates in code
+    // over ALL transactions, and send the model those plus the largest
+    // individual transactions for texture. Previously this route silently
+    // sliced to the first 50 rows — busy months got insights computed on a
+    // truncated, unlabeled sample with wrong totals.
+    const SAMPLE_SIZE = 80
+    const sample = [...transactions]
+      .sort((a, b) => Math.abs(parseFloat(b['Amount']) || 0) - Math.abs(parseFloat(a['Amount']) || 0))
+      .slice(0, SAMPLE_SIZE)
+      .map(t => ({
+        date: t['Trans. Date'] || t['Date'],
+        description: t['Description'],
+        amount: parseFloat(t['Amount']) || 0,
+        category: t['Category'] || 'Unknown',
+        ...(withNotes && t['Note'] ? { note: String(t['Note']).slice(0, 500) } : {}),
+      }))
 
-${JSON.stringify(dataForAnalysis, null, 2)}
+    const aggregates = {
+      transactionCount: transactions.length,
+      totalSpending: Math.round(calcSpending(transactions) * 100) / 100,
+      totalIncome: Math.round(calcIncome(transactions) * 100) / 100,
+      spendingByCategory: categoryTotals(transactions).map(({ category, amount }) => ({
+        category,
+        amount: Math.round(amount * 100) / 100,
+      })),
+    }
+
+    const sampleNote = transactions.length > SAMPLE_SIZE
+      ? `The transaction list below is a SAMPLE: the ${SAMPLE_SIZE} largest of ${transactions.length} total transactions. The aggregates above cover ALL transactions — use them for any totals, percentages, and the health score.`
+      : `The transaction list below is complete (${transactions.length} transactions).`
+
+    // Only added when the user opted in — tells the model how to use the notes.
+    const notesGuidance = withNotes
+      ? `\nSome transactions include a user-written "note". Treat notes as authoritative context about that transaction: for example, "reimbursed by work" means the expense doesn't really burden the user, "split with roommate" means their true share is roughly half, and a note explaining a one-off event means the charge is not a recurring habit. Weigh insights and recommendations accordingly, and never quote a note verbatim in your output.\n`
+      : ''
+
+    const prompt = `Analyze this spending data and provide insights.
+
+Exact aggregates computed over the full dataset (authoritative — use these for all numbers):
+${JSON.stringify(aggregates, null, 2)}
+
+${sampleNote}
+${notesGuidance}
+${JSON.stringify(sample, null, 2)}
 
 Please provide:
 1. Top spending categories and patterns

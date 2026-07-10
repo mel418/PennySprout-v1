@@ -15,14 +15,14 @@ Must land before any public or paid launch.
 
 ## Phase 1 — Trust & scale foundations
 
-7. **Normalize transactions into their own table** (or at minimum scope every query by month). Today `GET /api/files` pulls every JSONB blob for every file on every Calendar/Overview load — fine at demo scale, won't survive real usage growth or multi-year histories.
-8. **Distinguish "session expired" from "no data yet."** All three dashboard components swallow fetch errors into an empty state (`SpendingDashboard.js`, `SpendingCalendar.js`, `Overview.js`) — a 401 looks identical to a new user with no spending. Unacceptable ambiguity for a finance app.
-9. **Let users correct AI-assigned categories.** The file review modal (`UserFiles.js`) is read-only. If Claude mis-tags a transaction, there's no way to fix it, which undermines every chart built from that category.
-10. **Centralize auth enforcement.** Every route currently opts in via its own `currentUser()` check — consistent today, but nothing stops a future route from shipping without it. Move to default-deny via `auth.protect()` in `middleware.js` for `/api/*`.
-11. **Validate/scrub PII after PDF extraction**, not just via prompt instruction. The "no PII" guarantee in `parse-pdf/route.js` is entirely LLM-compliance-based with no code-level check afterward.
-12. **Fix the silent 50-transaction cap in `/api/analyze`** (`route.js:21`) — months with more transactions get insights computed on a truncated, unlabeled sample.
-13. **Accessibility pass**: modal dialog semantics + focus traps + Escape-to-close (`SpendingDashboard.js` category modal, `UserFiles.js` review modal), `prefers-reduced-motion` support, larger touch targets on the year heatmap (currently 12px).
-14. **Validate required env vars at boot** instead of failing deep inside a request handler.
+7. **Normalize transactions into their own table** (or at minimum scope every query by month). Today `GET /api/files` pulls every JSONB blob for every file on every Calendar/Overview load — fine at demo scale, won't survive real usage growth or multi-year histories. *Deliberately deferred to its own PR — it's a schema migration touching every route and deserves isolated review.*
+8. ~~**Distinguish "session expired" from "no data yet."**~~ ✅ **Done (2026-07-09)** — shared `useTransactions` hook checks `res.ok`/401 and all three components render a `LoadError` state ("session expired → sign in again" vs "server hiccup → retry") instead of a false empty state.
+9. ~~**Let users correct AI-assigned categories.**~~ ✅ **Done (2026-07-09)** — the review modal now has a per-transaction category dropdown (standard set + any bank-specific categories already present), saved via `PATCH /api/files/:id/transactions` with optimistic update and rollback on failure.
+10. ~~**Centralize auth enforcement.**~~ ✅ **Done (2026-07-09)** — `middleware.js` now default-denies `/api/*` with a JSON 401 for signed-out requests; per-route `currentUser()` checks remain for user-scoped data access.
+11. ~~**Validate/scrub PII after PDF extraction.**~~ ✅ **Done (2026-07-09)** — `lib/pii.js` enforces the transaction shape (drops unexpected keys) and redacts SSN/phone/email/account-number patterns from descriptions after every extraction; covered by tests.
+12. ~~**Fix the silent 50-transaction cap in `/api/analyze`.**~~ ✅ **Done (2026-07-09)** — exact totals and per-category aggregates are now computed in code over ALL transactions and sent as authoritative; the model sees the 80 largest transactions with the sampling explicitly disclosed.
+13. ~~**Accessibility pass.**~~ ✅ **Done (2026-07-09)** — both modals get `role="dialog"`/`aria-modal`, focus trap, Escape-to-close, and focus restore (shared `useDialog` hook); `prefers-reduced-motion` stills decorative animations; year-heatmap cells are 20px on touch screens with `aria-label`/`aria-pressed`.
+14. ~~**Validate required env vars at boot.**~~ ✅ **Done (2026-07-09)** — `lib/env.js` runs from `instrumentation.js` at startup and names exactly which required var is missing.
 
 ## Phase 2 — Monetization readiness
 
