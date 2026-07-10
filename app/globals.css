@@ -10,7 +10,7 @@
 
 /* ── Theme variables ────────────────────────────────────────────────────────
    Calm "Google Calendar for money" palette: off-white backgrounds, warm light
-   gray surfaces, muted sage accents, dusty blue highlights, soft peach
+   gray surfaces, muted sage accents, dusty blue for spending, muted rose
    warnings, charcoal typography. Minimal saturation, no harsh black.
 
    Every color the app uses lives here as a custom property. Light values sit
@@ -65,14 +65,13 @@
   --blue-tx-500: #6f8cab;
   --blue-tx-600: #5b789a;
 
-  /* Soft peach — warning / spending */
-  --peach-50:  #fbf0e8;
-  --peach-100: #f6dcc9;
-  --peach-200: #f0cbb0;
-  --peach-400: #e8a87c;
-  --peach-600: #d18a5b;
-  --peach-tx-400: #e8a87c;
-  --peach-tx-600: #d18a5b;
+  /* Muted rose — errors / destructive actions only (spending uses dusty blue) */
+  --danger-50:  #faeeed;
+  --danger-200: #efcfcd;
+  --danger-400: #d98f8b;
+  --danger-600: #b95f5a;
+  --danger-tx-400: #d98f8b;
+  --danger-tx-600: #b95f5a;
 
   /* Charts */
   --chart-net: #3f6650;   /* cumulative net line */
@@ -120,13 +119,12 @@
   --blue-tx-500: #8FA9C4;
   --blue-tx-600: #9DB4CC;
 
-  --peach-50:  #302620;
-  --peach-100: #3D2F25;
-  --peach-200: #4D3B2C;
-  --peach-400: #D69A6E;
-  --peach-600: #C98753;
-  --peach-tx-400: #E8A87C;
-  --peach-tx-600: #E09B6C;
+  --danger-50:  #2f2222;
+  --danger-200: #4a3230;
+  --danger-400: #C4726C;
+  --danger-600: #B55F59;
+  --danger-tx-400: #DC9B97;
+  --danger-tx-600: #D48C88;
 
   --chart-net: #8FAC89;
 }
@@ -180,11 +178,10 @@ select option {
   --color-blue-500: var(--blue-500);
   --color-blue-600: var(--blue-600);
 
-  --color-peach-50:  var(--peach-50);
-  --color-peach-100: var(--peach-100);
-  --color-peach-200: var(--peach-200);
-  --color-peach-400: var(--peach-400);
-  --color-peach-600: var(--peach-600);
+  --color-danger-50:  var(--danger-50);
+  --color-danger-200: var(--danger-200);
+  --color-danger-400: var(--danger-400);
+  --color-danger-600: var(--danger-600);
 }
 
 /* Explicit utility classes — the reliable path when @theme JIT has caching
@@ -255,15 +252,14 @@ select option {
   .text-blue-600 { color: var(--blue-tx-600); }
   .border-blue-200 { border-color: var(--blue-200); }
 
-  /* Soft peach */
-  .bg-peach-50  { background-color: var(--peach-50); }
-  .bg-peach-100 { background-color: var(--peach-100); }
-  .bg-peach-200 { background-color: var(--peach-200); }
-  .bg-peach-400 { background-color: var(--peach-400); }
-  .bg-peach-600 { background-color: var(--peach-600); }
-  .text-peach-400 { color: var(--peach-tx-400); }
-  .text-peach-600 { color: var(--peach-tx-600); }
-  .border-peach-200 { border-color: var(--peach-200); }
+  /* Muted rose — errors / destructive actions */
+  .bg-danger-50  { background-color: var(--danger-50); }
+  .bg-danger-600 { background-color: var(--danger-600); }
+  .text-danger-400 { color: var(--danger-tx-400); }
+  .text-danger-600 { color: var(--danger-tx-600); }
+  .border-danger-200 { border-color: var(--danger-200); }
+  .hover\:text-danger-600:hover { color: var(--danger-tx-600); }
+  .hover\:bg-danger-50:hover { background-color: var(--danger-50); }
 
   /* Interactive lift for clickable cards — pairs with an existing transition-*
      class on the element */

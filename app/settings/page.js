@@ -96,9 +96,9 @@ export default function SettingsPage() {
           </div>
 
           {/* Danger zone */}
-          <div className="bg-surface border border-peach-200 rounded-2xl shadow-sm p-6">
+          <div className="bg-surface border border-danger-200 rounded-2xl shadow-sm p-6">
             <div className="flex items-center gap-2 mb-1">
-              <AlertTriangle className="h-4 w-4 text-peach-600" />
+              <AlertTriangle className="h-4 w-4 text-danger-600" />
               <h2 className="text-sm font-semibold text-ink">Delete account</h2>
             </div>
             <p className="text-sm text-ink-soft mb-4">
@@ -108,7 +108,7 @@ export default function SettingsPage() {
             </p>
 
             {error && (
-              <div role="alert" className="mb-4 bg-peach-50 border border-peach-200 text-peach-600 text-sm rounded-xl px-4 py-3">
+              <div role="alert" className="mb-4 bg-danger-50 border border-danger-200 text-danger-600 text-sm rounded-xl px-4 py-3">
                 {error}
               </div>
             )}
@@ -129,7 +129,7 @@ export default function SettingsPage() {
               <button
                 onClick={deleteAccount}
                 disabled={confirmText !== 'DELETE' || deleting}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-peach-600 hover:opacity-90 text-white text-sm font-semibold rounded-lg transition-opacity disabled:opacity-40 disabled:cursor-not-allowed">
+                className="inline-flex items-center gap-2 px-4 py-2 bg-danger-600 hover:opacity-90 text-white text-sm font-semibold rounded-lg transition-opacity disabled:opacity-40 disabled:cursor-not-allowed">
                 <Trash2 className="h-4 w-4" />
                 {deleting ? 'Deleting…' : 'Delete my account'}
               </button>

@@ -11,12 +11,12 @@ import Card from './ui/Card'
 const money = (n) => `$${Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
 const moneyExact = (n) => `$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-// Budget progress states: calm green while comfortably under, amber as the
-// limit approaches, peach once it's crossed — informed, never punished.
+// Budget progress states: calm green while comfortably under, gold as the
+// limit approaches, dusty blue once it's crossed — informed, never punished.
 function progressTone(ratio) {
-  if (ratio >= 1) return { bar: '#D18A5B', label: 'over budget', text: 'text-peach-600' }
+  if (ratio >= 1) return { bar: 'var(--blue-600)', label: 'over budget', text: 'text-blue-600' }
   if (ratio >= 0.8) return { bar: '#C2A06B', label: 'getting close', text: 'text-amber-600' }
-  return { bar: '#5C7A55', label: 'on track', text: 'text-sage-600' }
+  return { bar: 'var(--sage-500)', label: 'on track', text: 'text-sage-600' }
 }
 
 export default function Budgets() {
@@ -194,7 +194,7 @@ export default function Budgets() {
       </div>
 
       {saveError && (
-        <div role="alert" className="bg-peach-50 border border-peach-200 text-peach-600 text-sm rounded-xl px-4 py-3">
+        <div role="alert" className="bg-danger-50 border border-danger-200 text-danger-600 text-sm rounded-xl px-4 py-3">
           {saveError}
         </div>
       )}
@@ -290,7 +290,7 @@ export default function Budgets() {
                         </button>
                         <button onClick={() => removeBudget(b.category)}
                           aria-label={`Remove ${b.category} budget`}
-                          className="p-1 text-ink-faint hover:text-peach-600 transition-colors">
+                          className="p-1 text-ink-faint hover:text-danger-600 transition-colors">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
@@ -400,13 +400,13 @@ export default function Budgets() {
                         </p>
                       </div>
                       <button onClick={() => removeGoal(g.id)} aria-label={`Delete goal ${g.name}`}
-                        className="p-1 text-ink-faint hover:text-peach-600 transition-colors flex-shrink-0">
+                        className="p-1 text-ink-faint hover:text-danger-600 transition-colors flex-shrink-0">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                     <div className="flex items-center gap-2 mb-3">
                       <div className="flex-1 h-2 rounded-full bg-surface-2 overflow-hidden">
-                        <div className={`h-full rounded-full transition-all ${done ? 'bg-sage-500' : 'bg-blue-400'}`}
+                        <div className={`h-full rounded-full transition-all ${done ? 'bg-sage-500' : 'bg-blue-500'}`}
                           style={{ width: `${Math.max(2, pct)}%` }} />
                       </div>
                       <span className={`text-xs font-semibold ${done ? 'text-sage-600' : 'text-ink-soft'}`}>{pct}%</span>

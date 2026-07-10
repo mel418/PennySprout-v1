@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useUser, SignInButton, UserButton } from '@clerk/nextjs'
-import { Upload, FolderOpen, BarChart2, CalendarDays, LayoutGrid, Sparkles, TrendingUp, ArrowRight, Target, Settings } from 'lucide-react'
+import { FolderOpen, BarChart2, CalendarDays, LayoutGrid, Sparkles, TrendingUp, ArrowRight, Target, Settings } from 'lucide-react'
 import FileUpload from './components/FileUpload'
 import SpendingDashboard from './components/SpendingDashboard'
 import UserFiles from './components/UserFiles'
@@ -100,13 +100,13 @@ const NAV_ITEMS = [
   { id: 'calendar',  label: 'Calendar', Icon: CalendarDays },
   { id: 'dashboard', label: 'Analysis', Icon: BarChart2    },
   { id: 'budgets',   label: 'Budgets',  Icon: Target       },
-  { id: 'files',     label: 'My Files', Icon: FolderOpen   },
-  { id: 'upload',    label: 'Upload',   Icon: Upload       },
+  { id: 'files',     label: 'Files',    Icon: FolderOpen   },
 ]
 
 const VALID_VIEWS = NAV_ITEMS.map(i => i.id)
 const viewFromUrl = () => {
   const tab = new URLSearchParams(window.location.search).get('tab')
+  if (tab === 'upload') return 'files' // upload merged into Files; keep old links working
   return VALID_VIEWS.includes(tab) ? tab : 'overview'
 }
 
@@ -118,6 +118,9 @@ export default function Home() {
   // read in an effect (not the initializer) so server and client first-render
   // the same markup.
   const [activeView, setActiveViewState] = useState('overview')
+  // Bumped after each successful upload batch to remount (and so refetch) the
+  // file list that sits below the dropzone on the Files tab.
+  const [filesRefresh, setFilesRefresh] = useState(0)
 
   useEffect(() => {
     setActiveViewState(viewFromUrl())
@@ -193,19 +196,20 @@ export default function Home() {
           {activeView === 'overview' && (
             <Overview
               onOpenCalendar={() => setActiveView('calendar')}
-              onOpenUpload={() => setActiveView('upload')}
+              onOpenUpload={() => setActiveView('files')}
               onOpenAnalysis={() => setActiveView('dashboard')}
             />
           )}
 
-          {activeView === 'upload' && (
-            <FileUpload
-              onDataLoaded={() => setActiveView('files')}
-              userId={user.id}
-            />
+          {/* Upload lives at the top of Files — one tab for bringing data in
+              and managing it. Remounting UserFiles via key refreshes the list
+              after each successful upload batch. */}
+          {activeView === 'files' && (
+            <div className="space-y-6">
+              <FileUpload onDataLoaded={() => setFilesRefresh(k => k + 1)} userId={user.id} />
+              <UserFiles key={filesRefresh} userId={user.id} />
+            </div>
           )}
-
-          {activeView === 'files' && <UserFiles userId={user.id} />}
 
           {activeView === 'calendar' && <SpendingCalendar />}
 

@@ -146,11 +146,11 @@ export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis 
             <p className="text-xs font-medium text-ink-faint uppercase tracking-wide">
               Net flow · {monthKeyLabel(currentKey)}
             </p>
-            <p className={`text-4xl font-bold tracking-tight mt-1.5 ${net >= 0 ? 'text-sage-600' : 'text-peach-600'}`}>
+            <p className={`text-4xl font-bold tracking-tight mt-1.5 ${net >= 0 ? 'text-sage-600' : 'text-blue-600'}`}>
               {net >= 0 ? '+' : '−'}{money(net)}
             </p>
             {delta !== null && (
-              <p className={`flex items-center gap-1 text-xs font-medium mt-2 ${delta >= 0 ? 'text-sage-600' : 'text-peach-600'}`}>
+              <p className={`flex items-center gap-1 text-xs font-medium mt-2 ${delta >= 0 ? 'text-sage-600' : 'text-blue-600'}`}>
                 {delta >= 0
                   ? <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
                   : <TrendingDown className="h-3.5 w-3.5" aria-hidden="true" />}
@@ -237,7 +237,7 @@ export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis 
               <>
                 <div className="relative mt-3 h-2 rounded-full bg-surface-2">
                   <div
-                    className={`h-full rounded-full animate-grow-x ${cur.spending > pace.typical ? 'bg-peach-400' : 'bg-sage-500'}`}
+                    className={`h-full rounded-full animate-grow-x ${cur.spending > pace.typical ? 'bg-blue-500' : 'bg-sage-500'}`}
                     style={{ width: `${Math.min(100, (cur.spending / pace.typical) * 100)}%` }}
                   />
                   {/* where a typical month would be by today */}

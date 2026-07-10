@@ -10,7 +10,7 @@ import { Check, Sparkles, ArrowLeft, CreditCard } from 'lucide-react'
 const FREE_FEATURES = [
   'Unlimited statement uploads (CSV)',
   '20 PDF statement extractions per day',
-  '30 AI analyses per day',
+  '30 AI chat questions per day',
   'Budgets & savings goals',
   'Spending calendar & insights dashboard',
   'Privacy-first: no bank login required, ever',
@@ -19,7 +19,7 @@ const FREE_FEATURES = [
 const PRO_FEATURES = [
   'Everything in Free',
   '100 PDF statement extractions per day',
-  '200 AI analyses per day',
+  '200 AI chat questions per day',
   'Priority support',
   'Early access to new features',
 ]
@@ -100,7 +100,7 @@ export default function PricingPage() {
         )}
 
         {error && (
-          <div role="alert" className="mb-6 bg-peach-50 border border-peach-200 text-peach-600 text-sm rounded-xl px-4 py-3 text-center">
+          <div role="alert" className="mb-6 bg-danger-50 border border-danger-200 text-danger-600 text-sm rounded-xl px-4 py-3 text-center">
             {error}
           </div>
         )}

@@ -1,10 +1,11 @@
 'use client'
 import { useState } from 'react'
-import { Upload, FileText, CheckCircle2, ArrowRight } from 'lucide-react'
+import { Upload, FileText, CheckCircle2 } from 'lucide-react'
 import { parseTransactionsCsv } from '@/lib/csv'
 
 // userId: the logged-in user's Clerk ID (passed down from page.js)
-// onDataLoaded: callback that tells page.js to switch to the My Files view
+// onDataLoaded: callback that refreshes the file list rendered below the
+// dropzone (upload and file management share the Files tab)
 export default function FileUpload({ onDataLoaded }) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -14,10 +15,9 @@ export default function FileUpload({ onDataLoaded }) {
   // Each entry: { name, status: 'pending' | 'processing' | 'done' | 'error', count?, message? }
   const [fileStatuses, setFileStatuses] = useState([])
 
-  // savedCount > 0 after a batch finishes = show the success summary with a
-  // "View in My Files" CTA. We deliberately do NOT auto-navigate: the user
-  // was just watching per-file progress, so yanking the screen away hides
-  // the results (including any per-file failures) they need to see.
+  // savedCount > 0 after a batch finishes = show the success summary. The
+  // per-file status list stays visible (including any failures); the file
+  // list below refreshes in place via onDataLoaded — no navigation.
   const [savedCount, setSavedCount] = useState(0)
 
   const processFiles = async (fileList) => {
@@ -116,6 +116,8 @@ export default function FileUpload({ onDataLoaded }) {
     setSavedCount(saved)
     if (saved === 0) {
       setError('No transactions could be extracted from the uploaded files.')
+    } else {
+      onDataLoaded?.() // refresh the file list below the dropzone
     }
   }
 
@@ -187,7 +189,7 @@ export default function FileUpload({ onDataLoaded }) {
                   <span className="text-sage-600 font-medium">✓ {f.count} transactions</span>
                 )}
                 {f.status === 'error' && (
-                  <span className="text-peach-600">{f.message || 'Failed to parse'}</span>
+                  <span className="text-danger-600">{f.message || 'Failed to parse'}</span>
                 )}
               </div>
             </div>
@@ -195,27 +197,19 @@ export default function FileUpload({ onDataLoaded }) {
         </div>
       )}
 
-      {/* Batch finished with at least one save — offer the next step */}
+      {/* Batch finished with at least one save */}
       {!isLoading && savedCount > 0 && (
-        <div className="bg-sage-50 border border-sage-200 rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="h-5 w-5 text-sage-600 flex-shrink-0" aria-hidden="true" />
-            <p className="text-sm text-sage-700 font-medium">
-              {savedCount} file{savedCount !== 1 ? 's' : ''} uploaded successfully.
-            </p>
-          </div>
-          <button
-            onClick={onDataLoaded}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-sage-600 hover:bg-sage-700 text-white text-sm font-semibold rounded-xl transition-colors"
-          >
-            View in My Files <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </button>
+        <div role="status" className="bg-sage-50 border border-sage-200 rounded-2xl p-5 flex items-center gap-2.5">
+          <CheckCircle2 className="h-5 w-5 text-sage-600 flex-shrink-0" aria-hidden="true" />
+          <p className="text-sm text-sage-700 font-medium">
+            {savedCount} file{savedCount !== 1 ? 's' : ''} uploaded — your list below is up to date.
+          </p>
         </div>
       )}
 
       {error && (
-        <div role="alert" className="bg-peach-50 border border-peach-200 p-4 rounded-lg">
-          <p className="text-peach-600 text-sm">{error}</p>
+        <div role="alert" className="bg-danger-50 border border-danger-200 p-4 rounded-lg">
+          <p className="text-danger-600 text-sm">{error}</p>
         </div>
       )}
     </div>

@@ -5,7 +5,7 @@ import { checkRateLimit } from '@/lib/rateLimit'
 import { getPlan } from '@/lib/subscriptionStorage'
 import { scrubTransactions } from '@/lib/pii'
 
-// Same Anthropic client we use in /api/analyze
+// Same Anthropic client we use in /api/chat
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export async function POST(request) {

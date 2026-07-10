@@ -57,6 +57,9 @@ Must land before any public or paid launch.
 
 32. ~~Email nudges & alerts.~~ ✅ **Done (2026-07-10)** — Resend-backed (`lib/email.js`, env-gated on `RESEND_API_KEY`): budget-exceeded alerts fire on upload, and a monthly upload-reminder cron (`/api/cron/upload-reminder`, guarded by `CRON_SECRET`, scheduled in `vercel.json`) nudges users with no upload in 30 days. Deduped via `email_log` (**apply with `npm run db:push`**) — at most one email per alert per month.
 33. Referral mechanic + shareable insight cards (the growth loop from the investor memo).
+36. ~~Replace the orange/peach accent with dusty blue.~~ ✅ **Done (2026-07-10)** — spending/negative accents now use the theme-aware `blue-*` scale; a new muted-rose `danger-*` scale covers errors and destructive actions (delete buttons, alerts). Peach removed entirely.
+37. ~~Condense the nav.~~ ✅ **Done (2026-07-10)** — Upload merged into Files (dropzone at the top, list below, auto-refresh after each batch); 5 tabs. Old `?tab=upload` links map to Files.
+38. ~~AI chat replaces the one-shot analysis.~~ ✅ **Done (2026-07-10)** — `/api/chat` streams month-scoped answers (context built server-side: totals, categories, top transactions, budgets; notes never sent). `/api/analyze` and `/api/monthly-analysis` deleted; health score is now computed deterministically from savings rate. Partially closes item 30 (chat streams; PDF parse still doesn't). The `monthly_analysis` table is now unused — drop it in a future migration.
 34. Guided onboarding with a sample dataset so new users see value before uploading.
 35. PWA manifest + installability for home-screen return visits.
 

@@ -172,8 +172,8 @@ export default function UserFiles({ userId }) {
       <h2 className="text-lg font-semibold text-ink mb-4">Your Uploaded Files</h2>
 
       {actionError && (
-        <div role="alert" className="bg-peach-50 border border-peach-200 p-3 rounded-lg">
-          <p className="text-peach-600 text-sm">{actionError}</p>
+        <div role="alert" className="bg-danger-50 border border-danger-200 p-3 rounded-lg">
+          <p className="text-danger-600 text-sm">{actionError}</p>
         </div>
       )}
 
@@ -246,7 +246,7 @@ export default function UserFiles({ userId }) {
                     <span className="text-xs text-ink-soft">Delete this file?</span>
                     <button
                       onClick={() => deleteFile(file.id)}
-                      className="px-3 py-1.5 bg-peach-600 text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
+                      className="px-3 py-1.5 bg-danger-600 text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
                     >
                       Delete
                     </button>
@@ -268,7 +268,7 @@ export default function UserFiles({ userId }) {
                     <button
                       onClick={() => setConfirmingDeleteId(file.id)}
                       aria-label={`Delete ${file.name}`}
-                      className="p-1.5 text-ink-faint hover:text-peach-600 hover:bg-peach-50 rounded-lg transition-colors"
+                      className="p-1.5 text-ink-faint hover:text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -304,8 +304,8 @@ export default function UserFiles({ userId }) {
             ariaLabel={`Transactions in ${reviewFile.name}`}
           >
               {editError && (
-                <div role="alert" className="mx-4 mt-3 bg-peach-50 border border-peach-200 p-3 rounded-lg">
-                  <p className="text-peach-600 text-sm">{editError}</p>
+                <div role="alert" className="mx-4 mt-3 bg-danger-50 border border-danger-200 p-3 rounded-lg">
+                  <p className="text-danger-600 text-sm">{editError}</p>
                 </div>
               )}
 

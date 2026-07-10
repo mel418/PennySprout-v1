@@ -5,7 +5,7 @@ An AI-powered personal finance analyzer that helps you understand your spending 
 ## Features
 
 - **Multi-format Upload**: Upload CSV files (credit cards) and PDF bank statements — select multiple files at once to combine accounts
-- **AI-Powered Insights**: Get personalized spending analysis, recommendations, and a financial health score powered by Claude AI
+- **AI Chat**: Ask questions about any month's spending ("where did most of my money go?") and get streamed answers grounded in your real transactions, categories, and budgets — powered by Claude
 - **Interactive Dashboard**: Clickable charts showing spending by category and distribution — tap any category to see individual transactions
 - **Spending Calendar**: Month-by-month calendar view across all saved files showing daily spending and income at a glance, with color-coded categories in the daily breakdown
 - **Cash Flow Trends**: A collapsible, mobile-optimized chart on the calendar plots daily income/spending and a cumulative net-balance line for the selected month
@@ -127,26 +127,25 @@ npm run db:push
 Click **Get Started Free** on the landing page and authenticate with Clerk.
 
 ### 2. Upload Statements
-- Go to **Upload** and select one or more CSV or PDF files
+- Go to **Files** and drop one or more CSV or PDF files into the upload zone at the top
 - CSV files (e.g. Discover, Chase) are parsed in the browser
 - PDF bank statements are sent to Claude for extraction
-- Each file is saved as its own record so you can track exactly what you uploaded
+- Each file is saved as its own record, listed right below the dropzone
 
 ### 3. View Your Dashboard
-The **Analysis** tab works by **calendar month** — pick a month and it analyzes every transaction from that month, pooled across all your files (not per file). Statements that close mid-month no longer skew the numbers. For the selected month it shows:
+The **Analysis** tab works by **calendar month** — pick a month and it pools every transaction from that month across all your files (not per file). Statements that close mid-month no longer skew the numbers. For the selected month it shows:
 - Total spending (excluding income and bills) and income total
-- Financial health score (1–10) from the AI analysis
+- Financial health score (1–10), computed from your savings rate
 - Spending by category (bar chart) and distribution (pie chart)
 - Click any chart bar or category to see individual transactions
 - Bills & Payments shown separately below the charts
-
-The AI analysis is cached per month, with a **Re-analyze** button to refresh it after new uploads.
+- An **AI chat** at the bottom: ask anything about the month ("what subscriptions am I paying for?") and answers stream in, grounded in your real transactions and budgets
 
 ### 4. Spending Calendar
-The **Calendar** tab shows every month covered by your saved files. Each date shows daily spending (orange) and income (green). Click a date to see transactions grouped by category, then click a category to expand individual transactions.
+The **Calendar** tab shows every month covered by your saved files. Each date shows daily spending (blue) and income (green). Click a date to see transactions grouped by category, then click a category to expand individual transactions.
 
-### 5. My Files
-- See all saved statement files with spending totals
+### 5. Files
+- The same tab where you upload: all saved statement files with spending totals
 - Click the pencil icon on any file name to rename it
 - Click **Review** to see that file's transactions
 - Delete files you no longer need
@@ -173,15 +172,15 @@ Standard bank statement PDFs. Claude reads the PDF natively and extracts transac
 spending-analyzer/
 ├── app/
 │   ├── api/
-│   │   ├── analyze/          # Claude AI analysis endpoint
+│   │   ├── chat/             # Month-scoped AI chat (streams)
 │   │   ├── files/            # File CRUD endpoints
-│   │   │   ├── [fileId]/     # DELETE (delete) + PATCH (rename)
-│   │   │   └── analysis/     # Save analysis results
+│   │   │   └── [fileId]/     # DELETE (delete) + PATCH (rename)
 │   │   └── parse-pdf/        # PDF → transactions via Claude
 │   ├── components/
 │   │   ├── FileUpload.js     # Multi-file CSV + PDF upload
+│   │   ├── MonthChat.js      # AI chat panel on the Analysis tab
 │   │   ├── SpendingCalendar.js # Month calendar view
-│   │   ├── SpendingDashboard.js # Charts, cards, AI insights
+│   │   ├── SpendingDashboard.js # Charts, cards, AI chat
 │   │   └── UserFiles.js      # Saved files list with rename
 │   ├── privacy/              # Privacy policy page (/privacy)
 │   ├── globals.css           # Sage color palette + animations
@@ -202,15 +201,13 @@ spending-analyzer/
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/analyze` | Analyze transactions with Claude AI |
+| `POST` | `/api/chat` | Month-scoped AI chat (streams plain text) |
 | `GET` | `/api/files` | List user's saved files (metadata only) |
 | `POST` | `/api/files` | Save a new file + its transaction rows |
 | `DELETE` | `/api/files/[fileId]` | Delete a file (cascades to its transactions) |
 | `PATCH` | `/api/files/[fileId]` | Rename a file |
 | `GET` | `/api/transactions` | List transactions (`?fileId=`, `?from=`/`?to=` filters) |
 | `PATCH` | `/api/transactions/[id]` | Correct a transaction's category or note |
-| `GET` | `/api/monthly-analysis?month=YYYY-MM` | Load a month's cached analysis |
-| `POST` | `/api/monthly-analysis` | Save a month's analysis result |
 | `POST` | `/api/parse-pdf` | Extract transactions from a PDF |
 | `GET`/`PUT`/`DELETE` | `/api/budgets` | List / upsert / remove category budgets |
 | `GET`/`POST` | `/api/goals` | List / create savings goals |
@@ -237,7 +234,7 @@ All category normalization lives in `lib/categories.js` and is shared between th
 - **De-identification at the source**: When a statement is parsed, the model is instructed to drop all PII (names, addresses, account/routing numbers, SSNs). Only merchant, date, amount, and category are ever stored. The uploaded file itself is processed in memory and not retained.
 - **Server-only data access**: All database access goes through the service-role key in `lib/supabase.js`, which imports `server-only` so the key can never be bundled into client code. The public anon key is not used for data access.
 - **Row Level Security**: RLS is enabled on every table by the migrations in [`supabase/migrations/`](supabase/migrations); the public anon key returns zero rows.
-- **Authenticated routes**: Every API route requires a signed-in Clerk user, including `/api/analyze` (so the Anthropic API can't be abused anonymously).
+- **Authenticated routes**: Every API route requires a signed-in Clerk user, including `/api/chat` (so the Anthropic API can't be abused anonymously).
 - **Encryption**: Data is encrypted in transit (TLS) and at rest (AES-256) by Supabase. Note this is *not* end-to-end encryption — the server reads transactions to generate charts and insights.
 - **MFA**: Not enabled yet (gated behind Clerk's paid plan); on the roadmap for launch. See the in-app [privacy policy](app/privacy/page.js) at `/privacy`.
 

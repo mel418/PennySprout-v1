@@ -10,9 +10,9 @@ export default function LoadError({ error, onRetry }) {
   return (
     <div
       role="alert"
-      className="bg-surface border border-peach-200 rounded-2xl shadow-sm p-8 text-center"
+      className="bg-surface border border-danger-200 rounded-2xl shadow-sm p-8 text-center"
     >
-      <AlertTriangle className="mx-auto h-10 w-10 text-peach-400 mb-3" aria-hidden="true" />
+      <AlertTriangle className="mx-auto h-10 w-10 text-danger-400 mb-3" aria-hidden="true" />
       <h3 className="text-base font-semibold text-ink mb-1">
         {isAuth ? 'Your session has expired' : "Couldn't load your data"}
       </h3>
