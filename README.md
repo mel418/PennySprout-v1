@@ -108,6 +108,8 @@ create table monthly_analysis (
 
 Also run [`supabase/api-usage.sql`](supabase/api-usage.sql), which creates the `api_usage` table and `increment_api_usage` function used to enforce per-user daily limits on the AI-backed routes (`/api/analyze`, `/api/parse-pdf`) so Anthropic costs are capped.
 
+Then run [`supabase/transactions.sql`](supabase/transactions.sql), which creates the normalized `transactions` table (one row per transaction with a real date column) and backfills it from any existing `user_files` JSONB data. The app reads and writes transactions exclusively through this table.
+
 Then **enable Row Level Security** by running [`supabase/enable-rls.sql`](supabase/enable-rls.sql) in the Supabase SQL Editor (`monthly-analysis.sql` enables RLS on its own table). This is required: the anon key is public (it ships in the browser bundle), so without RLS anyone could read every user's data directly. The app reaches the tables only through the server-side service-role key (which bypasses RLS by design) and filters every query by the Clerk `user_id`.
 
 ## Usage
@@ -191,10 +193,12 @@ spending-analyzer/
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/api/analyze` | Analyze transactions with Claude AI |
-| `GET` | `/api/files` | List user's saved files |
-| `POST` | `/api/files` | Save a new file |
-| `DELETE` | `/api/files/[fileId]` | Delete a file |
+| `GET` | `/api/files` | List user's saved files (metadata only) |
+| `POST` | `/api/files` | Save a new file + its transaction rows |
+| `DELETE` | `/api/files/[fileId]` | Delete a file (cascades to its transactions) |
 | `PATCH` | `/api/files/[fileId]` | Rename a file |
+| `GET` | `/api/transactions` | List transactions (`?fileId=`, `?from=`/`?to=` filters) |
+| `PATCH` | `/api/transactions/[id]` | Correct a transaction's category or note |
 | `GET` | `/api/monthly-analysis?month=YYYY-MM` | Load a month's cached analysis |
 | `POST` | `/api/monthly-analysis` | Save a month's analysis result |
 | `POST` | `/api/parse-pdf` | Extract transactions from a PDF |
@@ -212,7 +216,7 @@ All category normalization lives in `lib/categories.js` and is shared between th
 
 - **De-identification at the source**: When a statement is parsed, the model is instructed to drop all PII (names, addresses, account/routing numbers, SSNs). Only merchant, date, amount, and category are ever stored. The uploaded file itself is processed in memory and not retained.
 - **Server-only data access**: All database access goes through the service-role key in `lib/supabase.js`, which imports `server-only` so the key can never be bundled into client code. The public anon key is not used for data access.
-- **Row Level Security**: RLS is enabled on `user_files` (see [`supabase/enable-rls.sql`](supabase/enable-rls.sql)); the public anon key returns zero rows.
+- **Row Level Security**: RLS is enabled on `user_files` and `transactions` (see [`supabase/enable-rls.sql`](supabase/enable-rls.sql) and [`supabase/transactions.sql`](supabase/transactions.sql)); the public anon key returns zero rows.
 - **Authenticated routes**: Every API route requires a signed-in Clerk user, including `/api/analyze` (so the Anthropic API can't be abused anonymously).
 - **Encryption**: Data is encrypted in transit (TLS) and at rest (AES-256) by Supabase. Note this is *not* end-to-end encryption — the server reads transactions to generate charts and insights.
 - **MFA**: Not enabled yet (gated behind Clerk's paid plan); on the roadmap for launch. See the in-app [privacy policy](app/privacy/page.js) at `/privacy`.
