@@ -16,11 +16,19 @@ export const metadata = {
   },
 }
 
+// Applies the saved (or system) theme before first paint so a dark-mode user
+// never sees a white flash. Must stay tiny and synchronous.
+const themeInit = `(function(){try{var t=localStorage.getItem('theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark')}catch(e){}})()`
+
 export default function RootLayout({ children }) {
   return (
     <ClerkProvider>
-      <html lang="en" className={inter.variable}>
-        <body className="font-sans antialiased">{children}</body>
+      {/* suppressHydrationWarning: the inline script may add .dark before React hydrates */}
+      <html lang="en" className={inter.variable} suppressHydrationWarning>
+        <body className="font-sans antialiased">
+          <script dangerouslySetInnerHTML={{ __html: themeInit }} />
+          {children}
+        </body>
       </html>
     </ClerkProvider>
   )
