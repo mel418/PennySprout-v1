@@ -1,8 +1,9 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { Trash2, FileText, Calendar, Pencil, Check, X } from 'lucide-react'
-import { calcSpending } from '@/lib/categories'
+import { useState, useEffect, useCallback } from 'react'
+import { Trash2, FileText, Calendar, Pencil, Check, X, StickyNote } from 'lucide-react'
+import { calcSpending, STANDARD_CATEGORIES } from '@/lib/categories'
 import { parseDate } from '@/lib/date'
+import { useDialog } from './useDialog'
 
 export default function UserFiles({ userId }) {
   const [files, setFiles] = useState([])
@@ -14,8 +15,60 @@ export default function UserFiles({ userId }) {
   const [editingId, setEditingId] = useState(null)
   const [editingName, setEditingName] = useState('')
 
-  // reviewFile: the file whose transactions are shown in the read-only modal (null = closed)
+  // reviewFile: the file whose transactions are shown in the review modal (null = closed)
   const [reviewFile, setReviewFile] = useState(null)
+  const [editError, setEditError] = useState(null)
+
+  // Note editing: which transaction's note is open (original index), and the draft text.
+  const [noteEditIdx, setNoteEditIdx] = useState(null)
+  const [noteDraft, setNoteDraft] = useState('')
+
+  // Stable close handler — useDialog takes it as an effect dependency.
+  const closeReview = useCallback(() => { setReviewFile(null); setNoteEditIdx(null) }, [])
+  const dialogRef = useDialog(!!reviewFile, closeReview)
+
+  // Edit one transaction (category correction or note). Optimistic: the UI
+  // updates immediately and rolls back if the save fails. `txnIndex` is the
+  // position in the STORED array (the modal sorts for display, so each row
+  // carries its original index). `patch` uses stored-key casing, e.g.
+  // { Category: 'Food' } or { Note: 'split with roommate' }.
+  const updateTransaction = async (fileId, txnIndex, patch) => {
+    setEditError(null)
+    const applyPatch = (t) => {
+      const next = { ...t, ...patch }
+      if ('Note' in patch && !patch.Note) delete next.Note // empty note = cleared
+      return next
+    }
+    const apply = (f) => f.id === fileId
+      ? { ...f, transactions: (f.transactions || []).map((t, i) => i === txnIndex ? applyPatch(t) : t) }
+      : f
+    const prevFiles = files
+    const prevReview = reviewFile
+    setFiles(prev => prev.map(apply))
+    setReviewFile(prev => (prev && prev.id === fileId ? apply(prev) : prev))
+    try {
+      const res = await fetch(`/api/files/${fileId}/transactions`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          index: txnIndex,
+          ...(patch.Category !== undefined && { category: patch.Category }),
+          ...(patch.Note !== undefined && { note: patch.Note }),
+        }),
+      })
+      if (!res.ok) throw new Error('save failed')
+    } catch (error) {
+      console.error('Error updating transaction:', error)
+      setFiles(prevFiles)
+      setReviewFile(prevReview)
+      setEditError("Couldn't save the change. Please try again.")
+    }
+  }
+
+  const saveNote = (fileId, txnIndex) => {
+    updateTransaction(fileId, txnIndex, { Note: noteDraft.trim() })
+    setNoteEditIdx(null)
+  }
 
   useEffect(() => {
     fetchFiles()
@@ -186,18 +239,31 @@ export default function UserFiles({ userId }) {
         )
       })}
 
-      {/* Read-only review modal — lists the transactions in the selected file */}
+      {/* Review modal — lists the file's transactions with editable categories.
+          Rows are sorted by date for display, so each row carries its ORIGINAL
+          index into the stored array (that's what the PATCH endpoint expects). */}
       {reviewFile && (() => {
         const transactions = (reviewFile.transactions || [])
-          .slice()
-          .sort((a, b) => (parseDate(b)?.getTime() || 0) - (parseDate(a)?.getTime() || 0))
+          .map((t, idx) => ({ t, idx }))
+          .sort((a, b) => (parseDate(b.t)?.getTime() || 0) - (parseDate(a.t)?.getTime() || 0))
+
+        // Offer the standard set plus any bank-specific categories already in
+        // this file, so changing one transaction never loses a custom category.
+        const categoryOptions = [...new Set([
+          ...STANDARD_CATEGORIES,
+          ...transactions.map(({ t }) => t.Category).filter(Boolean),
+        ])].sort()
 
         return (
           <div
             className="fixed inset-0 bg-ink/40 z-50 flex items-center justify-center p-4"
-            onClick={() => setReviewFile(null)}
+            onClick={closeReview}
           >
             <div
+              ref={dialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Transactions in ${reviewFile.name}`}
               className="bg-surface rounded-2xl shadow-sm border border-line w-full max-w-lg flex flex-col"
               style={{ maxHeight: '80vh' }}
               onClick={e => e.stopPropagation()}
@@ -206,32 +272,107 @@ export default function UserFiles({ userId }) {
                 <div className="min-w-0 mr-4">
                   <h3 className="text-xl font-semibold text-ink truncate">{reviewFile.name}</h3>
                   <p className="text-sm text-ink-soft mt-1">
-                    {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
+                    {transactions.length} transaction{transactions.length !== 1 ? 's' : ''} · fix categories or add notes
                   </p>
                 </div>
-                <button onClick={() => setReviewFile(null)} className="text-ink-faint hover:text-ink flex-shrink-0">
+                <button onClick={closeReview} aria-label="Close" className="text-ink-faint hover:text-ink flex-shrink-0 p-1">
                   <X className="h-6 w-6" />
                 </button>
               </div>
+
+              {editError && (
+                <div role="alert" className="mx-4 mt-3 bg-peach-50 border border-peach-200 p-3 rounded-lg">
+                  <p className="text-peach-600 text-sm">{editError}</p>
+                </div>
+              )}
 
               <div className="overflow-y-auto p-4 space-y-2">
                 {transactions.length === 0 ? (
                   <p className="text-ink-soft text-sm text-center py-4">No transactions found.</p>
                 ) : (
-                  transactions.map((t, i) => {
+                  transactions.map(({ t, idx }) => {
                     const date = t['Trans. Date'] || t['Date'] || t['Transaction Date'] || ''
                     const description = t['Description'] || ''
                     const category = t['Category'] || ''
+                    const note = t['Note'] || ''
                     const amount = Math.abs(parseFloat(t.Amount) || 0)
+                    const isEditingNote = noteEditIdx === idx
                     return (
-                      <div key={i} className="flex justify-between items-start p-3 bg-surface-2 rounded-lg">
-                        <div className="flex-1 min-w-0 mr-4">
-                          <p className="text-sm font-medium text-ink truncate">{description}</p>
-                          <p className="text-xs text-ink-faint mt-0.5">
-                            {date}{category ? ` · ${category}` : ''}
-                          </p>
+                      <div key={idx} className="p-3 bg-surface-2 rounded-lg">
+                        <div className="flex justify-between items-center gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-ink truncate">{description}</p>
+                            <p className="text-xs text-ink-faint mt-0.5">{date}</p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              if (isEditingNote) { setNoteEditIdx(null); return }
+                              setNoteDraft(note)
+                              setNoteEditIdx(idx)
+                            }}
+                            aria-label={note ? `Edit note for ${description}` : `Add note to ${description}`}
+                            title={note ? 'Edit note' : 'Add note'}
+                            className={`p-1 flex-shrink-0 transition-colors ${note ? 'text-sage-600 hover:text-sage-700' : 'text-ink-faint hover:text-ink-soft'}`}
+                          >
+                            <StickyNote className="h-4 w-4" />
+                          </button>
+                          <select
+                            value={category}
+                            onChange={e => updateTransaction(reviewFile.id, idx, { Category: e.target.value })}
+                            aria-label={`Category for ${description}`}
+                            className="text-xs text-ink-soft bg-surface border border-line rounded-lg px-2 py-1.5 max-w-[130px] cursor-pointer hover:border-sage-300 focus:border-sage-500 focus:outline-none"
+                          >
+                            {/* Keep an unlabeled option when the transaction has no category yet */}
+                            {!category && <option value="">—</option>}
+                            {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                          <span className="text-sm font-semibold text-ink flex-shrink-0">${amount.toFixed(2)}</span>
                         </div>
-                        <span className="text-sm font-semibold text-ink flex-shrink-0">${amount.toFixed(2)}</span>
+
+                        {/* Saved note (when not editing) */}
+                        {note && !isEditingNote && (
+                          <p className="text-xs italic text-ink-soft mt-2 flex items-start gap-1.5">
+                            <StickyNote className="h-3 w-3 mt-0.5 flex-shrink-0 text-sage-500" aria-hidden="true" />
+                            {note}
+                          </p>
+                        )}
+
+                        {/* Inline note editor */}
+                        {isEditingNote && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <input
+                              autoFocus
+                              value={noteDraft}
+                              maxLength={500}
+                              onChange={e => setNoteDraft(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') saveNote(reviewFile.id, idx)
+                                if (e.key === 'Escape') {
+                                  // Don't let Escape bubble to the dialog handler and close the whole modal
+                                  e.stopPropagation()
+                                  setNoteEditIdx(null)
+                                }
+                              }}
+                              placeholder="Add a note — e.g. split with roommate, reimbursed by work"
+                              aria-label={`Note for ${description}`}
+                              className="flex-1 text-xs text-ink bg-surface border border-line rounded-lg px-2.5 py-1.5 focus:border-sage-500 focus:outline-none placeholder:text-ink-faint"
+                            />
+                            <button
+                              onClick={() => saveNote(reviewFile.id, idx)}
+                              aria-label="Save note"
+                              className="p-1 text-sage-600 hover:text-sage-800 flex-shrink-0"
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => setNoteEditIdx(null)}
+                              aria-label="Cancel note edit"
+                              className="p-1 text-ink-faint hover:text-ink flex-shrink-0"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )
                   })

@@ -2,6 +2,7 @@ import { currentUser } from '@clerk/nextjs/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { extractJson } from '@/lib/aiJson'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { scrubTransactions } from '@/lib/pii'
 
 // Same Anthropic client we use in /api/analyze
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -96,7 +97,13 @@ Return ONLY a valid JSON array, no explanation or extra text. Each object must h
     // Pull the text out of Claude's response and parse it robustly
     // (handles bare/json code fences and surrounding prose).
     const responseText = message.content.find(b => b.type === 'text')?.text || ''
-    const transactions = extractJson(responseText)
+    const extracted = extractJson(responseText)
+
+    // The prompt above asks Claude not to extract PII, but a prompt is a
+    // request, not a guarantee. scrubTransactions is the enforcement layer:
+    // it drops unexpected keys and redacts account/SSN/phone/email patterns
+    // from descriptions before anything leaves this route.
+    const transactions = scrubTransactions(extracted)
 
     return Response.json({ transactions })
   } catch (error) {

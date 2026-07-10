@@ -1,9 +1,12 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { Lightbulb, X, Sparkles, RefreshCw } from 'lucide-react'
 import { normalizeCategory, categoryColor, calcSpending, calcIncome, categoryTotals } from '@/lib/categories'
 import { parseDate, periodRange, monthKey, monthKeyLabel, monthKeyToDate } from '@/lib/date'
+import { useTransactions } from './useTransactions'
+import LoadError from './LoadError'
+import { useDialog } from './useDialog'
 
 // The model returns insights as either plain strings or structured objects
 // (e.g. { action, detail, priority, estimatedImpact }). Coerce both into a
@@ -23,8 +26,9 @@ function toInsight(item) {
 // not per file. The component fetches all transactions itself, lets the user
 // pick a month, and analyzes/loads that month's cached result.
 export default function SpendingDashboard() {
-  const [allTxns, setAllTxns] = useState([])
-  const [isLoadingFiles, setIsLoadingFiles] = useState(true)
+  // Shared hook distinguishes a failed load (expired session, server error)
+  // from a genuinely empty account — see useTransactions.js.
+  const { transactions: allTxns, isLoading: isLoadingFiles, error: loadError, retry } = useTransactions()
 
   const [selectedMonth, setSelectedMonth] = useState(null)
 
@@ -34,24 +38,15 @@ export default function SpendingDashboard() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisError, setAnalysisError] = useState(null)
 
+  // Opt-in, per-analysis: transaction notes are NEVER sent to the AI unless
+  // the user ticks this for the current analysis. Deliberately not persisted —
+  // sharing freeform personal text is a decision, not a setting to forget.
+  const [includeNotes, setIncludeNotes] = useState(false)
+
   // null = modal closed. A category name string = modal open showing that category's transactions.
   const [selectedCategory, setSelectedCategory] = useState(null)
-
-  // Pull every file's transactions on mount and pool them together.
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await fetch('/api/files')
-        const data = await res.json()
-        setAllTxns((data.files || []).flatMap(f => f.transactions || []))
-      } catch (err) {
-        console.error('Error loading transactions:', err)
-      } finally {
-        setIsLoadingFiles(false)
-      }
-    }
-    load()
-  }, [])
+  const closeCategoryModal = useCallback(() => setSelectedCategory(null), [])
+  const dialogRef = useDialog(!!selectedCategory, closeCategoryModal)
 
   // Distinct calendar months that have activity, newest first ('YYYY-MM').
   const months = useMemo(() => {
@@ -115,7 +110,7 @@ export default function SpendingDashboard() {
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactions: monthTxns })
+        body: JSON.stringify({ transactions: monthTxns, includeNotes })
       })
       if (!response.ok) throw new Error('Analysis request failed')
       const result = await response.json()
@@ -166,6 +161,8 @@ export default function SpendingDashboard() {
     )
   }
 
+  if (loadError) return <LoadError error={loadError} onRetry={retry} />
+
   if (months.length === 0) {
     return (
       <div className="bg-surface border border-line rounded-2xl shadow-sm text-center p-12">
@@ -195,30 +192,45 @@ export default function SpendingDashboard() {
           <p className="text-xs text-ink-faint mt-1.5">{monthTxns.length} transaction{monthTxns.length !== 1 ? 's' : ''} this month</p>
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {analyzedAt && (
-            <span className="hidden sm:inline text-xs text-ink-faint">
-              Analyzed {new Date(analyzedAt).toLocaleDateString()}
-            </span>
-          )}
-          {analysis ? (
-            <button
-              onClick={analyzeMonth}
-              disabled={isAnalyzing || monthTxns.length === 0}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-line text-ink-soft hover:border-sage-300 hover:text-sage-700 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={`h-4 w-4 ${isAnalyzing ? 'animate-spin' : ''}`} />
-              {isAnalyzing ? 'Analyzing…' : 'Re-analyze'}
-            </button>
-          ) : (
-            <button
-              onClick={analyzeMonth}
-              disabled={isAnalyzing || isLoadingAnalysis || monthTxns.length === 0}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-sage-600 text-white hover:bg-sage-700 active:bg-sage-800 transition-colors disabled:opacity-50"
-            >
-              <Sparkles className="h-4 w-4" />
-              {isAnalyzing ? 'Analyzing…' : 'Analyze this month'}
-            </button>
+        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            {analyzedAt && (
+              <span className="hidden sm:inline text-xs text-ink-faint">
+                Analyzed {new Date(analyzedAt).toLocaleDateString()}
+              </span>
+            )}
+            {analysis ? (
+              <button
+                onClick={analyzeMonth}
+                disabled={isAnalyzing || monthTxns.length === 0}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-line text-ink-soft hover:border-sage-300 hover:text-sage-700 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${isAnalyzing ? 'animate-spin' : ''}`} />
+                {isAnalyzing ? 'Analyzing…' : 'Re-analyze'}
+              </button>
+            ) : (
+              <button
+                onClick={analyzeMonth}
+                disabled={isAnalyzing || isLoadingAnalysis || monthTxns.length === 0}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-sage-600 text-white hover:bg-sage-700 active:bg-sage-800 transition-colors disabled:opacity-50"
+              >
+                <Sparkles className="h-4 w-4" />
+                {isAnalyzing ? 'Analyzing…' : 'Analyze this month'}
+              </button>
+            )}
+          </div>
+          {/* Only offer the notes opt-in when this month actually has notes.
+              Unchecked by default and never persisted — see includeNotes above. */}
+          {monthTxns.some(t => t.Note) && (
+            <label className="flex items-center gap-1.5 text-xs text-ink-soft cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={includeNotes}
+                onChange={e => setIncludeNotes(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-line accent-sage-600"
+              />
+              Include my notes for better insights
+            </label>
           )}
         </div>
       </div>
@@ -431,9 +443,13 @@ export default function SpendingDashboard() {
         return (
           <div
             className="fixed inset-0 bg-ink/40 z-50 flex items-center justify-center p-4"
-            onClick={() => setSelectedCategory(null)}
+            onClick={closeCategoryModal}
           >
             <div
+              ref={dialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={selectedCategory === '__spending__' ? 'All spending transactions' : `${selectedCategory} transactions`}
               className="bg-surface rounded-2xl shadow-sm border border-line w-full max-w-lg flex flex-col"
               style={{ maxHeight: '80vh' }}
               onClick={e => e.stopPropagation()}
@@ -447,7 +463,7 @@ export default function SpendingDashboard() {
                     {transactions.length} transaction{transactions.length !== 1 ? 's' : ''} &nbsp;·&nbsp; ${total.toFixed(2)} total
                   </p>
                 </div>
-                <button onClick={() => setSelectedCategory(null)} className="text-ink-faint hover:text-ink ml-4 flex-shrink-0">
+                <button onClick={closeCategoryModal} aria-label="Close" className="text-ink-faint hover:text-ink ml-4 flex-shrink-0 p-1">
                   <X className="h-6 w-6" />
                 </button>
               </div>

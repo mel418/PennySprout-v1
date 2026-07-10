@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { AreaChart, Area, XAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import {
   CalendarDays, ArrowUpRight, ArrowDownRight, TrendingUp, Receipt,
@@ -8,6 +8,8 @@ import {
 import { normalizeCategory, categoryColor, calcSpending, calcIncome, categoryTotals } from '@/lib/categories'
 import { detectRecurring } from '@/lib/recurring'
 import { parseDate, toKey, MONTHS, MONTHS_SHORT } from '@/lib/date'
+import { useTransactions } from './useTransactions'
+import LoadError from './LoadError'
 
 const money = (n) => `$${Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
 const moneyExact = (n) => `$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -31,16 +33,9 @@ function Card({ children, className = '', title, hint, icon: Icon }) {
 }
 
 export default function Overview({ onOpenCalendar, onOpenUpload }) {
-  const [allTransactions, setAllTransactions] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    fetch('/api/files')
-      .then(r => r.json())
-      .then(data => setAllTransactions((data.files || []).flatMap(f => f.transactions || [])))
-      .catch(() => setAllTransactions([]))
-      .finally(() => setIsLoading(false))
-  }, [])
+  // Shared hook distinguishes a failed load (expired session, server error)
+  // from a genuinely empty account — see useTransactions.js.
+  const { transactions: allTransactions, isLoading, error, retry } = useTransactions()
 
   // Daily aggregates keyed by YYYY-MM-DD, plus the latest active date.
   const { byDate, latest } = useMemo(() => {
@@ -160,6 +155,8 @@ export default function Overview({ onOpenCalendar, onOpenUpload }) {
       </div>
     )
   }
+
+  if (error) return <LoadError error={error} onRetry={retry} />
 
   if (allTransactions.length === 0) {
     return (
