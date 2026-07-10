@@ -1,12 +1,17 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
-import { Lightbulb, X, Sparkles, RefreshCw } from 'lucide-react'
+import { Lightbulb, Sparkles, RefreshCw } from 'lucide-react'
 import { normalizeCategory, categoryColor, calcSpending, calcIncome, categoryTotals } from '@/lib/categories'
 import { parseDate, periodRange, monthKey, monthKeyLabel, monthKeyToDate } from '@/lib/date'
+import { moneyExact } from '@/lib/format'
 import { useTransactions } from './useTransactions'
 import LoadError from './LoadError'
-import { useDialog } from './useDialog'
+import CategoryCards from './CategoryCards'
+import { DashboardSkeleton } from './ui/Skeletons'
+import EmptyState from './ui/EmptyState'
+import Modal from './ui/Modal'
+import { TOOLTIP_PROPS, AXIS_TICK, GRID_STROKE } from './ui/chartTheme'
 
 // The model returns insights as either plain strings or structured objects
 // (e.g. { action, detail, priority, estimatedImpact }). Coerce both into a
@@ -46,7 +51,6 @@ export default function SpendingDashboard() {
   // null = modal closed. A category name string = modal open showing that category's transactions.
   const [selectedCategory, setSelectedCategory] = useState(null)
   const closeCategoryModal = useCallback(() => setSelectedCategory(null), [])
-  const dialogRef = useDialog(!!selectedCategory, closeCategoryModal)
 
   // Distinct calendar months that have activity, newest first ('YYYY-MM').
   const months = useMemo(() => {
@@ -151,25 +155,18 @@ export default function SpendingDashboard() {
   const totalIncome = calcIncome(monthTxns)
   const billsTransactions = monthTxns.filter(t => normalizeCategory(t.Category, t.Amount) === 'Bills & Payments')
   const billsTotal = billsTransactions.reduce((sum, t) => sum + Math.abs(parseFloat(t.Amount) || 0), 0)
-  const catMax = chartData[0]?.amount || 1
 
-  if (isLoadingFiles) {
-    return (
-      <div className="flex justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sage-500" />
-      </div>
-    )
-  }
+  if (isLoadingFiles) return <DashboardSkeleton />
 
   if (loadError) return <LoadError error={loadError} onRetry={retry} />
 
   if (months.length === 0) {
     return (
-      <div className="bg-surface border border-line rounded-2xl shadow-sm text-center p-12">
-        <Sparkles className="mx-auto h-12 w-12 text-sage-300 mb-4" />
-        <h3 className="text-base font-semibold text-ink mb-1">Nothing to analyze yet</h3>
-        <p className="text-sm text-ink-soft">Upload a statement, then pick a month to see its analysis.</p>
-      </div>
+      <EmptyState
+        icon={Sparkles}
+        title="Nothing to analyze yet"
+        description="Upload a statement, then pick a month to see its analysis."
+      />
     )
   }
 
@@ -177,10 +174,13 @@ export default function SpendingDashboard() {
     <div className="space-y-6">
 
       {/* Month picker + analyze controls */}
-      <div className="bg-surface rounded-xl border border-line shadow-sm p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="bg-surface rounded-2xl border border-line shadow-sm p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <p className="text-xs font-medium text-ink-faint uppercase tracking-wide mb-1.5">Analyzing month</p>
+          <label htmlFor="analysis-month" className="block text-xs font-medium text-ink-faint uppercase tracking-wide mb-1.5">
+            Analyzing month
+          </label>
           <select
+            id="analysis-month"
             value={selectedMonth || ''}
             onChange={e => setSelectedMonth(e.target.value)}
             className="text-lg font-semibold text-ink bg-transparent border-b-2 border-sage-300 outline-none focus:border-sage-500 transition-colors pr-2"
@@ -239,28 +239,28 @@ export default function SpendingDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <button
           onClick={() => setSelectedCategory('__spending__')}
-          className="bg-surface rounded-xl p-5 border border-line shadow-sm text-left hover:border-sage-300 transition-all"
+          className="bg-surface rounded-2xl p-5 border border-line shadow-sm text-left hover:border-sage-300 hover-lift transition-all"
         >
           <p className="text-xs font-medium text-ink-faint uppercase tracking-wide">Spending</p>
-          <p className="text-2xl font-bold text-ink mt-1">${totalSpending.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-ink mt-1">{moneyExact(totalSpending)}</p>
           <p className="text-xs text-ink-faint mt-1">excl. bills & income · click to view</p>
         </button>
 
         <button
           onClick={() => setSelectedCategory('Income')}
-          className="bg-surface rounded-xl p-5 border border-line shadow-sm text-left hover:border-sage-300 transition-all"
+          className="bg-surface rounded-2xl p-5 border border-line shadow-sm text-left hover:border-sage-300 hover-lift transition-all"
         >
           <p className="text-xs font-medium text-ink-faint uppercase tracking-wide">Income</p>
-          <p className="text-2xl font-bold text-sage-600 mt-1">${totalIncome.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-sage-600 mt-1">{moneyExact(totalIncome)}</p>
           <p className="text-xs text-ink-faint mt-1">click to view</p>
         </button>
 
-        <div className="bg-surface rounded-xl p-5 border border-line shadow-sm">
+        <div className="bg-surface rounded-2xl p-5 border border-line shadow-sm">
           <p className="text-xs font-medium text-ink-faint uppercase tracking-wide">Transactions</p>
           <p className="text-2xl font-bold text-ink mt-1">{monthTxns.length}</p>
         </div>
 
-        <div className="bg-surface rounded-xl p-5 border border-line shadow-sm">
+        <div className="bg-surface rounded-2xl p-5 border border-line shadow-sm">
           <p className="text-xs font-medium text-ink-faint uppercase tracking-wide">Health Score</p>
           <p className="text-2xl font-bold text-ink mt-1">{analysis ? `${analysis.healthScore}/10` : '—'}</p>
           {isAnalyzing && <p className="text-xs text-sage-500 mt-1">analyzing...</p>}
@@ -269,19 +269,19 @@ export default function SpendingDashboard() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-surface rounded-xl p-6 border border-line shadow-sm">
+        <div className="bg-surface rounded-2xl p-6 border border-line shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-sm font-semibold text-ink">Spending by Category</h3>
             <span className="text-xs text-ink-faint">click to explore</span>
           </div>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={chartData} margin={{ bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EFEDE6" />
-              <XAxis dataKey="category" angle={-35} textAnchor="end" height={80} tick={{ fontSize: 11, fill: '#9A968C' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: '#9A968C' }} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={GRID_STROKE} />
+              <XAxis dataKey="category" angle={-35} textAnchor="end" height={80} tick={AXIS_TICK} axisLine={false} tickLine={false} />
+              <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} />
               <Tooltip
-                contentStyle={{ borderRadius: '10px', border: '1px solid #EAE8E1', boxShadow: '0 1px 2px rgb(0 0 0 / 0.05)' }}
-                formatter={(value) => [`$${value.toFixed(2)}`, 'Amount']}
+                {...TOOLTIP_PROPS}
+                formatter={(value) => [moneyExact(value), 'Amount']}
               />
               <Bar dataKey="amount" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(entry) => setSelectedCategory(entry.category)}>
                 {chartData.map((d) => <Cell key={d.category} fill={categoryColor(d.category)} />)}
@@ -290,28 +290,42 @@ export default function SpendingDashboard() {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-surface rounded-xl p-6 border border-line shadow-sm">
+        <div className="bg-surface rounded-2xl p-6 border border-line shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-sm font-semibold text-ink">Category Distribution</h3>
             <span className="text-xs text-ink-faint">click to explore</span>
           </div>
-          <ResponsiveContainer width="100%" height={280}>
+          {/* Donut, not labeled pie: outside labels overflowed on narrow
+              screens. The legend below is clickable, same as the slices. */}
+          <ResponsiveContainer width="100%" height={240}>
             <PieChart>
               <Pie
                 data={chartData.slice(0, 5)}
-                cx="50%" cy="50%" outerRadius={90} dataKey="amount"
-                label={({ category }) => category}
+                cx="50%" cy="50%" innerRadius={58} outerRadius={88}
+                paddingAngle={2} dataKey="amount"
                 cursor="pointer"
                 onClick={(entry) => setSelectedCategory(entry.category)}
               >
-                {chartData.slice(0, 5).map((_, index) => <Cell key={`cell-${index}`} fill={pieColors[index]} />)}
+                {chartData.slice(0, 5).map((_, index) => <Cell key={`cell-${index}`} fill={pieColors[index]} stroke="var(--surface)" />)}
               </Pie>
               <Tooltip
-                contentStyle={{ borderRadius: '10px', border: '1px solid #EAE8E1', boxShadow: '0 1px 2px rgb(0 0 0 / 0.05)' }}
-                formatter={(value) => [`$${value.toFixed(2)}`, 'Amount']}
+                {...TOOLTIP_PROPS}
+                formatter={(value) => [moneyExact(value), 'Amount']}
               />
             </PieChart>
           </ResponsiveContainer>
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mt-3">
+            {chartData.slice(0, 5).map((d, index) => (
+              <button
+                key={d.category}
+                onClick={() => setSelectedCategory(d.category)}
+                className="flex items-center gap-1.5 text-xs text-ink-soft hover:text-ink transition-colors"
+              >
+                <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: pieColors[index] }} />
+                {d.category}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -319,31 +333,7 @@ export default function SpendingDashboard() {
       {chartData.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-ink mb-3 px-1">Category breakdown</h3>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-            {chartData.slice(0, 6).map(({ category, amount }) => {
-              const color = categoryColor(category)
-              const share = totalSpending > 0 ? Math.round((amount / totalSpending) * 100) : 0
-              return (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className="bg-surface border border-line rounded-xl shadow-sm p-4 text-left hover:border-sage-300 transition-all"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                      <span className="text-sm font-medium text-ink truncate">{category}</span>
-                    </div>
-                    <span className="text-xs text-ink-faint flex-shrink-0">{share}%</span>
-                  </div>
-                  <p className="text-lg font-bold text-ink">${amount.toFixed(2)}</p>
-                  <div className="mt-2 h-1.5 rounded-full bg-surface-2 overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${Math.max(4, (amount / catMax) * 100)}%`, backgroundColor: color }} />
-                  </div>
-                </button>
-              )
-            })}
-          </div>
+          <CategoryCards categories={chartData.slice(0, 6)} total={totalSpending} onSelect={setSelectedCategory} />
         </div>
       )}
 
@@ -351,12 +341,12 @@ export default function SpendingDashboard() {
       {billsTransactions.length > 0 && (
         <button
           onClick={() => setSelectedCategory('Bills & Payments')}
-          className="w-full text-left bg-surface border border-line rounded-xl p-5 shadow-sm hover:border-sage-300 transition-all group"
+          className="w-full text-left bg-surface border border-line rounded-2xl p-5 shadow-sm hover:border-sage-300 hover-lift transition-all group"
         >
           <div className="flex justify-between items-center">
             <div>
               <p className="text-xs font-medium text-ink-faint uppercase tracking-wide mb-1">Bills & Payments</p>
-              <p className="text-xl font-bold text-ink">${billsTotal.toFixed(2)}</p>
+              <p className="text-xl font-bold text-ink">{moneyExact(billsTotal)}</p>
               <p className="text-xs text-ink-faint mt-1">{billsTransactions.length} transaction{billsTransactions.length !== 1 ? 's' : ''} · excluded from spending total</p>
             </div>
             <span className="text-ink-faint group-hover:text-sage-500 transition-colors text-xl">›</span>
@@ -366,21 +356,21 @@ export default function SpendingDashboard() {
 
       {/* Analyzing state */}
       {isAnalyzing && (
-        <div className="bg-sage-50 border border-sage-200 rounded-xl p-5 flex items-center gap-3">
+        <div className="bg-sage-50 border border-sage-200 rounded-2xl p-5 flex items-center gap-3">
           <div className="animate-spin rounded-full h-4 w-4 border-2 border-sage-500 border-t-transparent flex-shrink-0" />
           <p className="text-sm text-sage-700">Analyzing this month&apos;s spending patterns...</p>
         </div>
       )}
 
       {analysisError && (
-        <div className="bg-peach-50 border border-peach-200 rounded-xl p-5">
+        <div role="alert" className="bg-peach-50 border border-peach-200 rounded-2xl p-5">
           <p className="text-sm text-peach-600">{analysisError}</p>
         </div>
       )}
 
       {/* Prompt to run analysis when none is cached for this month yet */}
       {!analysis && !isAnalyzing && !isLoadingAnalysis && !analysisError && monthTxns.length > 0 && (
-        <div className="bg-surface border border-dashed border-sage-200 rounded-xl p-6 text-center">
+        <div className="bg-surface border border-dashed border-sage-200 rounded-2xl p-6 text-center">
           <Sparkles className="mx-auto h-8 w-8 text-sage-300 mb-2" />
           <p className="text-sm text-ink-soft">No AI insights for {monthKeyLabel(selectedMonth)} yet — click <span className="font-medium text-ink">Analyze this month</span> above.</p>
         </div>
@@ -388,7 +378,7 @@ export default function SpendingDashboard() {
 
       {/* AI Insights */}
       {analysis && (
-        <div className="bg-surface rounded-xl border border-line shadow-sm overflow-hidden">
+        <div className="bg-surface rounded-2xl border border-line shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-line flex items-center gap-2">
             <Lightbulb className="h-4 w-4 text-peach-400" />
             <h3 className="text-sm font-semibold text-ink">AI Insights · {monthKeyLabel(selectedMonth)}</h3>
@@ -441,55 +431,34 @@ export default function SpendingDashboard() {
         const total = transactions.reduce((sum, t) => sum + Math.abs(parseFloat(t.Amount) || 0), 0)
 
         return (
-          <div
-            className="fixed inset-0 bg-ink/40 z-50 flex items-center justify-center p-4"
-            onClick={closeCategoryModal}
+          <Modal
+            isOpen
+            onClose={closeCategoryModal}
+            title={selectedCategory === '__spending__' ? 'All Spending' : selectedCategory}
+            subtitle={`${transactions.length} transaction${transactions.length !== 1 ? 's' : ''} · ${moneyExact(total)} total`}
+            ariaLabel={selectedCategory === '__spending__' ? 'All spending transactions' : `${selectedCategory} transactions`}
           >
-            <div
-              ref={dialogRef}
-              role="dialog"
-              aria-modal="true"
-              aria-label={selectedCategory === '__spending__' ? 'All spending transactions' : `${selectedCategory} transactions`}
-              className="bg-surface rounded-2xl shadow-sm border border-line w-full max-w-lg flex flex-col"
-              style={{ maxHeight: '80vh' }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-start p-6 border-b border-line">
-                <div>
-                  <h3 className="text-xl font-semibold text-ink">
-                    {selectedCategory === '__spending__' ? 'All Spending' : selectedCategory}
-                  </h3>
-                  <p className="text-sm text-ink-soft mt-1">
-                    {transactions.length} transaction{transactions.length !== 1 ? 's' : ''} &nbsp;·&nbsp; ${total.toFixed(2)} total
-                  </p>
-                </div>
-                <button onClick={closeCategoryModal} aria-label="Close" className="text-ink-faint hover:text-ink ml-4 flex-shrink-0 p-1">
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-
-              <div className="overflow-y-auto p-4 space-y-2">
-                {transactions.length === 0 ? (
-                  <p className="text-ink-soft text-sm text-center py-4">No transactions found.</p>
-                ) : (
-                  transactions.map((t, i) => {
-                    const date = t['Trans. Date'] || t['Date'] || t['Transaction Date'] || ''
-                    const description = t['Description'] || ''
-                    const amount = Math.abs(parseFloat(t.Amount) || 0)
-                    return (
-                      <div key={i} className="flex justify-between items-start p-3 bg-surface-2 rounded-lg">
-                        <div className="flex-1 min-w-0 mr-4">
-                          <p className="text-sm font-medium text-ink truncate">{description}</p>
-                          <p className="text-xs text-ink-faint mt-0.5">{date}</p>
-                        </div>
-                        <span className="text-sm font-semibold text-ink flex-shrink-0">${amount.toFixed(2)}</span>
+            <div className="overflow-y-auto p-4 space-y-2">
+              {transactions.length === 0 ? (
+                <p className="text-ink-soft text-sm text-center py-4">No transactions found.</p>
+              ) : (
+                transactions.map((t, i) => {
+                  const date = t['Trans. Date'] || t['Date'] || t['Transaction Date'] || ''
+                  const description = t['Description'] || ''
+                  const amount = Math.abs(parseFloat(t.Amount) || 0)
+                  return (
+                    <div key={i} className="flex justify-between items-start p-3 bg-surface-2 rounded-lg">
+                      <div className="flex-1 min-w-0 mr-4">
+                        <p className="text-sm font-medium text-ink truncate">{description}</p>
+                        <p className="text-xs text-ink-faint mt-0.5">{date}</p>
                       </div>
-                    )
-                  })
-                )}
-              </div>
+                      <span className="text-sm font-semibold text-ink flex-shrink-0">{moneyExact(amount)}</span>
+                    </div>
+                  )
+                })
+              )}
             </div>
-          </div>
+          </Modal>
         )
       })()}
     </div>
