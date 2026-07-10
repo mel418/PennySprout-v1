@@ -36,6 +36,43 @@ export function DashboardSkeleton() {
   )
 }
 
+// Title + budget rows (label above a progress bar) + goal-card grid — used by
+// the Budgets tab while budgets, goals, and transactions load.
+export function BudgetsSkeleton() {
+  return (
+    <div className="space-y-4" role="status" aria-label="Loading">
+      <div className="space-y-2">
+        <Skeleton className="h-7 w-48" />
+        <Skeleton className="h-3 w-64" />
+      </div>
+      <div className="bg-surface border border-line rounded-2xl shadow-sm p-5 space-y-5">
+        <Skeleton className="h-4 w-32" />
+        {[0, 1, 2].map(i => (
+          <div key={i} className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+            <Skeleton className="h-2 w-full rounded-full" />
+          </div>
+        ))}
+      </div>
+      <div className="bg-surface border border-line rounded-2xl shadow-sm p-5 space-y-3">
+        <Skeleton className="h-4 w-28" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {[0, 1].map(i => (
+            <div key={i} className="border border-line rounded-xl p-4 space-y-3">
+              <Skeleton className="h-4 w-2/5" />
+              <Skeleton className="h-2 w-full rounded-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Stacked row cards — used by My Files while the list loads.
 export function ListSkeleton({ rows = 3 }) {
   return (
