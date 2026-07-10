@@ -2,12 +2,13 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useUser, SignInButton, UserButton } from '@clerk/nextjs'
-import { Upload, FolderOpen, BarChart2, CalendarDays, LayoutGrid, Sparkles, TrendingUp, ArrowRight } from 'lucide-react'
+import { Upload, FolderOpen, BarChart2, CalendarDays, LayoutGrid, Sparkles, TrendingUp, ArrowRight, Target, Settings } from 'lucide-react'
 import FileUpload from './components/FileUpload'
 import SpendingDashboard from './components/SpendingDashboard'
 import UserFiles from './components/UserFiles'
 import SpendingCalendar from './components/SpendingCalendar'
 import Overview from './components/Overview'
+import Budgets from './components/Budgets'
 
 // ─── Landing page ─────────────────────────────────────────────────────────────
 
@@ -75,6 +76,10 @@ function LandingPage() {
             Your data stays private
           </Link>
           {' '}·{' '}
+          <Link href="/pricing" className="underline decoration-sage-300 underline-offset-2 hover:text-sage-600">
+            Pricing
+          </Link>
+          {' '}·{' '}
           <Link href="/terms" className="underline decoration-sage-300 underline-offset-2 hover:text-sage-600">
             Terms
           </Link>
@@ -90,6 +95,7 @@ const NAV_ITEMS = [
   { id: 'overview',  label: 'Overview', Icon: LayoutGrid   },
   { id: 'calendar',  label: 'Calendar', Icon: CalendarDays },
   { id: 'dashboard', label: 'Analysis', Icon: BarChart2    },
+  { id: 'budgets',   label: 'Budgets',  Icon: Target       },
   { id: 'files',     label: 'My Files', Icon: FolderOpen   },
   { id: 'upload',    label: 'Upload',   Icon: Upload       },
 ]
@@ -123,6 +129,14 @@ export default function Home() {
             <span className="font-bold text-ink text-base">Penny Sprout</span>
           </div>
           <div className="flex items-center gap-3">
+            <Link href="/pricing"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-sage-700 hover:text-sage-800 bg-sage-50 hover:bg-sage-100 px-2.5 py-1.5 rounded-lg transition-colors">
+              <Sparkles className="h-3.5 w-3.5" /> Pro
+            </Link>
+            <Link href="/settings" aria-label="Settings"
+              className="p-1.5 text-ink-faint hover:text-sage-700 transition-colors">
+              <Settings className="h-4 w-4" />
+            </Link>
             <span className="hidden sm:block text-sm text-ink-soft truncate max-w-[160px]">
               {user.firstName || user.emailAddresses[0].emailAddress}
             </span>
@@ -171,6 +185,8 @@ export default function Home() {
         {activeView === 'calendar' && <SpendingCalendar />}
 
         {activeView === 'dashboard' && <SpendingDashboard />}
+
+        {activeView === 'budgets' && <Budgets />}
       </main>
 
       {/* ── Mobile bottom nav ── */}

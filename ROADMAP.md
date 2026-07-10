@@ -26,27 +26,39 @@ Must land before any public or paid launch.
 
 ## Phase 2 — Monetization readiness
 
+> **Strategy note (2026-07-10):** Plaid/bank connections are deliberately DEFERRED.
+> "No bank login required" is the product's one real differentiator; the retention
+> loop is built instead around budgets, goals, and monthly upload-reminder emails.
+> Revisit only if month-2 retention flatlines despite those.
+
 14a. **Enable Clerk MFA** — requires Clerk Pro (~$25/mo), so treat it as a first-revenue purchase: turn it on once the product charges money and a handful of subscribers cover the cost. The privacy policy already honestly states MFA is on the roadmap.
 15. Memoize dashboard/calendar aggregate computations (`useMemo`) — currently recomputed on every render.
 16. Split `SpendingDashboard.js` (481 lines) and `SpendingCalendar.js` (476 lines) into hooks + presentational components.
 17. Consolidate duplicated spending/date logic back into `lib/categories.js` and `lib/date.js` — currently reimplemented inline in 3 components.
 18. Fix `WeekView`'s mobile layout (`grid-cols-2 sm:grid-cols-7` stacks 7 days into 2 columns on phones instead of scrolling horizontally).
 19. Add scroll affordance to horizontally-scrolling heatmaps on mobile.
-20. Introduce schema migration tooling (or at least a single versioned schema file) — SQL is currently hand-run through the Supabase dashboard.
+20. ~~Introduce schema migration tooling.~~ ✅ **Done (2026-07-10)** — Supabase CLI added as a dev dependency; the whole schema now lives in idempotent, timestamped migrations under `supabase/migrations/` (the old hand-run `.sql` files are deleted). `npm run db:push` applies pending migrations; `npm run db:new <name>` starts a new one. One-time setup: `npx supabase login` + `npx supabase link --project-ref <ref>`.
 21. Purge `data/users.json` from git history before the repo is made public (it was committed with real transaction data in early commits, later removed — commit `5f6c44f`).
-22. Add basic usage metering per user ahead of any billing decision.
-23. Introduce a plan/seat model (Clerk supports it; unused today) and a billing integration.
+22. ~~Add basic usage metering per user ahead of any billing decision.~~ ✅ **Done (2026-07-10)** — the api_usage counters now feed plan-aware daily caps (free: 30 analyses / 20 PDFs; Pro: 200 / 100) via `checkRateLimit(userId, route, plan)`.
+23. ~~Introduce a plan/seat model and a billing integration.~~ ✅ **Done (2026-07-10)** — Stripe Checkout + customer portal + webhook (`/api/billing/*`), `subscriptions` table (`supabase/subscriptions.sql`), free/Pro plan gating, and a `/pricing` page. Env-gated: inert until `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, and `STRIPE_WEBHOOK_SECRET` are set. **Requires `npm run db:push` (subscriptions migration) and creating a $5/mo Price in Stripe.**
 24. Build minimal admin/support tooling — no way today to look up an account, re-run a stuck analysis, or issue a credit without going into Supabase directly.
 
 ## Phase 3 — Delight & growth
 
 25. Dark mode.
-26. CSV/PDF export of transactions and AI analysis.
-27. Budgets and savings goals.
+26. ~~CSV export of transactions~~ ✅ **Done (2026-07-10)** — `GET /api/export` downloads all transactions as RFC-4180 CSV from the Settings page. (PDF/analysis export still open.)
+27. ~~Budgets and savings goals.~~ ✅ **Done (2026-07-10)** — per-category monthly limits with progress bars + savings goals with logged contributions, in a new Budgets tab (`/api/budgets`, `/api/goals`). **Requires `npm run db:push` (budgets_goals migration).**
 28. Multi-account / household support.
-29. Self-serve account deletion (currently manual, email-based only).
+29. ~~Self-serve account deletion.~~ ✅ **Done (2026-07-10)** — `/settings` page with type-DELETE confirmation; `DELETE /api/account` cancels any Stripe subscription, purges every Supabase table, then deletes the Clerk user (in that order, so a partial failure never locks the user out with data left behind).
 30. Stream AI responses instead of a blocking spinner during parse/analyze.
 31. Search and filter across all transactions, not just per-file or per-month.
+
+## Phase A/B additions (2026-07-10)
+
+32. ~~Email nudges & alerts.~~ ✅ **Done (2026-07-10)** — Resend-backed (`lib/email.js`, env-gated on `RESEND_API_KEY`): budget-exceeded alerts fire on upload, and a monthly upload-reminder cron (`/api/cron/upload-reminder`, guarded by `CRON_SECRET`, scheduled in `vercel.json`) nudges users with no upload in 30 days. Deduped via `email_log` (**apply with `npm run db:push`**) — at most one email per alert per month.
+33. Referral mechanic + shareable insight cards (the growth loop from the investor memo).
+34. Guided onboarding with a sample dataset so new users see value before uploading.
+35. PWA manifest + installability for home-screen return visits.
 
 ---
 *See the full audit for architecture, database, security, and code-quality detail behind each item.*

@@ -1,6 +1,7 @@
 import { currentUser } from '@clerk/nextjs/server'
 import { getUserFiles, saveUserFile, deleteUserFile } from '@/lib/fileStorage'
 import { insertTransactions } from '@/lib/transactionStorage'
+import { checkBudgetAlerts } from '@/lib/budgetAlerts'
 
 // GET /api/files — file METADATA only (name, dates, counts). Transaction data
 // comes from /api/transactions now; this route used to ship every JSONB blob
@@ -46,6 +47,15 @@ export async function POST(request) {
       await deleteUserFile(user.id, savedFile.id).catch(() => {})
       throw error
     }
+
+    // New data may have pushed a budget over its limit — email the user if so.
+    // Awaited (serverless may freeze after the response) but never throws, so
+    // a mail hiccup can't fail a successful upload.
+    await checkBudgetAlerts(
+      user.id,
+      user.emailAddresses[0]?.emailAddress,
+      fileData.transactions
+    )
 
     return Response.json({ file: savedFile })
   } catch (error) {
