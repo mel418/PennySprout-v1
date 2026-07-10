@@ -1,14 +1,26 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Trash2, FileText, Calendar, Pencil, Check, X, StickyNote } from 'lucide-react'
 import { calcSpending, STANDARD_CATEGORIES } from '@/lib/categories'
 import { parseDate } from '@/lib/date'
 import { useDialog } from './useDialog'
+import { useTransactions } from './useTransactions'
+import LoadError from './LoadError'
 
 export default function UserFiles({ userId }) {
+  // File METADATA from /api/files; transaction rows come from the shared
+  // hook (normalized table) and are grouped by fileId below.
   const [files, setFiles] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingFiles, setIsLoadingFiles] = useState(true)
   const [deleteError, setDeleteError] = useState(null)
+
+  const {
+    transactions: allTransactions,
+    isLoading: isLoadingTxns,
+    error: txnError,
+    retry,
+    patchLocal,
+  } = useTransactions()
 
   // editingId: which file's title is currently being edited (null = none)
   // editingName: the live value of the input while editing
@@ -19,56 +31,13 @@ export default function UserFiles({ userId }) {
   const [reviewFile, setReviewFile] = useState(null)
   const [editError, setEditError] = useState(null)
 
-  // Note editing: which transaction's note is open (original index), and the draft text.
-  const [noteEditIdx, setNoteEditIdx] = useState(null)
+  // Note editing: which transaction's note is open (row id), and the draft text.
+  const [noteEditId, setNoteEditId] = useState(null)
   const [noteDraft, setNoteDraft] = useState('')
 
   // Stable close handler — useDialog takes it as an effect dependency.
-  const closeReview = useCallback(() => { setReviewFile(null); setNoteEditIdx(null) }, [])
+  const closeReview = useCallback(() => { setReviewFile(null); setNoteEditId(null) }, [])
   const dialogRef = useDialog(!!reviewFile, closeReview)
-
-  // Edit one transaction (category correction or note). Optimistic: the UI
-  // updates immediately and rolls back if the save fails. `txnIndex` is the
-  // position in the STORED array (the modal sorts for display, so each row
-  // carries its original index). `patch` uses stored-key casing, e.g.
-  // { Category: 'Food' } or { Note: 'split with roommate' }.
-  const updateTransaction = async (fileId, txnIndex, patch) => {
-    setEditError(null)
-    const applyPatch = (t) => {
-      const next = { ...t, ...patch }
-      if ('Note' in patch && !patch.Note) delete next.Note // empty note = cleared
-      return next
-    }
-    const apply = (f) => f.id === fileId
-      ? { ...f, transactions: (f.transactions || []).map((t, i) => i === txnIndex ? applyPatch(t) : t) }
-      : f
-    const prevFiles = files
-    const prevReview = reviewFile
-    setFiles(prev => prev.map(apply))
-    setReviewFile(prev => (prev && prev.id === fileId ? apply(prev) : prev))
-    try {
-      const res = await fetch(`/api/files/${fileId}/transactions`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          index: txnIndex,
-          ...(patch.Category !== undefined && { category: patch.Category }),
-          ...(patch.Note !== undefined && { note: patch.Note }),
-        }),
-      })
-      if (!res.ok) throw new Error('save failed')
-    } catch (error) {
-      console.error('Error updating transaction:', error)
-      setFiles(prevFiles)
-      setReviewFile(prevReview)
-      setEditError("Couldn't save the change. Please try again.")
-    }
-  }
-
-  const saveNote = (fileId, txnIndex) => {
-    updateTransaction(fileId, txnIndex, { Note: noteDraft.trim() })
-    setNoteEditIdx(null)
-  }
 
   useEffect(() => {
     fetchFiles()
@@ -82,9 +51,18 @@ export default function UserFiles({ userId }) {
     } catch (error) {
       console.error('Error fetching files:', error)
     } finally {
-      setIsLoading(false)
+      setIsLoadingFiles(false)
     }
   }
+
+  // fileId → its transaction rows.
+  const byFile = useMemo(() => {
+    const map = {}
+    allTransactions.forEach(t => {
+      ;(map[t.fileId] ||= []).push(t)
+    })
+    return map
+  }, [allTransactions])
 
   const deleteFile = async (fileId) => {
     if (!confirm('Are you sure you want to delete this file?')) return
@@ -130,13 +108,45 @@ export default function UserFiles({ userId }) {
     }
   }
 
-  if (isLoading) {
+  // Edit one transaction (category correction or note) by its row id.
+  // Optimistic: the UI updates immediately via patchLocal and rolls back if
+  // the save fails. `fields` uses the client key shape, e.g.
+  // { Category: 'Food' } or { Note: 'split with roommate' }.
+  const updateTransaction = async (txn, fields) => {
+    setEditError(null)
+    const previous = { Category: txn.Category, Note: txn.Note }
+    patchLocal(txn.id, fields)
+    try {
+      const res = await fetch(`/api/transactions/${txn.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...(fields.Category !== undefined && { category: fields.Category }),
+          ...(fields.Note !== undefined && { note: fields.Note }),
+        }),
+      })
+      if (!res.ok) throw new Error('save failed')
+    } catch (error) {
+      console.error('Error updating transaction:', error)
+      patchLocal(txn.id, previous)
+      setEditError("Couldn't save the change. Please try again.")
+    }
+  }
+
+  const saveNote = (txn) => {
+    updateTransaction(txn, { Note: noteDraft.trim() })
+    setNoteEditId(null)
+  }
+
+  if (isLoadingFiles || isLoadingTxns) {
     return (
       <div className="flex justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sage-500"></div>
       </div>
     )
   }
+
+  if (txnError) return <LoadError error={txnError} onRetry={retry} />
 
   if (files.length === 0) {
     return (
@@ -161,7 +171,7 @@ export default function UserFiles({ userId }) {
       {files.map((file) => {
         // Recalculate spending using the same logic as the dashboard:
         // excludes Income and Bills & Payments so the number matches.
-        const spending = calcSpending(file.transactions || [])
+        const spending = calcSpending(byFile[file.id] || [])
         const isEditing = editingId === file.id
 
         return (
@@ -239,19 +249,19 @@ export default function UserFiles({ userId }) {
         )
       })}
 
-      {/* Review modal — lists the file's transactions with editable categories.
-          Rows are sorted by date for display, so each row carries its ORIGINAL
-          index into the stored array (that's what the PATCH endpoint expects). */}
+      {/* Review modal — lists the file's transactions with editable categories
+          and notes. Rows come from the normalized table and carry stable ids,
+          so edits target /api/transactions/:id directly. */}
       {reviewFile && (() => {
-        const transactions = (reviewFile.transactions || [])
-          .map((t, idx) => ({ t, idx }))
-          .sort((a, b) => (parseDate(b.t)?.getTime() || 0) - (parseDate(a.t)?.getTime() || 0))
+        const transactions = (byFile[reviewFile.id] || [])
+          .slice()
+          .sort((a, b) => (parseDate(b)?.getTime() || 0) - (parseDate(a)?.getTime() || 0))
 
         // Offer the standard set plus any bank-specific categories already in
         // this file, so changing one transaction never loses a custom category.
         const categoryOptions = [...new Set([
           ...STANDARD_CATEGORIES,
-          ...transactions.map(({ t }) => t.Category).filter(Boolean),
+          ...transactions.map(t => t.Category).filter(Boolean),
         ])].sort()
 
         return (
@@ -290,15 +300,15 @@ export default function UserFiles({ userId }) {
                 {transactions.length === 0 ? (
                   <p className="text-ink-soft text-sm text-center py-4">No transactions found.</p>
                 ) : (
-                  transactions.map(({ t, idx }) => {
-                    const date = t['Trans. Date'] || t['Date'] || t['Transaction Date'] || ''
-                    const description = t['Description'] || ''
-                    const category = t['Category'] || ''
-                    const note = t['Note'] || ''
+                  transactions.map((t) => {
+                    const date = parseDate(t)?.toLocaleDateString() || ''
+                    const description = t.Description || ''
+                    const category = t.Category || ''
+                    const note = t.Note || ''
                     const amount = Math.abs(parseFloat(t.Amount) || 0)
-                    const isEditingNote = noteEditIdx === idx
+                    const isEditingNote = noteEditId === t.id
                     return (
-                      <div key={idx} className="p-3 bg-surface-2 rounded-lg">
+                      <div key={t.id} className="p-3 bg-surface-2 rounded-lg">
                         <div className="flex justify-between items-center gap-3">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-ink truncate">{description}</p>
@@ -306,9 +316,9 @@ export default function UserFiles({ userId }) {
                           </div>
                           <button
                             onClick={() => {
-                              if (isEditingNote) { setNoteEditIdx(null); return }
+                              if (isEditingNote) { setNoteEditId(null); return }
                               setNoteDraft(note)
-                              setNoteEditIdx(idx)
+                              setNoteEditId(t.id)
                             }}
                             aria-label={note ? `Edit note for ${description}` : `Add note to ${description}`}
                             title={note ? 'Edit note' : 'Add note'}
@@ -318,7 +328,7 @@ export default function UserFiles({ userId }) {
                           </button>
                           <select
                             value={category}
-                            onChange={e => updateTransaction(reviewFile.id, idx, { Category: e.target.value })}
+                            onChange={e => updateTransaction(t, { Category: e.target.value })}
                             aria-label={`Category for ${description}`}
                             className="text-xs text-ink-soft bg-surface border border-line rounded-lg px-2 py-1.5 max-w-[130px] cursor-pointer hover:border-sage-300 focus:border-sage-500 focus:outline-none"
                           >
@@ -346,11 +356,11 @@ export default function UserFiles({ userId }) {
                               maxLength={500}
                               onChange={e => setNoteDraft(e.target.value)}
                               onKeyDown={e => {
-                                if (e.key === 'Enter') saveNote(reviewFile.id, idx)
+                                if (e.key === 'Enter') saveNote(t)
                                 if (e.key === 'Escape') {
                                   // Don't let Escape bubble to the dialog handler and close the whole modal
                                   e.stopPropagation()
-                                  setNoteEditIdx(null)
+                                  setNoteEditId(null)
                                 }
                               }}
                               placeholder="Add a note — e.g. split with roommate, reimbursed by work"
@@ -358,14 +368,14 @@ export default function UserFiles({ userId }) {
                               className="flex-1 text-xs text-ink bg-surface border border-line rounded-lg px-2.5 py-1.5 focus:border-sage-500 focus:outline-none placeholder:text-ink-faint"
                             />
                             <button
-                              onClick={() => saveNote(reviewFile.id, idx)}
+                              onClick={() => saveNote(t)}
                               aria-label="Save note"
                               className="p-1 text-sage-600 hover:text-sage-800 flex-shrink-0"
                             >
                               <Check className="h-4 w-4" />
                             </button>
                             <button
-                              onClick={() => setNoteEditIdx(null)}
+                              onClick={() => setNoteEditId(null)}
                               aria-label="Cancel note edit"
                               className="p-1 text-ink-faint hover:text-ink flex-shrink-0"
                             >
