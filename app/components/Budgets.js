@@ -5,6 +5,8 @@ import { normalizeCategory, categoryColor, STANDARD_CATEGORIES } from '@/lib/cat
 import { parseDate, MONTHS } from '@/lib/date'
 import { useTransactions } from './useTransactions'
 import LoadError from './LoadError'
+import { BudgetsSkeleton } from './ui/Skeletons'
+import Card from './ui/Card'
 
 const money = (n) => `$${Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
 const moneyExact = (n) => `$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -15,24 +17,6 @@ function progressTone(ratio) {
   if (ratio >= 1) return { bar: '#D18A5B', label: 'over budget', text: 'text-peach-600' }
   if (ratio >= 0.8) return { bar: '#C2A06B', label: 'getting close', text: 'text-amber-600' }
   return { bar: '#5C7A55', label: 'on track', text: 'text-sage-600' }
-}
-
-function Card({ children, className = '', title, hint, icon: Icon, action }) {
-  return (
-    <div className={`bg-surface border border-line rounded-2xl shadow-sm ${className}`}>
-      {title && (
-        <div className="flex items-center justify-between px-5 pt-4 pb-3">
-          <div className="flex items-center gap-2">
-            {Icon && <Icon className="h-4 w-4 text-sage-500" />}
-            <h3 className="text-sm font-semibold text-ink">{title}</h3>
-            {hint && <span className="text-xs text-ink-faint">{hint}</span>}
-          </div>
-          {action}
-        </div>
-      )}
-      {children}
-    </div>
-  )
 }
 
 export default function Budgets() {
@@ -194,13 +178,7 @@ export default function Budgets() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
-  if (txLoading || isLoading) {
-    return (
-      <div className="flex justify-center p-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-sage-500 border-t-transparent" />
-      </div>
-    )
-  }
+  if (txLoading || isLoading) return <BudgetsSkeleton />
 
   const error = txError || loadError
   if (error) return <LoadError error={error} onRetry={retryAll} />
