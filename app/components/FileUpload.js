@@ -5,15 +5,6 @@ import { parseTransactionsCsv } from '@/lib/csv'
 
 const ACCOUNT_HISTORY_KEY = 'spending-analyzer:accountNames'
 
-// SHA-256 of the raw file bytes, computed before any parsing so a CSV and a
-// PDF of the exact same statement both get a stable fingerprint — this is
-// what /api/files checks to catch re-uploading the same file twice.
-async function hashFile(file) {
-  const buffer = await file.arrayBuffer()
-  const digest = await crypto.subtle.digest('SHA-256', buffer)
-  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('')
-}
-
 function loadAccountHistory() {
   try {
     return JSON.parse(localStorage.getItem(ACCOUNT_HISTORY_KEY) || '[]')
@@ -115,8 +106,6 @@ export default function FileUpload({ onDataLoaded }) {
       )
 
       try {
-        const contentHash = await hashFile(file)
-
         let transactions = []
         const lower = file.name.toLowerCase()
 
@@ -158,7 +147,6 @@ export default function FileUpload({ onDataLoaded }) {
           transactions,
           totalAmount,
           transactionCount: transactions.length,
-          contentHash,
           accountName: accountForBatch
         }
         pendingUploadsRef.current[i] = payload
