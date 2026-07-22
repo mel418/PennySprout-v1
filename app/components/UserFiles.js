@@ -1,8 +1,8 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Trash2, FileText, Calendar, Pencil, Check, X, StickyNote } from 'lucide-react'
+import { Trash2, FileText, Calendar, Pencil, Check, X, StickyNote, RotateCcw } from 'lucide-react'
 import { calcSpending, STANDARD_CATEGORIES } from '@/lib/categories'
-import { parseDate } from '@/lib/date'
+import { parseDate, monthKey, monthKeyLabel } from '@/lib/date'
 import { moneyExact } from '@/lib/format'
 import { useTransactions } from './useTransactions'
 import LoadError from './LoadError'
@@ -21,6 +21,10 @@ export default function UserFiles({ userId }) {
   const [actionError, setActionError] = useState(null)
   // Two-step delete: first click arms this file's row, second click deletes.
   const [confirmingDeleteId, setConfirmingDeleteId] = useState(null)
+
+  // 'month' groups by statement period (derived from transaction dates);
+  // 'account' groups by the account name assigned at upload.
+  const [groupBy, setGroupBy] = useState('month')
 
   const {
     transactions: allTransactions,
@@ -76,6 +80,67 @@ export default function UserFiles({ userId }) {
     return map
   }, [allTransactions])
 
+  // A file's "statement period" is whichever calendar month has the most of
+  // its transactions. Card statement cycles commonly span two months (e.g.
+  // Apr 15–May 14), so picking the single latest transaction's month tended
+  // to bucket an "April" statement under May just because it closed a few
+  // days into May — the majority-month better matches how people actually
+  // name/think about a statement. Falls back to the upload date when a file
+  // has no parseable transaction dates (e.g. all rows failed to parse).
+  const filePeriodKey = useCallback((file) => {
+    const dates = (byFile[file.id] || []).map(parseDate).filter(Boolean)
+    if (dates.length === 0) return monthKey(new Date(file.uploadDate))
+
+    const counts = new Map()
+    dates.forEach(d => {
+      const key = monthKey(d)
+      counts.set(key, (counts.get(key) || 0) + 1)
+    })
+
+    let bestKey = null
+    let bestCount = -1
+    for (const [key, count] of counts) {
+      if (count > bestCount) {
+        bestKey = key
+        bestCount = count
+      }
+    }
+    return bestKey
+  }, [byFile])
+
+  // Files grouped into sections per the active groupBy mode, most-relevant
+  // group first (newest month, or alphabetical account name).
+  const groupedFiles = useMemo(() => {
+    const map = new Map()
+    files.forEach(file => {
+      const key = groupBy === 'account' ? (file.accountName || '') : filePeriodKey(file)
+      if (!map.has(key)) map.set(key, [])
+      map.get(key).push(file)
+    })
+
+    const entries = [...map.entries()]
+    if (groupBy === 'account') {
+      // Alphabetical, with the unlabeled bucket pushed to the end.
+      entries.sort((a, b) => {
+        if (!a[0]) return 1
+        if (!b[0]) return -1
+        return a[0].localeCompare(b[0])
+      })
+      return entries.map(([key, groupFiles]) => ({
+        key: key || 'unlabeled',
+        label: key || 'No account set',
+        files: groupFiles
+      }))
+    }
+
+    entries.sort((a, b) => b[0].localeCompare(a[0]))
+    return entries.map(([key, groupFiles]) => ({
+      key,
+      label: monthKeyLabel(key),
+      files: groupFiles
+    }))
+  }, [files, groupBy, filePeriodKey])
+
   const deleteFile = async (fileId) => {
     setConfirmingDeleteId(null)
     setActionError(null)
@@ -97,6 +162,22 @@ export default function UserFiles({ userId }) {
   const cancelEditing = () => {
     setEditingId(null)
     setEditingName('')
+  }
+
+  const revertName = async (file) => {
+    setActionError(null)
+    try {
+      const response = await fetch(`/api/files/${file.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: file.originalName })
+      })
+      if (!response.ok) throw new Error('Revert failed')
+      setFiles(files.map(f => f.id === file.id ? { ...f, name: file.originalName } : f))
+    } catch (error) {
+      console.error('Error reverting file name:', error)
+      setActionError("Couldn't revert the file name. Please try again.")
+    }
   }
 
   const saveTitle = async (fileId) => {
@@ -169,7 +250,24 @@ export default function UserFiles({ userId }) {
 
   return (
     <div className="space-y-3">
-      <h2 className="text-lg font-semibold text-ink mb-4">Your Uploaded Files</h2>
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h2 className="text-lg font-semibold text-ink">Your Uploaded Files</h2>
+
+        {/* Group-by toggle */}
+        <div className="inline-flex items-center bg-surface-2 rounded-lg p-0.5 text-xs">
+          {[['month', 'By month'], ['account', 'By account']].map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => setGroupBy(value)}
+              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                groupBy === value ? 'bg-surface text-ink shadow-sm' : 'text-ink-faint hover:text-ink-soft'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {actionError && (
         <div role="alert" className="bg-danger-50 border border-danger-200 p-3 rounded-lg">
@@ -177,108 +275,131 @@ export default function UserFiles({ userId }) {
         </div>
       )}
 
-      {files.map((file) => {
-        // Recalculate spending using the same logic as the dashboard:
-        // excludes Income and Bills & Payments so the number matches.
-        const spending = calcSpending(byFile[file.id] || [])
-        const isEditing = editingId === file.id
+      {groupedFiles.map(group => (
+        <div key={group.key} className="space-y-3">
+          <h3 className="text-xs font-semibold text-ink-faint uppercase tracking-wide pt-2 first:pt-0">
+            {group.label}
+          </h3>
 
-        return (
-          <div key={file.id} className="bg-surface rounded-2xl border border-line shadow-sm p-5 hover:border-sage-300 transition-colors">
-            <div className="flex justify-between items-start gap-4">
-              <div className="flex-1 min-w-0">
+          {group.files.map((file) => {
+            // Recalculate spending using the same logic as the dashboard:
+            // excludes Income and Bills & Payments so the number matches.
+            const spending = calcSpending(byFile[file.id] || [])
+            const isEditing = editingId === file.id
 
-                {/* Title row — shows input when editing, plain text otherwise */}
-                {isEditing ? (
-                  <div className="flex items-center gap-2 mb-3">
-                    <input
-                      autoFocus
-                      value={editingName}
-                      onChange={e => setEditingName(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') saveTitle(file.id)
-                        if (e.key === 'Escape') cancelEditing()
-                      }}
-                      className="text-base font-semibold border-b-2 border-sage-500 outline-none flex-1 bg-transparent text-ink"
-                    />
-                    {/* Check saves, X cancels */}
-                    <button onClick={() => saveTitle(file.id)} aria-label="Save name" className="text-sage-600 hover:text-sage-800 flex-shrink-0">
-                      <Check className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                    <button onClick={cancelEditing} aria-label="Cancel rename" className="text-ink-faint hover:text-ink flex-shrink-0">
-                      <X className="h-4 w-4" aria-hidden="true" />
-                    </button>
+            return (
+              <div key={file.id} className="bg-surface rounded-2xl border border-line shadow-sm p-5 hover:border-sage-300 transition-colors">
+                <div className="flex justify-between items-start gap-4">
+                  <div className="flex-1 min-w-0">
+
+                    {/* Title row — shows input when editing, plain text otherwise */}
+                    {isEditing ? (
+                      <div className="flex items-center gap-2 mb-3">
+                        <input
+                          autoFocus
+                          value={editingName}
+                          onChange={e => setEditingName(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') saveTitle(file.id)
+                            if (e.key === 'Escape') cancelEditing()
+                          }}
+                          className="text-base font-semibold border-b-2 border-sage-500 outline-none flex-1 bg-transparent text-ink"
+                        />
+                        {/* Check saves, X cancels */}
+                        <button onClick={() => saveTitle(file.id)} aria-label="Save name" className="text-sage-600 hover:text-sage-800 flex-shrink-0">
+                          <Check className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                        <button onClick={cancelEditing} aria-label="Cancel rename" className="text-ink-faint hover:text-ink flex-shrink-0">
+                          <X className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      </div>
+                    ) : (
+                      // group + group-hover makes the pencil icon only visible on hover
+                      <div className="flex items-center gap-2 mb-3 group">
+                        <h3 className="text-base font-semibold text-ink truncate">{file.name}</h3>
+                        <button
+                          onClick={() => startEditing(file)}
+                          aria-label={`Rename ${file.name}`}
+                          className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity text-ink-faint hover:text-ink-soft flex-shrink-0"
+                        >
+                          <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                        {file.originalName && file.name !== file.originalName && (
+                          <button
+                            onClick={() => revertName(file)}
+                            aria-label={`Revert to original name: ${file.originalName}`}
+                            title={`Revert to "${file.originalName}"`}
+                            className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity text-ink-faint hover:text-ink-soft flex-shrink-0"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        )}
+                        {file.accountName && (
+                          <span className="px-2 py-0.5 rounded-full bg-sage-50 text-sage-700 text-[11px] font-medium flex-shrink-0">
+                            {file.accountName}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Metadata row */}
+                    <div className="flex flex-wrap gap-4 text-xs text-ink-faint mb-3">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3.5 w-3.5" />
+                        {new Date(file.uploadDate).toLocaleDateString()}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <FileText className="h-3.5 w-3.5" />
+                        {file.transactionCount} transactions
+                      </span>
+                      <span className="flex items-center gap-1 font-medium text-ink-soft">
+                        {moneyExact(spending)} spending
+                      </span>
+                    </div>
                   </div>
-                ) : (
-                  // group + group-hover makes the pencil icon only visible on hover
-                  <div className="flex items-center gap-2 mb-3 group">
-                    <h3 className="text-base font-semibold text-ink truncate">{file.name}</h3>
-                    <button
-                      onClick={() => startEditing(file)}
-                      aria-label={`Rename ${file.name}`}
-                      className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity text-ink-faint hover:text-ink-soft flex-shrink-0"
-                    >
-                      <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                    </button>
-                  </div>
-                )}
 
-                {/* Metadata row */}
-                <div className="flex flex-wrap gap-4 text-xs text-ink-faint mb-3">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="h-3.5 w-3.5" />
-                    {new Date(file.uploadDate).toLocaleDateString()}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <FileText className="h-3.5 w-3.5" />
-                    {file.transactionCount} transactions
-                  </span>
-                  <span className="flex items-center gap-1 font-medium text-ink-soft">
-                    {moneyExact(spending)} spending
-                  </span>
+                  {/* Action buttons — delete is two-step: arm, then confirm inline */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {confirmingDeleteId === file.id ? (
+                      <>
+                        <span className="text-xs text-ink-soft">Delete this file?</span>
+                        <button
+                          onClick={() => deleteFile(file.id)}
+                          className="px-3 py-1.5 bg-danger-600 text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={() => setConfirmingDeleteId(null)}
+                          className="px-3 py-1.5 text-sm rounded-lg text-ink-soft hover:bg-surface-hover transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => setReviewFile(file)}
+                          className="px-3 py-1.5 bg-sage-600 text-white text-sm rounded-lg hover:bg-sage-700 transition-colors"
+                        >
+                          Review
+                        </button>
+                        <button
+                          onClick={() => setConfirmingDeleteId(file.id)}
+                          aria-label={`Delete ${file.name}`}
+                          className="p-1.5 text-ink-faint hover:text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-
-              {/* Action buttons — delete is two-step: arm, then confirm inline */}
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {confirmingDeleteId === file.id ? (
-                  <>
-                    <span className="text-xs text-ink-soft">Delete this file?</span>
-                    <button
-                      onClick={() => deleteFile(file.id)}
-                      className="px-3 py-1.5 bg-danger-600 text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
-                    >
-                      Delete
-                    </button>
-                    <button
-                      onClick={() => setConfirmingDeleteId(null)}
-                      className="px-3 py-1.5 text-sm rounded-lg text-ink-soft hover:bg-surface-hover transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => setReviewFile(file)}
-                      className="px-3 py-1.5 bg-sage-600 text-white text-sm rounded-lg hover:bg-sage-700 transition-colors"
-                    >
-                      Review
-                    </button>
-                    <button
-                      onClick={() => setConfirmingDeleteId(file.id)}
-                      aria-label={`Delete ${file.name}`}
-                      className="p-1.5 text-ink-faint hover:text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )
-      })}
+            )
+          })}
+        </div>
+      ))}
 
       {/* Review modal — lists the file's transactions with editable categories
           and notes. Rows come from the normalized table and carry stable ids,

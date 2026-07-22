@@ -1,5 +1,5 @@
 import { currentUser } from '@clerk/nextjs/server'
-import { getUserFiles, saveUserFile, deleteUserFile } from '@/lib/fileStorage'
+import { getUserFiles, saveUserFile, deleteUserFile, findFileByHash } from '@/lib/fileStorage'
 import { insertTransactions } from '@/lib/transactionStorage'
 import { checkBudgetAlerts } from '@/lib/budgetAlerts'
 
@@ -35,6 +35,16 @@ export async function POST(request) {
     const fileData = await request.json()
     if (!Array.isArray(fileData.transactions) || fileData.transactions.length === 0) {
       return Response.json({ error: 'No transactions provided' }, { status: 400 })
+    }
+
+    // Same file bytes already uploaded by this user? Block unless they've
+    // explicitly confirmed via `force` (e.g. a corrected re-export that
+    // happens to hash the same, or they just want the duplicate).
+    if (fileData.contentHash && !fileData.force) {
+      const existing = await findFileByHash(user.id, fileData.contentHash)
+      if (existing) {
+        return Response.json({ error: 'duplicate', existingFile: existing }, { status: 409 })
+      }
     }
 
     const savedFile = await saveUserFile(user.id, fileData)
