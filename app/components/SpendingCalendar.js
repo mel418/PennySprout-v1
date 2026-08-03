@@ -58,7 +58,7 @@ export default function SpendingCalendar() {
       const cat = normalizeCategory(t.Category, t.Amount)
       const amt = Math.abs(parseFloat(t.Amount) || 0)
       if (cat === 'Income') income += amt
-      else if (cat !== 'Bills & Payments') spending += amt
+      else if (cat !== 'Bills & Payments' && cat !== 'Transfer') spending += amt
     })
     return { spending, income, net: income - spending }
   }, [])

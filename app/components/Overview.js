@@ -36,7 +36,7 @@ export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis 
       const amt = Math.abs(parseFloat(t.Amount) || 0)
       if (cat === 'Income') monthly[k].income += amt
       else if (cat === 'Bills & Payments') monthly[k].bills += amt
-      else monthly[k].spending += amt
+      else if (cat !== 'Transfer') monthly[k].spending += amt
     })
     return { monthly, latest }
   }, [allTransactions])
