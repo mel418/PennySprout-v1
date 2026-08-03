@@ -81,7 +81,7 @@ export default function SpendingDashboard() {
     if (categoryName === '__spending__') {
       return byDateDesc(monthTxns.filter(t => {
         const cat = normalizeCategory(t.Category, t.Amount)
-        return cat !== 'Income' && cat !== 'Bills & Payments'
+        return cat !== 'Income' && cat !== 'Bills & Payments' && cat !== 'Transfer'
       }))
     }
     return byDateDesc(monthTxns.filter(t => normalizeCategory(t.Category, t.Amount) === categoryName))

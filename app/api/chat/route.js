@@ -75,7 +75,7 @@ export async function POST(request) {
       const amt = Math.abs(parseFloat(t.Amount) || 0)
       if (cat === 'Income') income += amt
       else if (cat === 'Bills & Payments') bills += amt
-      else {
+      else if (cat !== 'Transfer') {
         spending += amt
         byCategory[cat] = (byCategory[cat] || 0) + amt
       }

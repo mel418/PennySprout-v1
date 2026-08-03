@@ -69,7 +69,7 @@ export default function Budgets() {
       const d = parseDate(t)
       if (d && (!latest || d > latest)) latest = d
       const cat = normalizeCategory(t.Category, t.Amount)
-      if (cat !== 'Income' && cat !== 'Bills & Payments') present.add(cat)
+      if (cat !== 'Income' && cat !== 'Bills & Payments' && cat !== 'Transfer') present.add(cat)
     })
     const anchor = latest || new Date()
     const y = anchor.getFullYear(), m = anchor.getMonth()
@@ -78,7 +78,7 @@ export default function Budgets() {
       const d = parseDate(t)
       if (!d || d.getFullYear() !== y || d.getMonth() !== m) return
       const cat = normalizeCategory(t.Category, t.Amount)
-      if (cat === 'Income' || cat === 'Bills & Payments') return
+      if (cat === 'Income' || cat === 'Bills & Payments' || cat === 'Transfer') return
       spend[cat] = (spend[cat] || 0) + Math.abs(parseFloat(t.Amount) || 0)
     })
     return { anchor, monthSpendByCategory: spend, presentCategories: present }
