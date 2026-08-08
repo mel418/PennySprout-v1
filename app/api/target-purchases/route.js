@@ -1,5 +1,7 @@
 import { currentUser } from '@clerk/nextjs/server'
 import {
+  createImport,
+  finalizeImport,
   insertTargetPurchaseItems,
   matchUnmatchedItems,
   getMatchedTransactionIds,
@@ -31,13 +33,13 @@ export async function GET(request) {
 
 // POST /api/target-purchases — import a batch of parsed CSV rows and
 // (re)run matching against the user's existing transactions.
-// Body: { items: [{ date, orderRef, itemName, itemPrice, qty, lineTotal, imageUrl, tripTotal, fulfillment }] }
+// Body: { fileName, items: [{ date, orderRef, itemName, itemPrice, qty, lineTotal, imageUrl, tripTotal, fulfillment }] }
 export async function POST(request) {
   try {
     const user = await currentUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { items } = await request.json()
+    const { items, fileName } = await request.json()
     if (!Array.isArray(items) || items.length === 0) {
       return Response.json({ error: 'No items provided' }, { status: 400 })
     }
@@ -45,10 +47,12 @@ export async function POST(request) {
       return Response.json({ error: 'Too many rows in one import' }, { status: 400 })
     }
 
-    const imported = await insertTargetPurchaseItems(user.id, items)
+    const importId = await createImport(user.id, fileName)
+    const imported = await insertTargetPurchaseItems(user.id, items, importId)
+    await finalizeImport(user.id, importId, imported)
     const matched = await matchUnmatchedItems(user.id)
 
-    return Response.json({ imported, matched })
+    return Response.json({ imported, matched, importId: imported > 0 ? importId : null })
   } catch (error) {
     console.error('Error importing Target purchases:', error)
     return Response.json({ error: 'Failed to import Target purchases' }, { status: 500 })
