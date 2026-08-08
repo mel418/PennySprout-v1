@@ -53,5 +53,10 @@ export function useTransactions() {
     }))
   }, [])
 
-  return { transactions, isLoading, error, retry, patchLocal }
+  // Drop one row locally (optimistic update after a DELETE).
+  const removeLocal = useCallback((id) => {
+    setTransactions(prev => prev.filter(t => t.id !== id))
+  }, [])
+
+  return { transactions, isLoading, error, retry, patchLocal, removeLocal }
 }

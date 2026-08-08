@@ -40,6 +40,7 @@ export default function UserFiles({ userId }) {
     error: txnError,
     retry,
     patchLocal,
+    removeLocal,
   } = useTransactions()
 
   // editingId: which file's title is currently being edited (null = none)
@@ -55,6 +56,9 @@ export default function UserFiles({ userId }) {
   const [noteEditId, setNoteEditId] = useState(null)
   const [noteDraft, setNoteDraft] = useState('')
 
+  // Two-step delete for a single transaction, same pattern as file delete.
+  const [confirmingTxnDeleteId, setConfirmingTxnDeleteId] = useState(null)
+
   // Matched Target purchase items — drives the "view items" icon and its
   // expandable item list in the review modal (see useTargetPurchaseMatches).
   const {
@@ -67,7 +71,9 @@ export default function UserFiles({ userId }) {
   } = useTargetPurchaseMatches()
 
   // Stable close handler — Modal's useDialog takes it as an effect dependency.
-  const closeReview = useCallback(() => { setReviewFile(null); setNoteEditId(null); closeTargetItems() }, [closeTargetItems])
+  const closeReview = useCallback(() => {
+    setReviewFile(null); setNoteEditId(null); setConfirmingTxnDeleteId(null); closeTargetItems()
+  }, [closeTargetItems])
 
   const fetchFiles = useCallback(async () => {
     setIsLoadingFiles(true)
@@ -252,6 +258,24 @@ export default function UserFiles({ userId }) {
     setNoteEditId(null)
   }
 
+  // Deletes a single transaction — e.g. a duplicate from an overlapping
+  // statement that was already imported before the upload-time duplicate
+  // check existed. Removes it from local state immediately; the file's
+  // displayed transaction count is computed live from byFile so it stays
+  // correct without a separate metadata update.
+  const deleteTransaction = async (txn) => {
+    setConfirmingTxnDeleteId(null)
+    setEditError(null)
+    try {
+      const res = await fetch(`/api/transactions/${txn.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('delete failed')
+      removeLocal(txn.id)
+    } catch (error) {
+      console.error('Error deleting transaction:', error)
+      setEditError("Couldn't delete the transaction. Please try again.")
+    }
+  }
+
   if (isLoadingFiles || isLoadingTxns) return <ListSkeleton />
 
   if (txnError) return <LoadError error={txnError} onRetry={retry} />
@@ -318,7 +342,8 @@ export default function UserFiles({ userId }) {
           {group.files.map((file) => {
             // Recalculate spending using the same logic as the dashboard:
             // excludes Income and Bills & Payments so the number matches.
-            const spending = calcSpending(byFile[file.id] || [])
+            const fileTxns = byFile[file.id] || []
+            const spending = calcSpending(fileTxns)
             const isEditing = editingId === file.id
 
             return (
@@ -384,7 +409,9 @@ export default function UserFiles({ userId }) {
                       </span>
                       <span className="flex items-center gap-1">
                         <FileText className="h-3.5 w-3.5" />
-                        {file.transactionCount} transactions
+                        {/* Live count from actual rows, not the stored metadata —
+                            stays correct after deleting an individual transaction. */}
+                        {fileTxns.length} transaction{fileTxns.length === 1 ? '' : 's'}
                       </span>
                       <span className="flex items-center gap-1 font-medium text-ink-soft">
                         {moneyExact(spending)} spending
@@ -512,7 +539,37 @@ export default function UserFiles({ userId }) {
                             {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
                           <span className="text-sm font-semibold text-ink flex-shrink-0">{moneyExact(amount)}</span>
+                          <button
+                            onClick={() => setConfirmingTxnDeleteId(t.id)}
+                            aria-label={`Delete ${description}`}
+                            title="Delete transaction"
+                            className="p-1 flex-shrink-0 text-ink-faint hover:text-danger-600 transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
+
+                        {/* Two-step delete confirm, e.g. for a duplicate transaction
+                            from an overlapping statement */}
+                        {confirmingTxnDeleteId === t.id && (
+                          <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-line">
+                            <span className="text-xs text-ink-soft">Delete this transaction?</span>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <button
+                                onClick={() => deleteTransaction(t)}
+                                className="px-2.5 py-1 text-xs font-medium rounded-lg bg-danger-600 text-white hover:opacity-90 transition-colors"
+                              >
+                                Delete
+                              </button>
+                              <button
+                                onClick={() => setConfirmingTxnDeleteId(null)}
+                                className="px-2.5 py-1 text-xs rounded-lg text-ink-soft hover:bg-surface-hover transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Saved note (when not editing) */}
                         {note && !isEditingNote && (
