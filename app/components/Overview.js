@@ -2,22 +2,29 @@
 import { useMemo } from 'react'
 import { AreaChart, Area, XAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { CalendarDays, ChevronRight, Receipt, Wallet, TrendingUp, TrendingDown } from 'lucide-react'
-import { normalizeCategory, categoryTotals } from '@/lib/categories'
+import { normalizeCategory, categoryTotals, SEMANTIC_COLORS } from '@/lib/categories'
 import { detectRecurring } from '@/lib/recurring'
 import { parseDate, MONTHS_SHORT, monthKey, monthKeyLabel } from '@/lib/date'
 import { money, moneyExact } from '@/lib/format'
 import { useTransactions } from './useTransactions'
 import LoadError from './LoadError'
 import CategoryCards from './CategoryCards'
-import Card from './ui/Card'
+import Card, { CARD_BODY } from './ui/Card'
 import { DashboardSkeleton } from './ui/Skeletons'
 import EmptyState from './ui/EmptyState'
+import Button from './ui/Button'
+import Doodle from './ui/Doodle'
+import ProgressBar from './ui/Progress'
+import { PageHeader, SectionHeader, StatTile } from './ui/SectionHeader'
 import { TOOLTIP_PROPS } from './ui/chartTheme'
 
 // Overview is deliberately narrow in scope: net flow (the headline), spending
 // pace against a typical month (soft budgeting), and where this month's money
 // went. Deeper history lives on Calendar; per-month analysis on Analysis.
-export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis }) {
+//
+// Design ratio here is ~30% aesthetic / 70% fintech: one warm line of framing
+// at the top, then the numbers take over. Decoration stays at the card edges.
+export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis, onOpenBudgets }) {
   // Shared hook distinguishes a failed load (expired session, server error)
   // from a genuinely empty account — see useTransactions.js.
   const { transactions: allTransactions, isLoading, error, retry } = useTransactions()
@@ -99,18 +106,23 @@ export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis 
   if (allTransactions.length === 0) {
     return (
       <EmptyState
-        icon={Wallet}
-        title="Welcome to your command center"
-        description="Upload a bank or card statement and your finances will appear here — laid out calmly across time."
+        illustration="sprout"
+        title="Nothing planted yet"
+        description="Upload your first statement and we'll start growing your financial picture."
         action={
-          <button onClick={onOpenUpload}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-sage-600 hover:bg-sage-700 text-white text-sm font-semibold rounded-xl transition-colors">
+          <Button onClick={onOpenUpload}>
             Upload a statement <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          </button>
+          </Button>
         }
       />
     )
   }
+
+  // One warm line of framing above the numbers — encouraging, never shaming,
+  // and always backed by the figure printed right beneath it.
+  const headline = net >= 0
+    ? { doodle: 'sprout', text: 'Your money is growing this month.' }
+    : { doodle: 'leaf',   text: 'You spent more than came in this month — worth a look.' }
 
   // Gentle pace copy — informative, never punishing.
   let paceMessage = null
@@ -123,65 +135,71 @@ export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis 
       paceMessage = `A touch ahead of typical pace, with ${money(pace.typical - cur.spending)} of a typical month left.`
     }
   }
+  const priorMonthCount = monthsSorted.filter(k => k < currentKey).length
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
 
-      {/* Header */}
-      <div className="flex items-end justify-between flex-wrap gap-2">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-ink tracking-tight">Overview</h1>
-          <p className="text-sm text-ink-soft mt-0.5">{monthKeyLabel(currentKey)} · your money at a glance</p>
-        </div>
-        <button onClick={onOpenCalendar}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-sage-700 hover:text-sage-800 transition-colors">
-          <CalendarDays className="h-4 w-4" aria-hidden="true" /> Open calendar
-        </button>
-      </div>
+      <PageHeader
+        title="Overview"
+        subtitle={`${monthKeyLabel(currentKey)} · your money at a glance`}
+        doodle="sprig"
+        action={
+          <Button variant="soft" size="sm" onClick={onOpenCalendar}>
+            <CalendarDays className="h-4 w-4" aria-hidden="true" /> Open calendar
+          </Button>
+        }
+      />
 
-      {/* ── Net flow hero: the number + its history, one card ── */}
-      <Card>
+      {/* ── Net flow hero: the number, its history, and the month's breakdown ── */}
+      <Card className="overflow-hidden">
         <div className="lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
           <div className="p-5 sm:p-6">
-            <p className="text-xs font-medium text-ink-faint uppercase tracking-wide">
+            <p className="flex items-center gap-1.5 text-sm font-medium text-ink-soft">
+              <Doodle name={headline.doodle} className="h-4 w-4 flex-shrink-0 text-sage-500" />
+              {headline.text}
+            </p>
+
+            <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-ink-faint">
               Net flow · {monthKeyLabel(currentKey)}
             </p>
-            <p className={`text-4xl font-bold tracking-tight mt-1.5 ${net >= 0 ? 'text-sage-600' : 'text-spend-600'}`}>
+            <p className={`mt-1 text-4xl sm:text-5xl font-bold tracking-tight tnum ${net >= 0 ? 'text-sage-600' : 'text-spend-600'}`}>
               {net >= 0 ? '+' : '−'}{money(net)}
             </p>
             {delta !== null && (
-              <p className={`flex items-center gap-1 text-xs font-medium mt-2 ${delta >= 0 ? 'text-sage-600' : 'text-spend-600'}`}>
+              <p className={`mt-2 flex items-center gap-1.5 text-sm font-medium ${delta >= 0 ? 'text-sage-600' : 'text-spend-600'}`}>
                 {delta >= 0
-                  ? <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
-                  : <TrendingDown className="h-3.5 w-3.5" aria-hidden="true" />}
-                {delta >= 0 ? '+' : '−'}{money(delta)} vs {monthKeyLabel(prevKey)}
+                  ? <TrendingUp className="h-4 w-4" aria-hidden="true" />
+                  : <TrendingDown className="h-4 w-4" aria-hidden="true" />}
+                <span className="tnum">{delta >= 0 ? '+' : '−'}{money(delta)}</span>
+                <span className="font-normal text-ink-soft">vs {monthKeyLabel(prevKey)}</span>
               </p>
             )}
 
-            <dl className="flex flex-wrap gap-x-6 gap-y-3 mt-5 pt-4 border-t border-line">
+            <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-line pt-5 sm:grid-cols-4 lg:grid-cols-2">
               <div>
-                <dt className="text-[11px] font-medium text-ink-faint uppercase tracking-wide">Income</dt>
-                <dd className="text-sm font-semibold text-sage-600 mt-0.5">+{money(cur.income)}</dd>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Income</dt>
+                <dd className="mt-0.5 text-base font-bold tnum text-sage-600">+{money(cur.income)}</dd>
               </div>
               <div>
-                <dt className="text-[11px] font-medium text-ink-faint uppercase tracking-wide">Spending</dt>
-                <dd className="text-sm font-semibold text-ink mt-0.5">−{money(cur.spending)}</dd>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Spending</dt>
+                <dd className="mt-0.5 text-base font-bold tnum text-spend-600">−{money(cur.spending)}</dd>
               </div>
               <div>
-                <dt className="text-[11px] font-medium text-ink-faint uppercase tracking-wide">Bills</dt>
-                <dd className="text-sm font-semibold text-ink mt-0.5">−{money(cur.bills)}</dd>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Bills</dt>
+                <dd className="mt-0.5 text-base font-bold tnum text-peach-600">−{money(cur.bills)}</dd>
               </div>
               {savingsRate !== null && (
                 <div>
-                  <dt className="text-[11px] font-medium text-ink-faint uppercase tracking-wide">Saved</dt>
-                  <dd className="text-sm font-semibold text-ink mt-0.5">{savingsRate}%</dd>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Saved</dt>
+                  <dd className="mt-0.5 text-base font-bold tnum text-ink">{savingsRate}%</dd>
                 </div>
               )}
             </dl>
           </div>
 
-          <div className="border-t lg:border-t-0 lg:border-l border-line px-2 pt-4 pb-2 lg:p-4 flex flex-col">
-            <p className="text-[11px] font-medium text-ink-faint uppercase tracking-wide px-3 lg:px-2 mb-1">
+          <div className="flex flex-col border-t border-line px-2 pb-2 pt-4 lg:border-l lg:border-t-0 lg:p-5">
+            <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-ink-faint lg:px-0">
               Net flow by month
             </p>
             {trendData.length > 1 ? (
@@ -189,31 +207,32 @@ export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis 
               // definite height, so the chart's height="100%" resolves to 0
               // and it silently renders nothing. On lg+ the grid stretches
               // the column, so flex-1 gives a real height to fill.
-              <div className="h-[150px] lg:h-auto lg:flex-1 lg:min-h-[150px]">
+              <div className="h-[160px] lg:h-auto lg:min-h-[170px] lg:flex-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={trendData} margin={{ top: 8, right: 8, left: 8, bottom: 4 }}>
                     <defs>
                       <linearGradient id="netFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#5c7a55" stopOpacity={0.35} />
-                        <stop offset="100%" stopColor="#5c7a55" stopOpacity={0.02} />
+                        <stop offset="0%" stopColor="var(--chart-net)" stopOpacity={0.32} />
+                        <stop offset="100%" stopColor="var(--chart-net)" stopOpacity={0.02} />
                       </linearGradient>
                     </defs>
                     {/* hidden axis so the tooltip label is the month, not the row index */}
                     <XAxis dataKey="month" hide />
                     <Tooltip
                       {...TOOLTIP_PROPS}
+                      cursor={{ stroke: 'var(--line)', strokeWidth: 1 }}
                       formatter={(v) => [`${v >= 0 ? '+' : '−'}${moneyExact(v)}`, 'Net']}
                       labelFormatter={(l) => {
                         const [y, m] = String(l).split('-')
                         return m ? `${MONTHS_SHORT[+m - 1]} ${y}` : String(l)
                       }}
                     />
-                    <Area type="monotone" dataKey="net" stroke="var(--chart-net)" strokeWidth={2} fill="url(#netFill)" dot={false} />
+                    <Area type="monotone" dataKey="net" stroke="var(--chart-net)" strokeWidth={2.5} fill="url(#netFill)" dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             ) : (
-              <p className="flex-1 flex items-center justify-center text-sm text-ink-soft py-8 text-center">
+              <p className="flex flex-1 items-center justify-center px-4 py-10 text-center text-sm text-ink-soft">
                 More months of history will reveal your trend.
               </p>
             )}
@@ -222,39 +241,48 @@ export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis 
       </Card>
 
       {/* ── Spending pace (soft budget) + upcoming bills ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
 
-        <Card title="This month's spending" icon={Wallet} hint={`day ${pace.dayOfMonth} of ${pace.daysInMonth}`}>
-          <div className="px-5 pb-5">
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <p className="text-2xl font-bold text-ink">{money(cur.spending)}</p>
+        <Card
+          title="This month's spending"
+          doodle="flower"
+          hint={`day ${pace.dayOfMonth} of ${pace.daysInMonth}`}
+        >
+          <div className={CARD_BODY}>
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <p className="text-3xl font-bold tnum text-ink">{money(cur.spending)}</p>
               {pace.typical !== null && (
-                <span className="text-xs text-ink-faint">of {money(pace.typical)} in a typical month</span>
+                <span className="text-sm text-ink-soft">of {money(pace.typical)} in a typical month</span>
               )}
             </div>
 
             {pace.typical !== null ? (
               <>
-                <div className="relative mt-3 h-2 rounded-full bg-surface-2">
-                  <div
-                    className={`h-full rounded-full animate-grow-x ${cur.spending > pace.typical ? 'bg-spend-500' : 'bg-sage-500'}`}
-                    style={{ width: `${Math.min(100, (cur.spending / pace.typical) * 100)}%` }}
-                  />
-                  {/* where a typical month would be by today */}
-                  <div
-                    className="absolute -top-1 -bottom-1 w-px bg-ink-faint"
-                    style={{ left: `${Math.min(100, (pace.expected / pace.typical) * 100)}%` }}
-                    title="Typical pace by today"
-                  />
-                </div>
-                <p className="text-xs text-ink-soft mt-2.5">{paceMessage}</p>
-                <p className="text-[11px] text-ink-faint mt-1">
-                  Typical = your average over the last {Math.min(3, monthsSorted.filter(k => k < currentKey).length)} month{monthsSorted.filter(k => k < currentKey).length === 1 ? '' : 's'} · the tick marks today&apos;s expected pace
+                <ProgressBar
+                  className="mt-4"
+                  value={cur.spending}
+                  max={pace.typical}
+                  tone={cur.spending > pace.typical ? 'blush' : 'sage'}
+                  markerAt={pace.expected / pace.typical}
+                  markerLabel="Typical pace by today"
+                  label={`${money(cur.spending)} spent of a typical ${money(pace.typical)} month`}
+                />
+                <p className="mt-3 text-sm leading-relaxed text-ink-soft">{paceMessage}</p>
+                <p className="mt-1.5 text-xs text-ink-faint">
+                  Typical = your average over the last {Math.min(3, priorMonthCount)} month{priorMonthCount === 1 ? '' : 's'} · the tick marks today&apos;s expected pace
                 </p>
+                {onOpenBudgets && (
+                  <button
+                    onClick={onOpenBudgets}
+                    className="mt-3 inline-flex min-h-9 items-center gap-1 text-sm font-semibold text-sage-700 transition-colors hover:text-sage-800"
+                  >
+                    Set category budgets <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                )}
               </>
             ) : (
-              <p className="text-xs text-ink-soft mt-2">
-                ≈ {money(pace.dayOfMonth > 0 ? cur.spending / pace.dayOfMonth : 0)} a day so far.
+              <p className="mt-3 text-sm leading-relaxed text-ink-soft">
+                About {money(pace.dayOfMonth > 0 ? cur.spending / pace.dayOfMonth : 0)} a day so far.
                 Pace comparisons appear once you have a previous month of history.
               </p>
             )}
@@ -262,24 +290,28 @@ export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis 
         </Card>
 
         <Card title="Upcoming bills" icon={Receipt} hint={`${recurring.length} recurring`}>
-          <div className="px-5 pb-4">
+          <div className={CARD_BODY}>
             {recurring.length === 0 ? (
-              <p className="text-sm text-ink-soft py-6 text-center">
-                No recurring charges detected yet. They’ll appear as your history grows.
+              <p className="py-8 text-center text-sm text-ink-soft">
+                No recurring charges spotted yet — they&apos;ll appear as your history grows.
               </p>
             ) : (
-              <ol className="relative border-l border-line ml-2 space-y-4 pt-1">
+              <ol className="ml-2 space-y-4 border-l border-line pt-1">
                 {recurring.map(r => (
-                  <li key={r.key} className="ml-4">
-                    <span className="absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full bg-blue-500 border-2 border-surface" />
+                  <li key={r.key} className="relative ml-4">
+                    <span
+                      aria-hidden="true"
+                      className="absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-surface"
+                      style={{ backgroundColor: SEMANTIC_COLORS.bills }}
+                    />
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-ink truncate">{r.label}</p>
+                        <p className="truncate text-sm font-medium text-ink">{r.label}</p>
                         <p className="text-xs text-ink-faint">
                           {r.frequency} · next {MONTHS_SHORT[r.nextDate.getMonth()]} {r.nextDate.getDate()}
                         </p>
                       </div>
-                      <span className="text-sm font-semibold text-ink flex-shrink-0">{money(r.amount)}</span>
+                      <span className="flex-shrink-0 text-sm font-bold tnum text-ink">{money(r.amount)}</span>
                     </div>
                   </li>
                 ))}
@@ -290,16 +322,19 @@ export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis 
       </div>
 
       {/* ── Where it went ── */}
-      <div>
-        <div className="flex items-center justify-between mb-3 px-1">
-          <h3 className="text-sm font-semibold text-ink">Where it went</h3>
-          {onOpenAnalysis && (
-            <button onClick={onOpenAnalysis}
-              className="inline-flex items-center gap-1 text-xs font-medium text-sage-700 hover:text-sage-800 transition-colors">
-              Full analysis <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+      <div className="space-y-3">
+        <SectionHeader
+          title="Where it went"
+          doodle="dots"
+          action={onOpenAnalysis && (
+            <button
+              onClick={onOpenAnalysis}
+              className="inline-flex min-h-9 items-center gap-1 text-sm font-semibold text-sage-700 transition-colors hover:text-sage-800"
+            >
+              Full analysis <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
           )}
-        </div>
+        />
         <CategoryCards categories={cats} total={cur.spending} />
       </div>
     </div>

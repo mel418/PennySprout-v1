@@ -8,146 +8,261 @@
   html { font-size: 17.6px; }
 }
 
-/* ── Theme variables ────────────────────────────────────────────────────────
-   Calm "Google Calendar for money" palette: off-white backgrounds, warm light
-   gray surfaces, muted sage accents, dusty blue for spending, muted rose
-   warnings, charcoal typography. Minimal saturation, no harsh black.
+/* ════════════════════════════════════════════════════════════════════════════
+   PENNY SPROUT DESIGN SYSTEM
+   ────────────────────────────────────────────────────────────────────────────
+   A "cozy digital planner" identity: warm stationery paper instead of stark
+   white, botanical sage as the brand color, muted pastel accents, and warm
+   brown ink instead of harsh black.
 
-   Every color the app uses lives here as a custom property. Light values sit
-   on :root; the `.dark` class on <html> (set by ThemeToggle + the inline
-   bootstrap script in layout.js) swaps in the dark palette. Component markup
-   never changes between themes.
+   EVERY color, radius, shadow, and motion value the app uses lives here as a
+   custom property. Screens must consume these tokens — never invent a one-off
+   hex, radius, or shadow for a single component.
 
-   Text accents get their own --*-tx-* variables because dark mode needs the
-   *opposite* adjustment for text (lighten) vs. backgrounds (darken): a green
-   that works as a button background is illegible as text on a dark page. */
+   Light values sit on :root; the `.dark` class on <html> (set by ThemeToggle +
+   the inline bootstrap script in layout.js) swaps in the dark palette, so
+   component markup never changes between themes.
+
+   Accent families come in two flavours because dark mode needs the *opposite*
+   adjustment for text (lighten) vs. backgrounds (darken): a sage that works as
+   a button background is illegible as text on a dark page. Backgrounds/borders
+   use --<name>-N; text uses --<name>-tx-N.
+
+   Contrast: every -tx- value below clears 4.5:1 against its own theme's --bg,
+   so pastels never turn into unreadable text.
+   ══════════════════════════════════════════════════════════════════════════ */
 :root {
   color-scheme: light;
 
-  /* Surfaces & lines */
-  --bg:            #FAF9F5;
-  --surface:       #FFFFFF;
-  --surface-2:     #F2F1EC;
-  --surface-hover: #F4F3EE;
-  --line:          #EAE8E1;
+  /* ── Surfaces & lines — premium stationery paper, never stark white ────── */
+  --bg:            #FFF9F1;  /* Cream */
+  --surface:       #FFFCF8;  /* Warm white card */
+  --surface-2:     #F8F3EA;  /* Warm Ivory — insets, wells, tracks */
+  --surface-hover: #F4EEE3;
+  --line:          #EDE3D5;
 
-  /* Charcoal ink */
-  --ink:       #33322E;
-  --ink-soft:  #6E6B63;
-  --ink-faint: #9A968C;
+  /* ── Warm brown ink (never pure black) ─────────────────────────────────── */
+  --ink:       #453931;
+  --ink-soft:  #6B564A;
+  --ink-faint: #7F6A5C;
 
-  /* Sage — muted green accent (backgrounds, borders, fills) */
-  --sage-50:  #e4ede0;
-  --sage-100: #c8d9c0;
-  --sage-200: #adc4a3;
-  --sage-300: #90ae86;
-  --sage-400: #7d9b78;
-  --sage-500: #5c7a55;
-  --sage-600: #4a6741;
-  --sage-700: #3a5232;
-  --sage-800: #2a3d24;
+  /* ── Sage — the brand. Backgrounds, borders, fills. ────────────────────── */
+  --sage-50:  #EFF4EC;
+  --sage-100: #DEE9D8;
+  --sage-200: #C6D8BE;
+  --sage-300: #AFC3A6;   /* Soft Sage */
+  --sage-400: #8FAF8A;   /* Sage */
+  --sage-500: #6E9169;
+  --sage-600: #58735A;   /* Deep Sprout — primary action */
+  --sage-700: #47603F;
+  --sage-800: #364B31;
 
   /* Sage as text */
-  --sage-tx-300: #90ae86;
-  --sage-tx-400: #7d9b78;
-  --sage-tx-500: #5c7a55;
-  --sage-tx-600: #4a6741;
-  --sage-tx-700: #3a5232;
-  --sage-tx-800: #2a3d24;
+  --sage-tx-300: #8FAF8A;   /* decorative only */
+  --sage-tx-400: #6E9169;   /* large text / icons only */
+  --sage-tx-500: #5C7D58;
+  --sage-tx-600: #4E6B4C;
+  --sage-tx-700: #3E5640;
+  --sage-tx-800: #2F4331;
 
-  /* Dusty blue — highlight */
-  --blue-50:  #eef2f6;
-  --blue-100: #d8e2ec;
-  --blue-200: #c2d2e1;
-  --blue-300: #a9bfd4;
-  --blue-500: #6f8cab;
-  --blue-600: #5b789a;
-  --blue-tx-500: #6f8cab;
-  --blue-tx-600: #5b789a;
+  /* ── Blush — the spending / "money out" accent (SEMANTIC) ──────────────── */
+  --spend-100: #F9E4E6;
+  --spend-200: #F3C4C4;   /* Blush */
+  --spend-500: #D98F9B;
+  --spend-600: #C0707E;
+  --spend-tx-600: #A25563;
+  --spend-heat-rgb: 217, 143, 155;   /* --spend-500 as r,g,b for heat tints */
+  --sage-heat-rgb:  110, 145, 105;   /* --sage-500 as r,g,b, same purpose */
 
-  /* Muted plum — the spending / negative accent. SEMANTIC scale: everything
-     that means "money out" uses spend-*, so recoloring spending is a
-     values-only change in this file. (Dusty blue stays for neutral
-     highlights: bills, goals, recurring.) */
-  --spend-500: #9b7fad;
-  --spend-600: #82689a;
-  --spend-tx-600: #7c6294;
-  --spend-heat-rgb: 155, 127, 173;   /* --spend-500 as r,g,b for heat tints */
+  /* ── Peach — bills & payments ──────────────────────────────────────────── */
+  --peach-50:  #FDF1E7;
+  --peach-100: #F9E3CF;
+  --peach-300: #F4D2B8;   /* Peach */
+  --peach-500: #E0A277;
+  --peach-tx-600: #97592B;
 
-  /* Muted rose — errors / destructive actions only (spending uses plum) */
-  --danger-50:  #faeeed;
-  --danger-200: #efcfcd;
-  --danger-400: #d98f8b;
-  --danger-600: #b95f5a;
-  --danger-tx-400: #d98f8b;
-  --danger-tx-600: #b95f5a;
+  /* ── Powder blue — transfers, neutral highlights (legacy name: blue) ───── */
+  --blue-50:  #EDF5F7;
+  --blue-100: #DAEAEF;
+  --blue-200: #C4DDE5;   /* Powder Blue */
+  --blue-300: #A6C9D5;
+  --blue-500: #7FAEBE;
+  --blue-600: #5E93A5;
+  --blue-tx-500: #4A7C8C;
+  --blue-tx-600: #3E6C7B;
 
-  /* Charts */
-  --chart-net: #3f6650;   /* cumulative net line */
+  /* ── Butter — goals, gentle "heads up" (replaces harsh amber) ──────────── */
+  --butter-50:  #FDF6E4;
+  --butter-100: #F9ECC9;
+  --butter-300: #F4DFA8;   /* Butter */
+  --butter-500: #DFC46E;
+  --butter-600: #C9A945;
+  --butter-tx-600: #8A6B18;
+
+  /* ── Lavender — subscriptions ──────────────────────────────────────────── */
+  --lavender-50:  #F3F1FA;
+  --lavender-100: #E5E0F3;
+  --lavender-300: #CFC5E7;   /* Lavender */
+  --lavender-500: #A392CE;
+  --lavender-tx-600: #6A579A;
+
+  /* ── Muted rose — errors / destructive only (spending uses blush) ──────── */
+  --danger-50:  #FBEDEC;
+  --danger-100: #F6DCDA;
+  --danger-200: #EECFCC;
+  --danger-400: #C97A74;
+  --danger-600: #A94A45;
+  --danger-tx-400: #B85F59;
+  --danger-tx-600: #9A403C;
+
+  /* ── Charts ────────────────────────────────────────────────────────────── */
+  --chart-net: #58735A;    /* cumulative net line */
+  --chart-fill-from: rgba(88, 115, 90, 0.28);
+  --chart-fill-to:   rgba(88, 115, 90, 0.02);
+
+  /* ── Paper texture — grid rule + grain, both barely visible ────────────── */
+  --paper-grid: rgba(114, 92, 80, 0.045);
+  --paper-glow-1: rgba(175, 195, 166, 0.16);   /* sage bloom, top-left */
+  --paper-glow-2: rgba(243, 196, 196, 0.13);   /* blush bloom, bottom-right */
+
+  /* ── Radii — soft stationery corners ───────────────────────────────────── */
+  --radius-xs: 0.5rem;    /*  8px — chips, tiny controls */
+  --radius-sm: 0.75rem;   /* 12px — inputs, small buttons */
+  --radius-md: 1rem;      /* 16px — inner panels, buttons */
+  --radius-lg: 1.25rem;   /* 20px — cards */
+  --radius-xl: 1.5rem;    /* 24px — hero cards, modals */
+
+  /* ── Shadows — warm-tinted, extremely soft. Never a hard gray drop. ────── */
+  --shadow-xs:   0 1px 2px rgba(69, 57, 49, 0.04);
+  --shadow-soft: 0 1px 2px rgba(69, 57, 49, 0.035), 0 6px 18px rgba(69, 57, 49, 0.045);
+  --shadow-lift: 0 2px 4px rgba(69, 57, 49, 0.04),  0 10px 26px rgba(69, 57, 49, 0.09);
+  --shadow-inset-well: inset 0 1px 2px rgba(69, 57, 49, 0.05);
+
+  /* ── Focus ring — visible in both themes, never removed ────────────────── */
+  --focus-ring: var(--sage-600);
 }
 
 .dark {
   color-scheme: dark;
 
-  /* Warm charcoal — never pure black, matching the "no harsh black" rule */
-  --bg:            #181715;
-  --surface:       #201F1C;
-  --surface-2:     #2A2925;
-  --surface-hover: #2D2C28;
-  --line:          #363430;
+  /* Warm charcoal-brown — the night version of the same paper */
+  --bg:            #1B1714;
+  --surface:       #241F1A;
+  --surface-2:     #2E2822;
+  --surface-hover: #342D26;
+  --line:          #3D352C;
 
-  --ink:       #E9E7E0;
-  --ink-soft:  #A9A599;
-  --ink-faint: #7F7B70;
+  --ink:       #F1E9DF;
+  --ink-soft:  #C3B4A5;
+  /* Light enough to clear 4.5:1 not just on --bg but on the darkest tinted
+     card header (--sage-50), where the faint labels also land. */
+  --ink-faint: #A89787;
 
   /* Sage backgrounds darken… */
-  --sage-50:  #252E21;
-  --sage-100: #2F3B29;
-  --sage-200: #3C4B34;
-  --sage-300: #4E6144;
-  --sage-400: #627A57;
-  --sage-500: #79966F;
-  --sage-600: #4E6C46;
-  --sage-700: #5C7D52; /* hover lightens in dark */
-  --sage-800: #6B8F60; /* pressed lightens further */
+  --sage-50:  #26301F;
+  --sage-100: #303D28;
+  --sage-200: #3D4E33;
+  --sage-300: #4F6444;
+  --sage-400: #637C57;
+  --sage-500: #7A9770;
+  --sage-600: #55764F;
+  --sage-700: #648A5C;   /* hover lightens in dark */
+  --sage-800: #749C6A;   /* pressed lightens further */
 
   /* …while sage text lightens for contrast on dark surfaces */
-  --sage-tx-300: #566A4D;
-  --sage-tx-400: #7D9B78;
-  --sage-tx-500: #8FAC89;
-  --sage-tx-600: #9DB897;
-  --sage-tx-700: #B1C9AB;
-  --sage-tx-800: #C5DABF;
+  --sage-tx-300: #57694E;
+  --sage-tx-400: #7F9B79;
+  --sage-tx-500: #93AF8C;
+  --sage-tx-600: #A6C09E;
+  --sage-tx-700: #B9D0B1;
+  --sage-tx-800: #CCDFC5;
 
-  --blue-50:  #242A33;
-  --blue-100: #2C3542;
-  --blue-200: #364252;
-  --blue-300: #405063;
-  --blue-500: #6F8CAB;
-  --blue-600: #7D99B8;
-  --blue-tx-500: #8FA9C4;
-  --blue-tx-600: #9DB4CC;
+  --spend-100: #3A2529;
+  --spend-200: #4A2E33;
+  --spend-500: #C7808C;
+  --spend-600: #D2929D;
+  --spend-tx-600: #E2A9B2;
+  --spend-heat-rgb: 199, 128, 140;
+  --sage-heat-rgb:  122, 151, 112;
 
-  --spend-500: #a48bb8;
-  --spend-600: #8f74a6;
-  --spend-tx-600: #bda2cf;
-  --spend-heat-rgb: 164, 139, 184;
+  --peach-50:  #3A2A1D;
+  --peach-100: #4A3524;
+  --peach-300: #6B4B31;
+  --peach-500: #D09B70;
+  --peach-tx-600: #E3B189;
 
-  --danger-50:  #2f2222;
-  --danger-200: #4a3230;
-  --danger-400: #C4726C;
-  --danger-600: #B55F59;
-  --danger-tx-400: #DC9B97;
-  --danger-tx-600: #D48C88;
+  --blue-50:  #1F2C30;
+  --blue-100: #27383D;
+  --blue-200: #31464C;
+  --blue-300: #3D565E;
+  --blue-500: #77A6B5;
+  --blue-600: #8AB6C4;
+  --blue-tx-500: #9AC2CE;
+  --blue-tx-600: #ABD0DA;
 
-  --chart-net: #8FAC89;
+  --butter-50:  #332B18;
+  --butter-100: #43391F;
+  --butter-300: #5C4E28;
+  --butter-500: #CBB068;
+  --butter-600: #D9C081;
+  --butter-tx-600: #E2CD92;
+
+  --lavender-50:  #2A2635;
+  --lavender-100: #363048;
+  --lavender-300: #4A4162;
+  --lavender-500: #A796CF;
+  --lavender-tx-600: #BFB0E0;
+
+  --danger-50:  #33211F;
+  --danger-100: #402825;
+  --danger-200: #4E322E;
+  --danger-400: #C9807A;
+  --danger-600: #B4605A;
+  --danger-tx-400: #DFA09B;
+  --danger-tx-600: #D9928D;
+
+  --chart-net: #93AF8C;
+  --chart-fill-from: rgba(147, 175, 140, 0.26);
+  --chart-fill-to:   rgba(147, 175, 140, 0.02);
+
+  --paper-grid: rgba(241, 233, 223, 0.030);
+  --paper-glow-1: rgba(122, 151, 112, 0.10);
+  --paper-glow-2: rgba(199, 128, 140, 0.07);
+
+  --shadow-xs:   0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.22), 0 6px 18px rgba(0, 0, 0, 0.26);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.24),  0 10px 26px rgba(0, 0, 0, 0.38);
+  --shadow-inset-well: inset 0 1px 2px rgba(0, 0, 0, 0.22);
+
+  --focus-ring: var(--sage-500);
 }
 
 body {
   background-color: var(--bg);
   color: var(--ink);
   font-feature-settings: "cv11", "ss01";
+  -webkit-tap-highlight-color: transparent;
 }
+
+/* Stationery paper: a barely-there grid rule plus two soft pastel blooms.
+   Fixed + pointer-events:none so it never scrolls oddly or eats clicks, and
+   sits at z-index 0 behind all content. Kept faint enough that text contrast
+   is unaffected — the texture supports the content, it never competes. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(60rem 40rem at 8% -10%,  var(--paper-glow-1), transparent 60%),
+    radial-gradient(50rem 38rem at 105% 105%, var(--paper-glow-2), transparent 60%),
+    linear-gradient(to right,  var(--paper-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--paper-grid) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 1.5rem 1.5rem, 1.5rem 1.5rem;
+}
+/* Content sits above the texture. */
+body > * { position: relative; z-index: 1; }
 
 /* Native <select> popups don't inherit the page theme (notably on Windows,
    which paints a default-light list) — style the options explicitly so
@@ -157,13 +272,24 @@ select option {
   color: var(--ink);
 }
 
+/* One visible focus style everywhere. Keyboard users must always be able to
+   see where they are; :focus-visible keeps it off mouse clicks. */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
 /* Tailwind theme tokens map onto the runtime variables (`inline` keeps the
    var() reference inside generated utilities, so classes Tailwind generates —
    divide-line, ring-sage-300, accent-sage-600, text-ink-faint/50, … — follow
    the light/dark swap automatically). */
 @theme inline {
-  /* Typography — clean modern sans-serif */
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* Typography — rounded, highly readable sans for the UI; the softer display
+     face is opt-in via .font-display (marketing, empty states, section
+     flourishes) and NEVER used for money, tables, forms, or navigation. */
+  --font-sans: var(--font-nunito), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: var(--font-quicksand), var(--font-nunito), ui-rounded, system-ui, sans-serif;
 
   --color-bg:            var(--bg);
   --color-surface:       var(--surface);
@@ -192,10 +318,33 @@ select option {
   --color-blue-500: var(--blue-500);
   --color-blue-600: var(--blue-600);
 
+  --color-peach-50:  var(--peach-50);
+  --color-peach-100: var(--peach-100);
+  --color-peach-300: var(--peach-300);
+  --color-peach-500: var(--peach-500);
+
+  --color-butter-50:  var(--butter-50);
+  --color-butter-100: var(--butter-100);
+  --color-butter-300: var(--butter-300);
+  --color-butter-500: var(--butter-500);
+  --color-butter-600: var(--butter-600);
+
+  --color-lavender-50:  var(--lavender-50);
+  --color-lavender-100: var(--lavender-100);
+  --color-lavender-300: var(--lavender-300);
+  --color-lavender-500: var(--lavender-500);
+
   --color-danger-50:  var(--danger-50);
+  --color-danger-100: var(--danger-100);
   --color-danger-200: var(--danger-200);
   --color-danger-400: var(--danger-400);
   --color-danger-600: var(--danger-600);
+
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
 }
 
 /* Explicit utility classes — the reliable path when @theme JIT has caching
@@ -210,11 +359,12 @@ select option {
   .bg-surface-hover{ background-color: var(--surface-hover); }
   .border-line     { border-color: var(--line); }
   .hover\:bg-surface-hover:hover { background-color: var(--surface-hover); }
+  .hover\:bg-surface:hover       { background-color: var(--surface); }
 
-  /* Modal overlay — always a dark scrim, in both themes */
-  .bg-overlay { background-color: rgb(0 0 0 / 0.45); }
+  /* Modal overlay — always a warm dark scrim, in both themes */
+  .bg-overlay { background-color: rgb(43 33 27 / 0.42); }
 
-  /* Charcoal ink */
+  /* Warm brown ink */
   .text-ink       { color: var(--ink); }
   .text-ink-soft  { color: var(--ink-soft); }
   .text-ink-faint { color: var(--ink-faint); }
@@ -245,6 +395,7 @@ select option {
   .border-sage-600 { border-color: var(--sage-600); }
 
   .hover\:bg-sage-50:hover  { background-color: var(--sage-50); }
+  .hover\:bg-sage-100:hover { background-color: var(--sage-100); }
   .hover\:bg-sage-600:hover { background-color: var(--sage-600); }
   .hover\:bg-sage-700:hover { background-color: var(--sage-700); }
   .hover\:bg-sage-800:hover { background-color: var(--sage-800); }
@@ -256,7 +407,7 @@ select option {
   .active\:bg-sage-700:active { background-color: var(--sage-700); }
   .active\:bg-sage-800:active { background-color: var(--sage-800); }
 
-  /* Dusty blue */
+  /* Powder blue */
   .bg-blue-50  { background-color: var(--blue-50); }
   .bg-blue-100 { background-color: var(--blue-100); }
   .bg-blue-200 { background-color: var(--blue-200); }
@@ -266,12 +417,42 @@ select option {
   .text-blue-600 { color: var(--blue-tx-600); }
   .border-blue-200 { border-color: var(--blue-200); }
 
-  /* Muted plum — spending / negative */
+  /* Blush — spending / "money out" */
+  .bg-spend-100  { background-color: var(--spend-100); }
+  .bg-spend-200  { background-color: var(--spend-200); }
   .bg-spend-500  { background-color: var(--spend-500); }
   .text-spend-600 { color: var(--spend-tx-600); }
+  .border-spend-200 { border-color: var(--spend-200); }
+
+  /* Peach — bills & payments */
+  .bg-peach-50  { background-color: var(--peach-50); }
+  .bg-peach-100 { background-color: var(--peach-100); }
+  .bg-peach-300 { background-color: var(--peach-300); }
+  .bg-peach-500 { background-color: var(--peach-500); }
+  .text-peach-600 { color: var(--peach-tx-600); }
+  .border-peach-300 { border-color: var(--peach-300); }
+
+  /* Butter — goals, gentle heads-up (replaces saturated amber everywhere) */
+  .bg-butter-50  { background-color: var(--butter-50); }
+  .bg-butter-100 { background-color: var(--butter-100); }
+  .bg-butter-300 { background-color: var(--butter-300); }
+  .bg-butter-500 { background-color: var(--butter-500); }
+  .bg-butter-600 { background-color: var(--butter-600); }
+  .text-butter-600 { color: var(--butter-tx-600); }
+  .border-butter-300 { border-color: var(--butter-300); }
+  .hover\:bg-butter-600:hover { background-color: var(--butter-600); }
+
+  /* Lavender — subscriptions */
+  .bg-lavender-50  { background-color: var(--lavender-50); }
+  .bg-lavender-100 { background-color: var(--lavender-100); }
+  .bg-lavender-300 { background-color: var(--lavender-300); }
+  .bg-lavender-500 { background-color: var(--lavender-500); }
+  .text-lavender-600 { color: var(--lavender-tx-600); }
+  .border-lavender-300 { border-color: var(--lavender-300); }
 
   /* Muted rose — errors / destructive actions */
   .bg-danger-50  { background-color: var(--danger-50); }
+  .bg-danger-100 { background-color: var(--danger-100); }
   .bg-danger-600 { background-color: var(--danger-600); }
   .text-danger-400 { color: var(--danger-tx-400); }
   .text-danger-600 { color: var(--danger-tx-600); }
@@ -279,15 +460,66 @@ select option {
   .hover\:text-danger-600:hover { color: var(--danger-tx-600); }
   .hover\:bg-danger-50:hover { background-color: var(--danger-50); }
 
-  /* Interactive lift for clickable cards — pairs with an existing transition-*
-     class on the element */
-  .hover-lift:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgb(0 0 0 / 0.06); }
-  .hover-lift:active { transform: translateY(0); }
+  /* ── Structural tokens as utilities ──────────────────────────────────── */
+
+  /* The one card surface. Use this instead of re-declaring
+     bg-surface + border + rounded + shadow on every screen. */
+  .card-soft {
+    background-color: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
+  }
+  /* Recessed area inside a card: progress tracks, form wells, chat bubbles. */
+  .well-soft {
+    background-color: var(--surface-2);
+    border-radius: var(--radius-md);
+  }
+
+  .shadow-soft { box-shadow: var(--shadow-soft); }
+  .shadow-lift { box-shadow: var(--shadow-lift); }
+
+  /* Financial figures: tabular numerals so columns of money line up and
+     digits don't jitter while a value animates or streams in. */
+  .tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+  /* The playful face — decorative headings only, never financial data. */
+  .font-display { font-family: var(--font-display); letter-spacing: -0.01em; }
+
+  /* Comfortable touch target. Applied to icon-only controls so a 16px icon
+     still gets a 44px tap area on a phone without visually bulking up. */
+  .tap-target {
+    position: relative;
+  }
+  .tap-target::after {
+    content: "";
+    position: absolute;
+    inset: 50% 50% 50% 50%;
+    width: 44px; height: 44px;
+    transform: translate(-50%, -50%);
+  }
+
+  /* Washi-tape accent — a soft translucent strip pinned over a card corner.
+     Purely decorative; always aria-hidden at the markup level. */
+  .washi {
+    position: absolute;
+    width: 4.5rem; height: 1.35rem;
+    opacity: 0.5;
+    border-radius: 2px;
+    background-image: repeating-linear-gradient(
+      135deg, transparent 0 6px, rgba(255,255,255,0.35) 6px 12px);
+  }
+
+  /* Interactive lift for clickable cards — pairs with a transition-* class */
+  .hover-lift:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+  .hover-lift:active { transform: translateY(0); box-shadow: var(--shadow-soft); }
 }
+
+/* ── Motion — stationery gently coming to life ───────────────────────────── */
 
 @keyframes float {
   0%,100% { transform: translateY(0px); }
-  50%     { transform: translateY(-12px); }
+  50%     { transform: translateY(-10px); }
 }
 
 @keyframes fade-up {
@@ -329,7 +561,20 @@ select option {
   to   { background-position: -200% 0; }
 }
 
-.animate-float      { animation: float 4s infinite ease-in-out; }
+/* A plant unfurling — used once, when a goal or budget milestone lands. */
+@keyframes bloom {
+  0%   { opacity: 0; transform: scale(0.7) rotate(-6deg); }
+  60%  { opacity: 1; transform: scale(1.06) rotate(2deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+/* A single tiny twinkle on an achievement. Deliberately short and finite. */
+@keyframes sparkle {
+  0%, 100% { opacity: 0.35; transform: scale(0.8); }
+  50%      { opacity: 1;    transform: scale(1.15); }
+}
+
+.animate-float      { animation: float 5s infinite ease-in-out; }
 .animate-fade-up    { animation: fade-up 0.6s ease-out both; }
 .animate-expand     { animation: expand 0.18s ease-out both; }
 /* `backwards`, not `both`: a persisted transform (even translateY(0)) would
@@ -339,6 +584,8 @@ select option {
 .animate-overlay-in { animation: overlay-in 0.15s ease-out both; }
 .animate-modal-in   { animation: modal-in 0.18s ease-out both; }
 .animate-grow-x     { animation: grow-x 0.5s ease-out both; transform-origin: left; }
+.animate-bloom      { animation: bloom 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+.animate-sparkle    { animation: sparkle 2.4s ease-in-out infinite; }
 .delay-100  { animation-delay: 0.1s; }
 .delay-200  { animation-delay: 0.2s; }
 .delay-300  { animation-delay: 0.3s; }
@@ -347,7 +594,7 @@ select option {
   background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-hover) 50%, var(--surface-2) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.4s linear infinite;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-sm);
 }
 
 /* Respect the OS-level "reduce motion" setting: decorative animations stop,
@@ -356,6 +603,7 @@ select option {
    Vestibular-disorder users get a still interface; nobody loses content. */
 @media (prefers-reduced-motion: reduce) {
   .animate-float,
+  .animate-sparkle,
   .skeleton {
     animation: none;
   }
@@ -364,7 +612,8 @@ select option {
   .animate-page-in,
   .animate-overlay-in,
   .animate-modal-in,
-  .animate-grow-x {
+  .animate-grow-x,
+  .animate-bloom {
     animation-duration: 0.01ms;
     animation-delay: 0ms;
   }

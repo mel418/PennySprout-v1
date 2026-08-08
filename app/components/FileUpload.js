@@ -1,9 +1,13 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { Upload, FileText, CheckCircle2 } from 'lucide-react'
+import { Upload, FileText, CheckCircle2, ShieldCheck } from 'lucide-react'
 import { parseTransactionsCsv } from '@/lib/csv'
 import { transactionKey as txnKey } from '@/lib/transactionKey'
 import { moneyExact } from '@/lib/format'
+import Button, { buttonClass } from './ui/Button'
+import Doodle from './ui/Doodle'
+import Field, { inputClass, Banner } from './ui/Field'
+import Spinner from './ui/Spinner'
 
 const ACCOUNT_HISTORY_KEY = 'spending-analyzer:accountNames'
 const BATCH_STORAGE_KEY = 'spending-analyzer:uploadBatch'
@@ -371,10 +375,12 @@ export default function FileUpload({ onDataLoaded }) {
 
   return (
     <div className="space-y-4">
-      <div>
-        <label htmlFor="account-name" className="block text-sm font-medium text-ink mb-1.5">
-          Account <span className="text-ink-faint font-normal">(optional — helps group files below)</span>
-        </label>
+      <Field
+        label="Account"
+        htmlFor="account-name"
+        hint="Optional — helps group the files listed below."
+        className="max-w-sm"
+      >
         <input
           id="account-name"
           list="account-name-history"
@@ -386,31 +392,51 @@ export default function FileUpload({ onDataLoaded }) {
           }}
           placeholder="e.g. Chase Checking, Amex Gold"
           disabled={isLoading}
-          className="w-full max-w-sm text-sm text-ink bg-surface border border-line rounded-lg px-3 py-2 focus:border-sage-500 focus:outline-none placeholder:text-ink-faint disabled:opacity-60"
+          className={inputClass()}
         />
         <datalist id="account-name-history">
           {accountHistory.map(name => <option key={name} value={name} />)}
         </datalist>
-      </div>
+      </Field>
 
+      {/* ── Stationery drop zone ──
+          A sheet of dashed-edge paper rather than a SaaS upload box. The
+          botanical marks sit in the corners; the instructions and the button
+          stay dead center and uncluttered. */}
       <div
         onDragOver={e => { e.preventDefault(); if (!isLoading) setIsDragging(true) }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
-        className={`bg-surface border-2 border-dashed rounded-2xl p-8 sm:p-12 text-center transition-all
-          ${isDragging ? 'border-sage-500 bg-sage-50' : 'border-sage-200 hover:border-sage-400 hover:bg-surface-hover'}`}
+        className={`relative overflow-hidden rounded-[var(--radius-xl)] border-2 border-dashed px-6 py-10 text-center transition-all sm:py-14
+          ${isDragging
+            ? 'border-sage-500 bg-sage-50'
+            : 'border-sage-200 bg-surface hover:border-sage-400 hover:bg-sage-50/40'}`}
       >
-        <div className="w-14 h-14 bg-sage-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <Upload className="h-6 w-6 text-sage-600" aria-hidden="true" />
+        <span aria-hidden="true" className="pointer-events-none absolute inset-0">
+          <Doodle name="sprig"   className="absolute left-6 top-6 h-7 w-7 -rotate-12 text-sage-300 opacity-70" />
+          <Doodle name="sparkle" className="absolute right-8 top-8 h-5 w-5 text-butter-500 opacity-70" />
+          <Doodle name="leaf"    className="absolute bottom-7 right-7 h-6 w-6 rotate-12 text-sage-300 opacity-60" />
+        </span>
+
+        <div className="relative mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[var(--radius-lg)] bg-sage-50">
+          {isLoading
+            ? <Spinner className="" size="sm" />
+            : <Upload className="h-7 w-7 text-sage-600" aria-hidden="true" />}
         </div>
-        <h3 className="text-base font-semibold text-ink mb-1">Upload Bank Statements</h3>
-        <p className="text-sm text-ink-soft mb-6 max-w-xs mx-auto">
-          Drag & drop files here, or choose them below — CSV (credit cards) and PDF (bank statements)
+
+        <h3 className="relative font-display text-lg font-bold text-ink">
+          Let&apos;s grow your financial picture
+        </h3>
+        <p className="relative mx-auto mt-1.5 mb-6 max-w-xs text-sm leading-relaxed text-ink-soft">
+          Drop your CSV or PDF statements here, or choose them below.
         </p>
 
-        <label className={`inline-flex items-center gap-2 px-5 py-3 rounded-xl font-medium text-sm cursor-pointer transition-colors ${isLoading ? 'bg-surface-2 text-ink-faint cursor-not-allowed' : 'bg-sage-600 hover:bg-sage-700 active:bg-sage-800 text-white'}`}>
+        <label className={buttonClass({
+          size: 'lg',
+          className: `relative ${isLoading ? 'pointer-events-none opacity-45' : ''}`,
+        })}>
           <Upload className="h-4 w-4" aria-hidden="true" />
-          Choose Files
+          {isLoading ? 'Working on it…' : 'Choose files'}
           <input
             type="file"
             accept=".csv,.pdf"
@@ -420,40 +446,47 @@ export default function FileUpload({ onDataLoaded }) {
             className="sr-only"
           />
         </label>
-        <p className="text-xs text-ink-faint mt-3">CSV or PDF · Multiple files supported</p>
+
+        <p className="relative mt-4 inline-flex items-center gap-1.5 text-xs text-ink-faint">
+          <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+          CSV or PDF · multiple files · securely processed
+        </p>
       </div>
 
       {/* Per-file status list — only appears once files are selected */}
       {fileStatuses.length > 0 && (
-        <div className="space-y-2" aria-live="polite">
+        <ul className="space-y-2" aria-live="polite">
           {fileStatuses.map((f, i) => (
-            <div key={i} className="p-3 bg-surface border border-line rounded-lg text-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                  <FileText className="h-4 w-4 text-ink-faint flex-shrink-0" aria-hidden="true" />
-                  <span className="text-ink-soft truncate">{f.name}</span>
+            <li key={i} className="card-soft p-4 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+                <div className="flex min-w-0 items-center gap-2">
+                  <FileText className="h-4 w-4 flex-shrink-0 text-ink-faint" aria-hidden="true" />
+                  <span className="truncate text-ink">{f.name}</span>
                 </div>
-                <div className="ml-4 flex-shrink-0 text-right">
+                <div className="flex-shrink-0 text-right">
                   {f.status === 'pending' && (
                     <span className="text-ink-faint">Waiting…</span>
                   )}
                   {f.status === 'processing' && (
-                    <span className="text-sage-600 flex items-center gap-1">
-                      <span className="animate-spin inline-block w-3 h-3 border border-sage-500 border-t-transparent rounded-full" />
-                      Processing…
+                    <span className="flex items-center gap-1.5 font-medium text-sage-600">
+                      <span className="inline-block h-3 w-3 animate-spin rounded-full border border-sage-500 border-t-transparent" />
+                      Reading it…
                     </span>
                   )}
                   {f.status === 'done' && (
-                    <span className="text-sage-600 font-medium">✓ {f.count} transactions</span>
+                    <span className="flex items-center gap-1.5 font-semibold text-sage-600">
+                      <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                      <span className="tnum">{f.count}</span> transactions
+                    </span>
                   )}
                   {f.status === 'error' && (
-                    <span className="text-danger-600">{f.message || 'Failed to parse'}</span>
+                    <span className="font-medium text-danger-600">{f.message || 'Failed to parse'}</span>
                   )}
                   {f.status === 'duplicate' && (
-                    <span className="text-amber-600 font-medium">Already uploaded</span>
+                    <span className="font-semibold text-butter-600">Already uploaded</span>
                   )}
                   {f.status === 'transaction-duplicates' && (
-                    <span className="text-amber-600 font-medium">
+                    <span className="font-semibold text-butter-600">
                       {f.duplicates.length} possible duplicate{f.duplicates.length !== 1 ? 's' : ''}
                     </span>
                   )}
@@ -461,17 +494,14 @@ export default function FileUpload({ onDataLoaded }) {
               </div>
 
               {f.status === 'duplicate' && (
-                <div className="mt-2 pt-2 border-t border-line flex items-center justify-between gap-3 flex-wrap">
-                  <p className="text-xs text-ink-faint">
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
+                  <p className="text-sm text-ink-soft">
                     Matches &quot;{f.existingFile?.name || 'a file'}&quot;
                     {f.existingFile?.uploadDate && ` uploaded ${new Date(f.existingFile.uploadDate).toLocaleDateString()}`}
                   </p>
-                  <button
-                    onClick={() => uploadAnyway(i)}
-                    className="px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-600 text-white hover:bg-amber-700 transition-colors flex-shrink-0"
-                  >
+                  <Button size="sm" variant="caution" onClick={() => uploadAnyway(i)}>
                     Upload anyway
-                  </button>
+                  </Button>
                 </div>
               )}
 
@@ -479,62 +509,55 @@ export default function FileUpload({ onDataLoaded }) {
                   whole statement, just some rows in it. Skipped by default;
                   the user checks any that are actually separate purchases. */}
               {f.status === 'transaction-duplicates' && (
-                <div className="mt-2 pt-2 border-t border-line space-y-2">
-                  <p className="text-xs text-ink-faint">
+                <div className="mt-3 space-y-3 border-t border-line pt-3">
+                  <p className="text-sm leading-relaxed text-ink-soft">
                     These match transactions you&apos;ve already uploaded (same date, description, and amount) —
-                    they&apos;re skipped by default. Check any that are actually separate purchases to keep them.
+                    they&apos;re skipped by default. Tick any that are actually separate purchases to keep them.
                   </p>
-                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                  <ul className="max-h-56 space-y-0.5 overflow-y-auto">
                     {f.duplicates.map(d => {
                       const key = txnKey(d)
                       const checked = (f.keepKeys || []).includes(key)
                       const date = d['Trans. Date'] || d['Date'] || d['Transaction Date'] || ''
                       return (
-                        <label key={key} className="flex items-center justify-between gap-3 text-xs py-1 cursor-pointer">
-                          <span className="flex items-center gap-2 min-w-0">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleKeepDuplicate(i, key)}
-                              className="flex-shrink-0"
-                            />
-                            <span className="truncate text-ink-soft">{d['Description'] || '—'}</span>
-                          </span>
-                          <span className="flex-shrink-0 text-ink-faint">
-                            {date} · {moneyExact(Math.abs(parseFloat(d.Amount) || 0))}
-                          </span>
-                        </label>
+                        <li key={key}>
+                          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-[var(--radius-xs)] px-2 py-2 text-sm hover:bg-surface-hover">
+                            <span className="flex min-w-0 items-center gap-2.5">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleKeepDuplicate(i, key)}
+                                className="h-4 w-4 flex-shrink-0 accent-sage-600"
+                              />
+                              <span className="truncate text-ink-soft">{d['Description'] || '—'}</span>
+                            </span>
+                            <span className="flex-shrink-0 tnum text-ink-faint">
+                              {date} · {moneyExact(Math.abs(parseFloat(d.Amount) || 0))}
+                            </span>
+                          </label>
+                        </li>
                       )
                     })}
-                  </div>
-                  <button
-                    onClick={() => continueImport(i)}
-                    className="px-2.5 py-1 text-xs font-medium rounded-lg bg-sage-600 text-white hover:bg-sage-700 transition-colors"
-                  >
-                    Continue import
-                  </button>
+                  </ul>
+                  <Button size="sm" onClick={() => continueImport(i)}>Continue import</Button>
                 </div>
               )}
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
       {/* Batch finished with at least one save */}
       {!isLoading && savedCount > 0 && (
-        <div role="status" className="bg-sage-50 border border-sage-200 rounded-2xl p-5 flex items-center gap-2.5">
-          <CheckCircle2 className="h-5 w-5 text-sage-600 flex-shrink-0" aria-hidden="true" />
-          <p className="text-sm text-sage-700 font-medium">
-            {savedCount} file{savedCount !== 1 ? 's' : ''} uploaded — your list below is up to date.
-          </p>
-        </div>
+        <Banner tone="success" icon={CheckCircle2} role="status">
+          <span className="font-semibold">
+            {savedCount} file{savedCount !== 1 ? 's' : ''} added.
+          </span>{' '}
+          Your list below is up to date.
+        </Banner>
       )}
 
-      {error && (
-        <div role="alert" className="bg-danger-50 border border-danger-200 p-4 rounded-lg">
-          <p className="text-danger-600 text-sm">{error}</p>
-        </div>
-      )}
+      {error && <Banner tone="error" role="alert">{error}</Banner>}
     </div>
   )
 }

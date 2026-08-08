@@ -2,6 +2,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Trash2, ShoppingBag, Calendar, FileText } from 'lucide-react'
 import Modal from './ui/Modal'
+import Button, { IconButton } from './ui/Button'
+import { Banner } from './ui/Field'
+import { SectionHeader } from './ui/SectionHeader'
 import { TargetItemsList } from './TargetItemsList'
 
 // Lists every Target purchase-history CSV the user has imported, mirroring
@@ -66,66 +69,43 @@ export default function TargetImportsList() {
 
   return (
     <div className="space-y-3">
-      <h2 className="text-lg font-semibold text-ink">Target Purchase Imports</h2>
+      <SectionHeader title="Target purchase imports" doodle="dots" />
 
-      {actionError && (
-        <div role="alert" className="bg-danger-50 border border-danger-200 p-3 rounded-lg">
-          <p className="text-danger-600 text-sm">{actionError}</p>
-        </div>
-      )}
+      {actionError && <Banner tone="error" role="alert">{actionError}</Banner>}
 
       {imports.map(imp => (
-        <div key={imp.id} className="bg-surface rounded-2xl border border-line shadow-sm p-5 hover:border-sage-300 transition-colors">
-          <div className="flex justify-between items-start gap-4">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-3">
-                <ShoppingBag className="h-4 w-4 text-sage-600 flex-shrink-0" aria-hidden="true" />
-                <h3 className="text-base font-semibold text-ink truncate">{imp.fileName}</h3>
+        <div key={imp.id} className="card-soft p-4 transition-colors hover:border-sage-300 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+            <div className="min-w-0 flex-1">
+              <div className="mb-2 flex items-center gap-2">
+                <ShoppingBag className="h-4 w-4 flex-shrink-0 text-peach-600" aria-hidden="true" />
+                <h3 className="truncate text-base font-semibold text-ink">{imp.fileName}</h3>
               </div>
-              <div className="flex flex-wrap gap-4 text-xs text-ink-faint">
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {new Date(imp.importedAt).toLocaleDateString()}
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-ink-faint">
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="tnum">{new Date(imp.importedAt).toLocaleDateString()}</span>
                 </span>
-                <span className="flex items-center gap-1">
-                  <FileText className="h-3.5 w-3.5" />
-                  {imp.itemCount} item{imp.itemCount === 1 ? '' : 's'}
+                <span className="flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="tnum">{imp.itemCount}</span> item{imp.itemCount === 1 ? '' : 's'}
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
               {confirmingDeleteId === imp.id ? (
                 <>
-                  <span className="text-xs text-ink-soft">Delete this import?</span>
-                  <button
-                    onClick={() => deleteImport(imp.id)}
-                    className="px-3 py-1.5 bg-danger-600 text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
-                  >
-                    Delete
-                  </button>
-                  <button
-                    onClick={() => setConfirmingDeleteId(null)}
-                    className="px-3 py-1.5 text-sm rounded-lg text-ink-soft hover:bg-surface-hover transition-colors"
-                  >
-                    Cancel
-                  </button>
+                  <span className="text-sm text-ink-soft">Delete this import?</span>
+                  <Button size="sm" variant="danger" onClick={() => deleteImport(imp.id)}>Delete</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setConfirmingDeleteId(null)}>Cancel</Button>
                 </>
               ) : (
                 <>
-                  <button
-                    onClick={() => openReview(imp)}
-                    className="px-3 py-1.5 bg-sage-600 text-white text-sm rounded-lg hover:bg-sage-700 transition-colors"
-                  >
-                    Review
-                  </button>
-                  <button
-                    onClick={() => setConfirmingDeleteId(imp.id)}
-                    aria-label={`Delete ${imp.fileName}`}
-                    className="p-1.5 text-ink-faint hover:text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
-                  >
+                  <Button size="sm" onClick={() => openReview(imp)}>Review</Button>
+                  <IconButton label={`Delete ${imp.fileName}`} tone="danger" onClick={() => setConfirmingDeleteId(imp.id)}>
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
-                  </button>
+                  </IconButton>
                 </>
               )}
             </div>
