@@ -12,6 +12,7 @@ import { ListSkeleton } from './ui/Skeletons'
 import EmptyState from './ui/EmptyState'
 import Modal from './ui/Modal'
 import TargetPurchaseImport from './TargetPurchaseImport'
+import TargetImportsList from './TargetImportsList'
 
 export default function UserFiles({ userId }) {
   // File METADATA from /api/files; transaction rows come from the shared
@@ -24,6 +25,10 @@ export default function UserFiles({ userId }) {
   const [actionError, setActionError] = useState(null)
   // Two-step delete: first click arms this file's row, second click deletes.
   const [confirmingDeleteId, setConfirmingDeleteId] = useState(null)
+
+  // Bumped after a successful Target CSV import to remount (and refetch)
+  // TargetImportsList — same key-remount pattern page.js uses for this list.
+  const [targetImportsRefresh, setTargetImportsRefresh] = useState(0)
 
   // 'month' groups by statement period (derived from transaction dates);
   // 'account' groups by the account name assigned at upload.
@@ -252,20 +257,33 @@ export default function UserFiles({ userId }) {
   if (txnError) return <LoadError error={txnError} onRetry={retry} />
   if (metaError) return <LoadError error={metaError} onRetry={fetchFiles} />
 
+  // Target imports render regardless of whether any bank statement exists
+  // yet — they're an independent data source, not something that should
+  // hide behind "no files uploaded."
   if (files.length === 0) {
     return (
-      <EmptyState
-        icon={FileText}
-        title="No files uploaded yet"
-        description="Upload a CSV or PDF statement to get started."
-      />
+      <div className="space-y-6">
+        <div className="space-y-3">
+          <TargetPurchaseImport onImported={() => setTargetImportsRefresh(k => k + 1)} />
+          <TargetImportsList key={targetImportsRefresh} />
+        </div>
+        <EmptyState
+          icon={FileText}
+          title="No files uploaded yet"
+          description="Upload a CSV or PDF statement to get started."
+        />
+      </div>
     )
   }
 
   return (
-    <div className="space-y-3">
-      <TargetPurchaseImport />
+    <div className="space-y-6">
+      <div className="space-y-3">
+        <TargetPurchaseImport onImported={() => setTargetImportsRefresh(k => k + 1)} />
+        <TargetImportsList key={targetImportsRefresh} />
+      </div>
 
+      <div className="space-y-3">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h2 className="text-lg font-semibold text-ink">Your Uploaded Files</h2>
 
@@ -556,6 +574,7 @@ export default function UserFiles({ userId }) {
           </Modal>
         )
       })()}
+      </div>
     </div>
   )
 }

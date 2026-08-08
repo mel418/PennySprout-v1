@@ -9,7 +9,7 @@ import { parseTargetPurchasesCsv } from '@/lib/targetCsv'
 // here ever touches Target credentials). Items are matched server-side to
 // existing "Target" transactions by amount + nearby date, so this can be
 // uploaded any time — before or after the matching bank statement.
-export default function TargetPurchaseImport() {
+export default function TargetPurchaseImport({ onImported }) {
   const [status, setStatus] = useState('idle') // idle | loading | done | error
   const [message, setMessage] = useState('')
 
@@ -29,13 +29,14 @@ export default function TargetPurchaseImport() {
       const response = await fetch('/api/target-purchases', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ items, fileName: file.name }),
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Import failed')
 
       setStatus('done')
       setMessage(`Imported ${result.imported} item${result.imported === 1 ? '' : 's'} · matched ${result.matched} trip${result.matched === 1 ? '' : 's'} to your transactions`)
+      if (result.importId) onImported?.()
     } catch (err) {
       setStatus('error')
       setMessage(err.message || 'Something went wrong')
