@@ -8,6 +8,8 @@ import {
 } from '@/lib/date'
 import { money, moneyExact } from '@/lib/format'
 import { useTransactions } from './useTransactions'
+import { useTargetPurchaseMatches } from './useTargetPurchaseMatches'
+import { TargetItemsToggle, TargetItemsList } from './TargetItemsList'
 import LoadError from './LoadError'
 import { DashboardSkeleton } from './ui/Skeletons'
 import EmptyState from './ui/EmptyState'
@@ -261,6 +263,13 @@ export default function SpendingCalendar() {
 // ── Inspector: selected-day category breakdown ──────────────────────────────
 function DayInspector({ dateKey, data, txCount, totals, expandedCategory, setExpandedCategory, onClose }) {
   const date = fromKey(dateKey)
+  const {
+    matchedIds: targetMatchedIds,
+    expandedId: expandedTargetId,
+    itemsById: targetItemsById,
+    loadingId: targetItemsLoadingId,
+    toggle: toggleTargetItems,
+  } = useTargetPurchaseMatches()
   return (
     <div className="animate-expand">
       <div className="flex items-start justify-between gap-2">
@@ -308,14 +317,33 @@ function DayInspector({ dateKey, data, txCount, totals, expandedCategory, setExp
               </button>
               {isOpen && (
                 <div className="ml-7 mr-2 mb-2 space-y-1 animate-expand">
-                  {transactions.map((t, i) => (
-                    <div key={i} className="flex justify-between items-center gap-3 py-1">
-                      <p className="text-xs text-ink-soft truncate">{t['Description'] || '—'}</p>
-                      <span className="text-xs font-medium text-ink flex-shrink-0">
-                        {moneyExact(Math.abs(parseFloat(t.Amount) || 0))}
-                      </span>
-                    </div>
-                  ))}
+                  {transactions.map((t, i) => {
+                    const hasItems = targetMatchedIds.has(t.id)
+                    return (
+                      <div key={t.id ?? i} className="py-1">
+                        <div className="flex justify-between items-center gap-3">
+                          <p className="text-xs text-ink-soft truncate">{t['Description'] || '—'}</p>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {hasItems && (
+                              <TargetItemsToggle
+                                description={t['Description'] || ''}
+                                isOpen={expandedTargetId === t.id}
+                                onClick={() => toggleTargetItems(t.id)}
+                              />
+                            )}
+                            <span className="text-xs font-medium text-ink">
+                              {moneyExact(Math.abs(parseFloat(t.Amount) || 0))}
+                            </span>
+                          </div>
+                        </div>
+                        {expandedTargetId === t.id && (
+                          <div className="mt-2 pl-0.5">
+                            <TargetItemsList items={targetItemsById[t.id]} isLoading={targetItemsLoadingId === t.id} />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>

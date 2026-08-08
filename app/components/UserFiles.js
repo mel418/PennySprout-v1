@@ -5,10 +5,13 @@ import { calcSpending, STANDARD_CATEGORIES } from '@/lib/categories'
 import { parseDate, monthKey, monthKeyLabel } from '@/lib/date'
 import { moneyExact } from '@/lib/format'
 import { useTransactions } from './useTransactions'
+import { useTargetPurchaseMatches } from './useTargetPurchaseMatches'
+import { TargetItemsToggle, TargetItemsList } from './TargetItemsList'
 import LoadError from './LoadError'
 import { ListSkeleton } from './ui/Skeletons'
 import EmptyState from './ui/EmptyState'
 import Modal from './ui/Modal'
+import TargetPurchaseImport from './TargetPurchaseImport'
 
 export default function UserFiles({ userId }) {
   // File METADATA from /api/files; transaction rows come from the shared
@@ -47,8 +50,19 @@ export default function UserFiles({ userId }) {
   const [noteEditId, setNoteEditId] = useState(null)
   const [noteDraft, setNoteDraft] = useState('')
 
+  // Matched Target purchase items — drives the "view items" icon and its
+  // expandable item list in the review modal (see useTargetPurchaseMatches).
+  const {
+    matchedIds: targetMatchedIds,
+    expandedId: expandedTargetId,
+    itemsById: targetItemsById,
+    loadingId: targetItemsLoadingId,
+    toggle: toggleTargetItems,
+    close: closeTargetItems,
+  } = useTargetPurchaseMatches()
+
   // Stable close handler — Modal's useDialog takes it as an effect dependency.
-  const closeReview = useCallback(() => { setReviewFile(null); setNoteEditId(null) }, [])
+  const closeReview = useCallback(() => { setReviewFile(null); setNoteEditId(null); closeTargetItems() }, [closeTargetItems])
 
   const fetchFiles = useCallback(async () => {
     setIsLoadingFiles(true)
@@ -250,6 +264,8 @@ export default function UserFiles({ userId }) {
 
   return (
     <div className="space-y-3">
+      <TargetPurchaseImport />
+
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h2 className="text-lg font-semibold text-ink">Your Uploaded Files</h2>
 
@@ -460,6 +476,13 @@ export default function UserFiles({ userId }) {
                           >
                             <StickyNote className="h-4 w-4" />
                           </button>
+                          {targetMatchedIds.has(t.id) && (
+                            <TargetItemsToggle
+                              description={description}
+                              isOpen={expandedTargetId === t.id}
+                              onClick={() => toggleTargetItems(t.id)}
+                            />
+                          )}
                           <select
                             value={category}
                             onChange={e => updateTransaction(t, { Category: e.target.value })}
@@ -515,6 +538,14 @@ export default function UserFiles({ userId }) {
                             >
                               <X className="h-4 w-4" />
                             </button>
+                          </div>
+                        )}
+
+                        {/* Matched Target purchase items — thumbnails from Target's own
+                            public CDN (target.scene7.com), nothing hosted by us. */}
+                        {expandedTargetId === t.id && (
+                          <div className="mt-3 pt-3 border-t border-line">
+                            <TargetItemsList items={targetItemsById[t.id]} isLoading={targetItemsLoadingId === t.id} />
                           </div>
                         )}
                       </div>

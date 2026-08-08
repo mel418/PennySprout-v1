@@ -3,6 +3,7 @@ import { getUserFiles, saveUserFile, deleteUserFile, findFileByHash } from '@/li
 import { insertTransactions } from '@/lib/transactionStorage'
 import { checkBudgetAlerts } from '@/lib/budgetAlerts'
 import { hashTransactionSet } from '@/lib/transactionHash'
+import { matchUnmatchedItems } from '@/lib/targetPurchaseStorage'
 
 // GET /api/files — file METADATA only (name, dates, counts). Transaction data
 // comes from /api/transactions now; this route used to ship every JSONB blob
@@ -69,6 +70,14 @@ export async function POST(request) {
       user.emailAddresses[0]?.emailAddress,
       fileData.transactions
     )
+
+    // This statement may contain "Target" charges that a previously-imported
+    // purchase-item export couldn't match yet (no transaction existed for
+    // them at import time). Re-run matching now that new transactions exist.
+    // Never fails the upload — matching can always retry on the next import.
+    await matchUnmatchedItems(user.id).catch(error => {
+      console.error('Error matching Target purchases on upload:', error)
+    })
 
     return Response.json({ file: savedFile })
   } catch (error) {

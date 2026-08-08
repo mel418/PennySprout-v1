@@ -6,6 +6,8 @@ import { normalizeCategory, categoryColor, calcSpending, calcIncome, categoryTot
 import { parseDate, periodRange, monthKey, monthKeyLabel, monthKeyToDate } from '@/lib/date'
 import { moneyExact } from '@/lib/format'
 import { useTransactions } from './useTransactions'
+import { useTargetPurchaseMatches } from './useTargetPurchaseMatches'
+import { TargetItemsToggle, TargetItemsList } from './TargetItemsList'
 import LoadError from './LoadError'
 import CategoryCards from './CategoryCards'
 import MonthChat from './MonthChat'
@@ -40,7 +42,15 @@ export default function SpendingDashboard() {
 
   // null = modal closed. A category name string = modal open showing that category's transactions.
   const [selectedCategory, setSelectedCategory] = useState(null)
-  const closeCategoryModal = useCallback(() => setSelectedCategory(null), [])
+  const {
+    matchedIds: targetMatchedIds,
+    expandedId: expandedTargetId,
+    itemsById: targetItemsById,
+    loadingId: targetItemsLoadingId,
+    toggle: toggleTargetItems,
+    close: closeTargetItems,
+  } = useTargetPurchaseMatches()
+  const closeCategoryModal = useCallback(() => { setSelectedCategory(null); closeTargetItems() }, [closeTargetItems])
 
   // Distinct calendar months that have activity, newest first ('YYYY-MM').
   const months = useMemo(() => {
@@ -276,13 +286,28 @@ export default function SpendingDashboard() {
                   const date = t['Trans. Date'] || t['Date'] || t['Transaction Date'] || ''
                   const description = t['Description'] || ''
                   const amount = Math.abs(parseFloat(t.Amount) || 0)
+                  const hasItems = targetMatchedIds.has(t.id)
                   return (
-                    <div key={i} className="flex justify-between items-start p-3 bg-surface-2 rounded-lg">
-                      <div className="flex-1 min-w-0 mr-4">
-                        <p className="text-sm font-medium text-ink truncate">{description}</p>
-                        <p className="text-xs text-ink-faint mt-0.5">{date}</p>
+                    <div key={t.id ?? i} className="p-3 bg-surface-2 rounded-lg">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1 min-w-0 mr-4">
+                          <p className="text-sm font-medium text-ink truncate">{description}</p>
+                          <p className="text-xs text-ink-faint mt-0.5">{date}</p>
+                        </div>
+                        {hasItems && (
+                          <TargetItemsToggle
+                            description={description}
+                            isOpen={expandedTargetId === t.id}
+                            onClick={() => toggleTargetItems(t.id)}
+                          />
+                        )}
+                        <span className="text-sm font-semibold text-ink flex-shrink-0">{moneyExact(amount)}</span>
                       </div>
-                      <span className="text-sm font-semibold text-ink flex-shrink-0">{moneyExact(amount)}</span>
+                      {expandedTargetId === t.id && (
+                        <div className="mt-3 pt-3 border-t border-line">
+                          <TargetItemsList items={targetItemsById[t.id]} isLoading={targetItemsLoadingId === t.id} />
+                        </div>
+                      )}
                     </div>
                   )
                 })
