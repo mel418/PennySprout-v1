@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { ShoppingBag, Upload } from 'lucide-react'
 import { parseTargetPurchasesCsv } from '@/lib/targetCsv'
+import { buttonClass } from './ui/Button'
 
 // Imports the item-level CSV produced by the user's own Target purchase
 // history export (see the browser-extension prompt discussed with the
@@ -44,18 +45,27 @@ export default function TargetPurchaseImport({ onImported }) {
   }
 
   return (
-    <div className="bg-surface rounded-2xl border border-line shadow-sm p-5">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-sage-50 rounded-xl flex items-center justify-center flex-shrink-0">
-          <ShoppingBag className="h-5 w-5 text-sage-600" aria-hidden="true" />
+    <div className="card-soft p-4 sm:p-5">
+      {/* Stacks on phones (icon + copy, then a full-width button) and becomes a
+          single row from sm up — squeezing all three into one row at 375px
+          crushed the description into a 3-word column. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-peach-50">
+            <ShoppingBag className="h-5 w-5 text-peach-600" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-ink">Target purchase items</h3>
+            <p className="mt-0.5 text-sm leading-relaxed text-ink-soft">
+              Import your exported Target order history to see what you bought on each Target transaction.
+            </p>
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-semibold text-ink">Target purchase items</h3>
-          <p className="text-xs text-ink-soft mt-0.5">
-            Import your exported Target order history to see what you bought on each Target transaction.
-          </p>
-        </div>
-        <label className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg font-medium text-xs cursor-pointer transition-colors flex-shrink-0 ${status === 'loading' ? 'bg-surface-2 text-ink-faint cursor-not-allowed' : 'bg-sage-600 hover:bg-sage-700 active:bg-sage-800 text-white'}`}>
+        <label className={buttonClass({
+          size: 'sm',
+          variant: 'secondary',
+          className: `w-full flex-shrink-0 sm:w-auto ${status === 'loading' ? 'pointer-events-none opacity-45' : ''}`,
+        })}>
           <Upload className="h-3.5 w-3.5" aria-hidden="true" />
           {status === 'loading' ? 'Importing…' : 'Import CSV'}
           <input
@@ -69,7 +79,10 @@ export default function TargetPurchaseImport({ onImported }) {
       </div>
 
       {message && (
-        <p className={`text-xs mt-3 ${status === 'error' ? 'text-danger-600' : 'text-ink-soft'}`}>
+        <p
+          className={`mt-3 text-sm ${status === 'error' ? 'text-danger-600' : 'text-ink-soft'}`}
+          role={status === 'error' ? 'alert' : 'status'}
+        >
           {message}
         </p>
       )}

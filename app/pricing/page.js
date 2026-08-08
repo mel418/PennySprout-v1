@@ -4,6 +4,9 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useUser, SignInButton } from '@clerk/nextjs'
 import { Check, Sparkles, ArrowLeft, CreditCard } from 'lucide-react'
+import Button, { buttonClass } from '../components/ui/Button'
+import Doodle from '../components/ui/Doodle'
+import { Banner } from '../components/ui/Field'
 
 // Pricing page: free vs Pro. The Pro price here is display copy — the amount
 // actually charged is the Stripe Price (STRIPE_PRICE_ID); keep the two in sync.
@@ -78,104 +81,115 @@ export default function PricingPage() {
   const isPro = billing?.plan === 'pro'
 
   return (
-    <div className="min-h-screen bg-app">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+    <div className="relative min-h-screen overflow-hidden bg-app">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-24 top-24 h-64 w-64 rounded-full bg-sage-100 opacity-40" />
+        <div className="absolute -right-20 bottom-16 h-56 w-56 rounded-full bg-spend-100 opacity-40" />
+      </div>
 
-        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-ink-soft hover:text-sage-700 transition-colors mb-8">
-          <ArrowLeft className="h-4 w-4" /> Back to Penny Sprout
+      <div className="relative mx-auto max-w-3xl px-4 py-10 sm:px-6">
+
+        <Link
+          href="/"
+          className="mb-8 inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-ink-soft transition-colors hover:text-sage-700"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to Penny Sprout
         </Link>
 
-        <div className="text-center mb-10">
-          <Image src="/sprout-svgrepo-com.svg" alt="" width={48} height={48} className="w-12 h-12 mx-auto mb-3" />
-          <h1 className="text-3xl sm:text-4xl font-bold text-ink tracking-tight mb-2">Simple pricing</h1>
-          <p className="text-sm sm:text-base text-ink-soft max-w-md mx-auto">
-            Start free. Upgrade if you want more room to grow — either way, your bank login stays yours.
+        <div className="mb-10 text-center">
+          <Image src="/sprout-svgrepo-com.svg" alt="" width={56} height={56} className="mx-auto mb-4 h-13 w-13" />
+          <h1 className="mb-2 font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">Simple pricing</h1>
+          <p className="mx-auto max-w-md text-base leading-relaxed text-ink-soft">
+            Start free. Upgrade when you want more room to grow — either way, your bank login stays yours.
           </p>
         </div>
 
         {justUpgraded && (
-          <div role="status" className="mb-6 bg-sage-50 border border-sage-200 text-sage-800 text-sm rounded-xl px-4 py-3 text-center">
-            🌱 Welcome to Pro! Your upgrade is processing — it may take a few seconds to show up.
-          </div>
+          <Banner tone="success" role="status" className="mb-6">
+            <span className="font-semibold">Welcome to Pro! 🌱</span> Your upgrade is processing —
+            it may take a few seconds to show up.
+          </Banner>
         )}
 
-        {error && (
-          <div role="alert" className="mb-6 bg-danger-50 border border-danger-200 text-danger-600 text-sm rounded-xl px-4 py-3 text-center">
-            {error}
-          </div>
-        )}
+        {error && <Banner tone="error" role="alert" className="mb-6">{error}</Banner>}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 
           {/* Free */}
-          <div className="bg-surface border border-line rounded-2xl shadow-sm p-6 flex flex-col">
-            <h2 className="text-lg font-bold text-ink">Sprout</h2>
-            <p className="text-sm text-ink-soft mb-4">Everything you need to see your money clearly.</p>
-            <p className="mb-5"><span className="text-3xl font-bold text-ink">$0</span><span className="text-sm text-ink-faint"> / forever</span></p>
-            <ul className="space-y-2.5 mb-6 flex-1">
+          <div className="card-soft flex flex-col p-6">
+            <div className="mb-1 flex items-center gap-2">
+              <Doodle name="sprout" className="h-5 w-5 text-sage-500" />
+              <h2 className="text-lg font-bold text-ink">Sprout</h2>
+            </div>
+            <p className="mb-4 text-sm text-ink-soft">Everything you need to see your money clearly.</p>
+            <p className="mb-6">
+              <span className="text-4xl font-bold tnum text-ink">$0</span>
+              <span className="text-sm text-ink-faint"> / forever</span>
+            </p>
+            <ul className="mb-6 flex-1 space-y-3">
               {FREE_FEATURES.map(f => (
-                <li key={f} className="flex items-start gap-2 text-sm text-ink-soft">
-                  <Check className="h-4 w-4 text-sage-500 mt-0.5 flex-shrink-0" /> {f}
+                <li key={f} className="flex items-start gap-2.5 text-sm leading-relaxed text-ink-soft">
+                  <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-sage-500" aria-hidden="true" /> {f}
                 </li>
               ))}
             </ul>
             {isLoaded && !isSignedIn ? (
               <SignInButton mode="modal">
-                <button className="w-full px-5 py-2.5 border border-sage-300 text-sage-700 hover:bg-sage-50 text-sm font-semibold rounded-xl transition-colors">
-                  Get started free
-                </button>
+                <button className={buttonClass({ variant: 'secondary', full: true })}>Get started free</button>
               </SignInButton>
             ) : (
-              <p className="text-center text-sm font-medium text-ink-faint py-2.5">
+              <p className="py-2.5 text-center text-sm font-medium text-ink-faint">
                 {isPro ? 'Included in your plan' : 'Your current plan'}
               </p>
             )}
           </div>
 
           {/* Pro */}
-          <div className="bg-surface border-2 border-sage-400 rounded-2xl shadow-sm p-6 flex flex-col relative">
-            <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-sage-600 text-white text-xs font-semibold px-3 py-1 rounded-full inline-flex items-center gap-1">
-              <Sparkles className="h-3 w-3" /> Pro
+          <div className="relative flex flex-col rounded-[var(--radius-lg)] border-2 border-sage-400 bg-surface p-6 shadow-soft">
+            <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-sage-600 px-3 py-1 text-xs font-semibold text-white">
+              <Sparkles className="h-3 w-3" aria-hidden="true" /> Pro
             </span>
-            <h2 className="text-lg font-bold text-ink">Sprout Pro</h2>
-            <p className="text-sm text-ink-soft mb-4">More headroom for power users and heavy months.</p>
-            <p className="mb-5"><span className="text-3xl font-bold text-ink">$5</span><span className="text-sm text-ink-faint"> / month</span></p>
-            <ul className="space-y-2.5 mb-6 flex-1">
+            <div className="mb-1 flex items-center gap-2">
+              <Doodle name="tulip" className="h-5 w-5 text-sage-500" />
+              <h2 className="text-lg font-bold text-ink">Sprout Pro</h2>
+            </div>
+            <p className="mb-4 text-sm text-ink-soft">More headroom for power users and heavy months.</p>
+            <p className="mb-6">
+              <span className="text-4xl font-bold tnum text-ink">$5</span>
+              <span className="text-sm text-ink-faint"> / month</span>
+            </p>
+            <ul className="mb-6 flex-1 space-y-3">
               {PRO_FEATURES.map(f => (
-                <li key={f} className="flex items-start gap-2 text-sm text-ink-soft">
-                  <Check className="h-4 w-4 text-sage-500 mt-0.5 flex-shrink-0" /> {f}
+                <li key={f} className="flex items-start gap-2.5 text-sm leading-relaxed text-ink-soft">
+                  <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-sage-500" aria-hidden="true" /> {f}
                 </li>
               ))}
             </ul>
             {isLoaded && !isSignedIn ? (
               <SignInButton mode="modal">
-                <button className="w-full px-5 py-2.5 bg-sage-600 hover:bg-sage-700 text-white text-sm font-semibold rounded-xl transition-colors">
-                  Sign in to upgrade
-                </button>
+                <button className={buttonClass({ full: true })}>Sign in to upgrade</button>
               </SignInButton>
             ) : isPro ? (
-              <button onClick={openPortal} disabled={busy}
-                className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 border border-sage-300 text-sage-700 hover:bg-sage-50 text-sm font-semibold rounded-xl transition-colors disabled:opacity-60">
-                <CreditCard className="h-4 w-4" /> Manage billing
-              </button>
+              <Button variant="secondary" full onClick={openPortal} disabled={busy}>
+                <CreditCard className="h-4 w-4" aria-hidden="true" /> Manage billing
+              </Button>
             ) : (
-              <button onClick={startCheckout} disabled={busy || billing?.enabled === false}
-                className="w-full px-5 py-2.5 bg-sage-600 hover:bg-sage-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60">
+              <Button full onClick={startCheckout} disabled={busy || billing?.enabled === false}>
                 {busy ? 'Opening checkout…' : 'Upgrade to Pro'}
-              </button>
+              </Button>
             )}
             {billing?.enabled === false && (
-              <p className="text-xs text-ink-faint text-center mt-2">Billing isn&apos;t configured on this deployment yet.</p>
+              <p className="mt-2 text-center text-xs text-ink-faint">Billing isn&apos;t configured on this deployment yet.</p>
             )}
             {isPro && billing?.cancelAtPeriodEnd && (
-              <p className="text-xs text-ink-faint text-center mt-2">
+              <p className="mt-2 text-center text-xs text-ink-faint">
                 Your plan ends {billing.currentPeriodEnd ? new Date(billing.currentPeriodEnd).toLocaleDateString() : 'at the end of the period'}.
               </p>
             )}
           </div>
         </div>
 
-        <p className="text-center text-xs text-ink-faint mt-8">
+        <p className="mt-8 text-center text-sm leading-relaxed text-ink-faint">
           Cancel anytime from the billing portal. Payments handled by Stripe — card details never touch our servers.
         </p>
       </div>

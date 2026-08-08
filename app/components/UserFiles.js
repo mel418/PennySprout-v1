@@ -11,6 +11,10 @@ import LoadError from './LoadError'
 import { ListSkeleton } from './ui/Skeletons'
 import EmptyState from './ui/EmptyState'
 import Modal from './ui/Modal'
+import Button, { IconButton } from './ui/Button'
+import { Pill } from './ui/Chip'
+import { inputClass, selectClass, Banner } from './ui/Field'
+import { SectionHeader } from './ui/SectionHeader'
 import TargetPurchaseImport from './TargetPurchaseImport'
 import TargetImportsList from './TargetImportsList'
 
@@ -292,9 +296,9 @@ export default function UserFiles({ userId }) {
           <TargetImportsList key={targetImportsRefresh} />
         </div>
         <EmptyState
-          icon={FileText}
-          title="No files uploaded yet"
-          description="Upload a CSV or PDF statement to get started."
+          illustration="cloud"
+          title="Nothing here yet"
+          description="Upload a CSV or PDF statement above and it'll show up here, ready to review."
         />
       </div>
     )
@@ -308,30 +312,30 @@ export default function UserFiles({ userId }) {
       </div>
 
       <div className="space-y-3">
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h2 className="text-lg font-semibold text-ink">Your Uploaded Files</h2>
+      <SectionHeader
+        title="Your uploaded files"
+        doodle="dots"
+        className="mb-4"
+        action={
+          /* Group-by toggle */
+          <div className="inline-flex items-center rounded-full bg-surface-2 p-1 text-xs">
+            {[['month', 'By month'], ['account', 'By account']].map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => setGroupBy(value)}
+                aria-pressed={groupBy === value}
+                className={`min-h-8 rounded-full px-3 font-semibold transition-colors ${
+                  groupBy === value ? 'bg-surface text-ink shadow-xs' : 'text-ink-faint hover:text-ink-soft'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
-        {/* Group-by toggle */}
-        <div className="inline-flex items-center bg-surface-2 rounded-lg p-0.5 text-xs">
-          {[['month', 'By month'], ['account', 'By account']].map(([value, label]) => (
-            <button
-              key={value}
-              onClick={() => setGroupBy(value)}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                groupBy === value ? 'bg-surface text-ink shadow-sm' : 'text-ink-faint hover:text-ink-soft'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {actionError && (
-        <div role="alert" className="bg-danger-50 border border-danger-200 p-3 rounded-lg">
-          <p className="text-danger-600 text-sm">{actionError}</p>
-        </div>
-      )}
+      {actionError && <Banner tone="error" role="alert">{actionError}</Banner>}
 
       {groupedFiles.map(group => (
         <div key={group.key} className="space-y-3">
@@ -347,13 +351,15 @@ export default function UserFiles({ userId }) {
             const isEditing = editingId === file.id
 
             return (
-              <div key={file.id} className="bg-surface rounded-2xl border border-line shadow-sm p-5 hover:border-sage-300 transition-colors">
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex-1 min-w-0">
+              <div key={file.id} className="card-soft p-4 transition-colors hover:border-sage-300 sm:p-5">
+                {/* Stacks on phones, sits side-by-side from sm up — the action
+                    row never gets squeezed into an unreadable column. */}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                  <div className="min-w-0 flex-1">
 
                     {/* Title row — shows input when editing, plain text otherwise */}
                     {isEditing ? (
-                      <div className="flex items-center gap-2 mb-3">
+                      <div className="mb-3 flex items-center gap-2">
                         <input
                           autoFocus
                           value={editingName}
@@ -362,96 +368,77 @@ export default function UserFiles({ userId }) {
                             if (e.key === 'Enter') saveTitle(file.id)
                             if (e.key === 'Escape') cancelEditing()
                           }}
-                          className="text-base font-semibold border-b-2 border-sage-500 outline-none flex-1 bg-transparent text-ink"
+                          aria-label={`Rename ${file.name}`}
+                          className={inputClass('flex-1 font-semibold')}
                         />
                         {/* Check saves, X cancels */}
-                        <button onClick={() => saveTitle(file.id)} aria-label="Save name" className="text-sage-600 hover:text-sage-800 flex-shrink-0">
+                        <IconButton label="Save name" tone="sage" onClick={() => saveTitle(file.id)}>
                           <Check className="h-4 w-4" aria-hidden="true" />
-                        </button>
-                        <button onClick={cancelEditing} aria-label="Cancel rename" className="text-ink-faint hover:text-ink flex-shrink-0">
+                        </IconButton>
+                        <IconButton label="Cancel rename" onClick={cancelEditing}>
                           <X className="h-4 w-4" aria-hidden="true" />
-                        </button>
+                        </IconButton>
                       </div>
                     ) : (
-                      // group + group-hover makes the pencil icon only visible on hover
-                      <div className="flex items-center gap-2 mb-3 group">
-                        <h3 className="text-base font-semibold text-ink truncate">{file.name}</h3>
-                        <button
+                      // group + group-hover reveals the edit affordances on
+                      // pointer devices; they stay permanently visible on
+                      // touch, where there is no hover state to discover.
+                      <div className="group mb-2 flex flex-wrap items-center gap-1">
+                        <h4 className="mr-1 min-w-0 flex-shrink truncate text-base font-semibold text-ink">{file.name}</h4>
+                        <IconButton
+                          label={`Rename ${file.name}`}
+                          tone="sage"
                           onClick={() => startEditing(file)}
-                          aria-label={`Rename ${file.name}`}
-                          className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity text-ink-faint hover:text-ink-soft flex-shrink-0"
+                          className="transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                         >
-                          <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                        </button>
+                          <Pencil className="h-4 w-4" aria-hidden="true" />
+                        </IconButton>
                         {file.originalName && file.name !== file.originalName && (
-                          <button
+                          <IconButton
+                            label={`Revert to original name: ${file.originalName}`}
+                            tone="sage"
                             onClick={() => revertName(file)}
-                            aria-label={`Revert to original name: ${file.originalName}`}
-                            title={`Revert to "${file.originalName}"`}
-                            className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity text-ink-faint hover:text-ink-soft flex-shrink-0"
+                            className="transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                           >
-                            <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                          </button>
+                            <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                          </IconButton>
                         )}
-                        {file.accountName && (
-                          <span className="px-2 py-0.5 rounded-full bg-sage-50 text-sage-700 text-[11px] font-medium flex-shrink-0">
-                            {file.accountName}
-                          </span>
-                        )}
+                        {file.accountName && <Pill tone="sage" className="ml-1">{file.accountName}</Pill>}
                       </div>
                     )}
 
                     {/* Metadata row */}
-                    <div className="flex flex-wrap gap-4 text-xs text-ink-faint mb-3">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3.5 w-3.5" />
-                        {new Date(file.uploadDate).toLocaleDateString()}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-ink-faint">
+                      <span className="flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span className="tnum">{new Date(file.uploadDate).toLocaleDateString()}</span>
                       </span>
-                      <span className="flex items-center gap-1">
-                        <FileText className="h-3.5 w-3.5" />
+                      <span className="flex items-center gap-1.5">
+                        <FileText className="h-3.5 w-3.5" aria-hidden="true" />
                         {/* Live count from actual rows, not the stored metadata —
                             stays correct after deleting an individual transaction. */}
-                        {fileTxns.length} transaction{fileTxns.length === 1 ? '' : 's'}
+                        <span className="tnum">{fileTxns.length}</span> transaction{fileTxns.length === 1 ? '' : 's'}
                       </span>
-                      <span className="flex items-center gap-1 font-medium text-ink-soft">
+                      <span className="font-semibold tnum text-ink-soft">
                         {moneyExact(spending)} spending
                       </span>
                     </div>
                   </div>
 
                   {/* Action buttons — delete is two-step: arm, then confirm inline */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
                     {confirmingDeleteId === file.id ? (
                       <>
-                        <span className="text-xs text-ink-soft">Delete this file?</span>
-                        <button
-                          onClick={() => deleteFile(file.id)}
-                          className="px-3 py-1.5 bg-danger-600 text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
-                        >
-                          Delete
-                        </button>
-                        <button
-                          onClick={() => setConfirmingDeleteId(null)}
-                          className="px-3 py-1.5 text-sm rounded-lg text-ink-soft hover:bg-surface-hover transition-colors"
-                        >
-                          Cancel
-                        </button>
+                        <span className="text-sm text-ink-soft">Delete this file?</span>
+                        <Button size="sm" variant="danger" onClick={() => deleteFile(file.id)}>Delete</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setConfirmingDeleteId(null)}>Cancel</Button>
                       </>
                     ) : (
                       <>
-                        <button
-                          onClick={() => setReviewFile(file)}
-                          className="px-3 py-1.5 bg-sage-600 text-white text-sm rounded-lg hover:bg-sage-700 transition-colors"
-                        >
-                          Review
-                        </button>
-                        <button
-                          onClick={() => setConfirmingDeleteId(file.id)}
-                          aria-label={`Delete ${file.name}`}
-                          className="p-1.5 text-ink-faint hover:text-danger-600 hover:bg-danger-50 rounded-lg transition-colors"
-                        >
+                        <Button size="sm" onClick={() => setReviewFile(file)}>Review</Button>
+                        <IconButton label={`Delete ${file.name}`} tone="danger" onClick={() => setConfirmingDeleteId(file.id)}>
                           <Trash2 className="h-4 w-4" aria-hidden="true" />
-                        </button>
+                        </IconButton>
                       </>
                     )}
                   </div>
@@ -486,14 +473,18 @@ export default function UserFiles({ userId }) {
             ariaLabel={`Transactions in ${reviewFile.name}`}
           >
               {editError && (
-                <div role="alert" className="mx-4 mt-3 bg-danger-50 border border-danger-200 p-3 rounded-lg">
-                  <p className="text-danger-600 text-sm">{editError}</p>
+                <div className="mx-4 mt-3 sm:mx-5">
+                  <Banner tone="error" role="alert">{editError}</Banner>
                 </div>
               )}
 
-              <div className="overflow-y-auto p-4 space-y-2">
+              {/* Transaction rows are the least decorated surface in the app:
+                  clarity over charm. Each row is a two-line block — the facts
+                  on top, the controls underneath — so nothing has to be
+                  squeezed onto one line on a phone. */}
+              <ul className="space-y-2 overflow-y-auto p-4 sm:p-5">
                 {transactions.length === 0 ? (
-                  <p className="text-ink-soft text-sm text-center py-4">No transactions found.</p>
+                  <li className="py-6 text-center text-sm text-ink-soft">No transactions found.</li>
                 ) : (
                   transactions.map((t) => {
                     const date = parseDate(t)?.toLocaleDateString() || ''
@@ -503,85 +494,80 @@ export default function UserFiles({ userId }) {
                     const amount = Math.abs(parseFloat(t.Amount) || 0)
                     const isEditingNote = noteEditId === t.id
                     return (
-                      <div key={t.id} className="p-3 bg-surface-2 rounded-lg">
-                        <div className="flex justify-between items-center gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-ink truncate">{description}</p>
-                            <p className="text-xs text-ink-faint mt-0.5">{date}</p>
+                      <li key={t.id} className="well-soft p-3.5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-ink">{description}</p>
+                            <p className="mt-0.5 text-xs tnum text-ink-faint">{date}</p>
                           </div>
-                          <button
-                            onClick={() => {
-                              if (isEditingNote) { setNoteEditId(null); return }
-                              setNoteDraft(note)
-                              setNoteEditId(t.id)
-                            }}
-                            aria-label={note ? `Edit note for ${description}` : `Add note to ${description}`}
-                            title={note ? 'Edit note' : 'Add note'}
-                            className={`p-1 flex-shrink-0 transition-colors ${note ? 'text-sage-600 hover:text-sage-700' : 'text-ink-faint hover:text-ink-soft'}`}
-                          >
-                            <StickyNote className="h-4 w-4" />
-                          </button>
-                          {targetMatchedIds.has(t.id) && (
-                            <TargetItemsToggle
-                              description={description}
-                              isOpen={expandedTargetId === t.id}
-                              onClick={() => toggleTargetItems(t.id)}
-                            />
-                          )}
+                          <span className="flex-shrink-0 text-sm font-bold tnum text-ink">{moneyExact(amount)}</span>
+                        </div>
+
+                        <div className="mt-2.5 flex items-center gap-1.5">
                           <select
                             value={category}
                             onChange={e => updateTransaction(t, { Category: e.target.value })}
                             aria-label={`Category for ${description}`}
-                            className="text-xs text-ink-soft bg-surface border border-line rounded-lg px-2 py-1.5 max-w-[130px] cursor-pointer hover:border-sage-300 focus:border-sage-500 focus:outline-none"
+                            className={selectClass('min-h-9 max-w-[9.5rem] flex-shrink py-1.5 text-sm')}
                           >
                             {/* Keep an unlabeled option when the transaction has no category yet */}
                             {!category && <option value="">—</option>}
                             {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
-                          <span className="text-sm font-semibold text-ink flex-shrink-0">{moneyExact(amount)}</span>
-                          <button
-                            onClick={() => setConfirmingTxnDeleteId(t.id)}
-                            aria-label={`Delete ${description}`}
-                            title="Delete transaction"
-                            className="p-1 flex-shrink-0 text-ink-faint hover:text-danger-600 transition-colors"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+
+                          <div className="ml-auto flex flex-shrink-0 items-center gap-0.5">
+                            <IconButton
+                              label={note ? `Edit note for ${description}` : `Add note to ${description}`}
+                              tone="sage"
+                              className={note ? 'text-sage-600' : ''}
+                              onClick={() => {
+                                if (isEditingNote) { setNoteEditId(null); return }
+                                setNoteDraft(note)
+                                setNoteEditId(t.id)
+                              }}
+                            >
+                              <StickyNote className="h-4 w-4" />
+                            </IconButton>
+                            {targetMatchedIds.has(t.id) && (
+                              <TargetItemsToggle
+                                description={description}
+                                isOpen={expandedTargetId === t.id}
+                                onClick={() => toggleTargetItems(t.id)}
+                              />
+                            )}
+                            <IconButton
+                              label={`Delete ${description}`}
+                              tone="danger"
+                              onClick={() => setConfirmingTxnDeleteId(t.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </IconButton>
+                          </div>
                         </div>
 
                         {/* Two-step delete confirm, e.g. for a duplicate transaction
                             from an overlapping statement */}
                         {confirmingTxnDeleteId === t.id && (
-                          <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-line">
-                            <span className="text-xs text-ink-soft">Delete this transaction?</span>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              <button
-                                onClick={() => deleteTransaction(t)}
-                                className="px-2.5 py-1 text-xs font-medium rounded-lg bg-danger-600 text-white hover:opacity-90 transition-colors"
-                              >
-                                Delete
-                              </button>
-                              <button
-                                onClick={() => setConfirmingTxnDeleteId(null)}
-                                className="px-2.5 py-1 text-xs rounded-lg text-ink-soft hover:bg-surface-hover transition-colors"
-                              >
-                                Cancel
-                              </button>
+                          <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2.5">
+                            <span className="text-sm text-ink-soft">Delete this transaction?</span>
+                            <div className="flex flex-shrink-0 items-center gap-2">
+                              <Button size="sm" variant="danger" onClick={() => deleteTransaction(t)}>Delete</Button>
+                              <Button size="sm" variant="ghost" onClick={() => setConfirmingTxnDeleteId(null)}>Cancel</Button>
                             </div>
                           </div>
                         )}
 
                         {/* Saved note (when not editing) */}
                         {note && !isEditingNote && (
-                          <p className="text-xs italic text-ink-soft mt-2 flex items-start gap-1.5">
-                            <StickyNote className="h-3 w-3 mt-0.5 flex-shrink-0 text-sage-500" aria-hidden="true" />
+                          <p className="mt-2.5 flex items-start gap-1.5 text-sm italic text-ink-soft">
+                            <StickyNote className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-sage-500" aria-hidden="true" />
                             {note}
                           </p>
                         )}
 
                         {/* Inline note editor */}
                         {isEditingNote && (
-                          <div className="flex items-center gap-2 mt-2">
+                          <div className="mt-2.5 flex items-center gap-1.5">
                             <input
                               autoFocus
                               value={noteDraft}
@@ -595,39 +581,31 @@ export default function UserFiles({ userId }) {
                                   setNoteEditId(null)
                                 }
                               }}
-                              placeholder="Add a note — e.g. split with roommate, reimbursed by work"
+                              placeholder="e.g. split with roommate, reimbursed by work"
                               aria-label={`Note for ${description}`}
-                              className="flex-1 text-xs text-ink bg-surface border border-line rounded-lg px-2.5 py-1.5 focus:border-sage-500 focus:outline-none placeholder:text-ink-faint"
+                              className={inputClass('min-h-9 flex-1 py-1.5 text-sm')}
                             />
-                            <button
-                              onClick={() => saveNote(t)}
-                              aria-label="Save note"
-                              className="p-1 text-sage-600 hover:text-sage-800 flex-shrink-0"
-                            >
+                            <IconButton label="Save note" tone="sage" onClick={() => saveNote(t)}>
                               <Check className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => setNoteEditId(null)}
-                              aria-label="Cancel note edit"
-                              className="p-1 text-ink-faint hover:text-ink flex-shrink-0"
-                            >
+                            </IconButton>
+                            <IconButton label="Cancel note edit" onClick={() => setNoteEditId(null)}>
                               <X className="h-4 w-4" />
-                            </button>
+                            </IconButton>
                           </div>
                         )}
 
                         {/* Matched Target purchase items — thumbnails from Target's own
                             public CDN (target.scene7.com), nothing hosted by us. */}
                         {expandedTargetId === t.id && (
-                          <div className="mt-3 pt-3 border-t border-line">
+                          <div className="mt-3 border-t border-line pt-3">
                             <TargetItemsList items={targetItemsById[t.id]} isLoading={targetItemsLoadingId === t.id} />
                           </div>
                         )}
-                      </div>
+                      </li>
                     )
                   })
                 )}
-              </div>
+              </ul>
           </Modal>
         )
       })()}

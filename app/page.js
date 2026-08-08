@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useUser, SignInButton, UserButton } from '@clerk/nextjs'
-import { FolderOpen, BarChart2, CalendarDays, LayoutGrid, Sparkles, TrendingUp, ArrowRight, Target, Settings } from 'lucide-react'
+import { FolderOpen, BarChart2, CalendarDays, LayoutGrid, Sparkles, ArrowRight, Target, Settings } from 'lucide-react'
 import FileUpload from './components/FileUpload'
 import SpendingDashboard from './components/SpendingDashboard'
 import UserFiles from './components/UserFiles'
@@ -12,79 +12,95 @@ import Overview from './components/Overview'
 import Budgets from './components/Budgets'
 import Spinner from './components/ui/Spinner'
 import ThemeToggle from './components/ui/ThemeToggle'
+import Doodle from './components/ui/Doodle'
+import { buttonClass } from './components/ui/Button'
 
 // ─── Landing page ─────────────────────────────────────────────────────────────
+// The most decorated surface in the product (~90% aesthetic): this is where
+// the stationery identity gets to lead. Everything past sign-in tightens up.
 
 function LandingPage() {
   const features = [
-    { icon: CalendarDays, title: 'Your money on a calendar', desc: 'Bills, paychecks, and spending mapped across time — week, month, and year.' },
-    { icon: Sparkles,     title: 'AI-powered analysis',      desc: 'Claude reads your transactions and surfaces calm, personalized insights.' },
-    { icon: TrendingUp,   title: 'See the full picture',     desc: 'Heatmaps, trends, and category cards keep you informed — never punished.' },
+    {
+      doodle: 'flower', tint: 'bg-spend-100', title: 'Your money, on a calendar',
+      desc: 'Bills, paychecks, and spending laid across the month like entries in a planner.',
+    },
+    {
+      doodle: 'sparkle', tint: 'bg-lavender-100', title: 'Ask Penny anything',
+      desc: 'A friendly companion that reads your real transactions and answers in plain language.',
+    },
+    {
+      doodle: 'sprout', tint: 'bg-sage-100', title: 'Watch your savings grow',
+      desc: 'Budgets and goals you nurture — gentle nudges, never a lecture about your latte.',
+    },
   ]
 
   return (
     <div className="min-h-screen bg-app relative overflow-hidden flex flex-col">
 
-      {/* ── Soft decorative elements — calm, low-opacity, no glassmorphism ── */}
-      <div className="absolute top-0 left-0 w-44 h-40 bg-sage-200 opacity-30 pointer-events-none"
-           style={{ borderRadius: '0 0 80% 0' }} />
-      <div className="absolute top-[28%] -left-24 w-80 h-80 bg-sage-100 rounded-full opacity-40 pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-52 h-52 bg-blue-100 rounded-full opacity-40 pointer-events-none"
-           style={{ transform: 'translate(30%, 30%)' }} />
-      <Image src="/sprout-svgrepo-com.svg" alt="" width={144} height={144}
-           className="absolute top-0 right-0 w-36 h-36 opacity-25 pointer-events-none"
-           style={{ transform: 'rotate(15deg) translate(8px, -8px)' }} />
+      {/* ── Botanical decoration — low opacity, pinned to the margins so it
+             never sits behind the headline or the call to action ── */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-24 top-[22%] h-72 w-72 rounded-full bg-sage-100 opacity-50" />
+        <div className="absolute -right-20 bottom-[8%] h-64 w-64 rounded-full bg-spend-100 opacity-50" />
+        <div className="absolute right-[6%] top-[6%] h-40 w-40 rounded-full bg-butter-50 opacity-70" />
+        <Doodle name="sprig"   className="absolute left-[6%] top-[12%] h-10 w-10 text-sage-300 -rotate-12" />
+        <Doodle name="sparkle" className="absolute right-[14%] top-[30%] h-6 w-6 text-butter-500 opacity-70" />
+        <Doodle name="leaf"    className="absolute left-[16%] bottom-[16%] h-8 w-8 text-sage-300 rotate-12 opacity-70" />
+        <Doodle name="cloud"   className="absolute right-[10%] bottom-[26%] h-9 w-9 text-blue-300 opacity-60" />
+      </div>
 
-      {/* ── Hero content ── */}
-      <div className="relative z-10 flex flex-col items-center justify-center flex-1 px-6 pt-16 pb-16 text-center">
+      {/* ── Hero ── */}
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-16 pt-14 text-center sm:pt-20">
 
         <div className="mb-5 animate-float">
-          <Image src="/sprout-svgrepo-com.svg" alt="Penny Sprout" width={80} height={80} priority className="w-20 h-20" />
+          <Image src="/sprout-svgrepo-com.svg" alt="Penny Sprout" width={88} height={88} priority className="h-20 w-20 sm:h-22 sm:w-22" />
         </div>
 
-        <h1 className="text-5xl sm:text-6xl font-bold text-ink mb-4 tracking-tight animate-fade-up">
+        <h1 className="animate-fade-up font-display text-5xl font-bold tracking-tight text-ink sm:text-6xl">
           Penny <span className="text-sage-600">Sprout</span>
         </h1>
 
-        <p className="text-base sm:text-lg text-ink-soft mb-10 max-w-md leading-relaxed animate-fade-up delay-100">
-          A calm command center for your money. Upload your statements and see your finances
-          laid out like a calendar — organized, informed, and in control.
+        <p className="animate-fade-up delay-100 mt-4 max-w-md text-base leading-relaxed text-ink-soft sm:text-lg">
+          Managing your money, but it feels like opening a beautifully kept planner.
+          Upload your statements and watch your financial picture grow.
         </p>
 
-        <div className="animate-fade-up delay-200">
+        <div className="animate-fade-up delay-200 mt-9">
           <SignInButton mode="modal">
-            <button className="group inline-flex items-center gap-2 px-8 py-3.5 bg-sage-600 hover:bg-sage-700 active:bg-sage-800 text-white font-semibold rounded-2xl text-base shadow-sm transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0">
-              Get Started Free
-              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            <button className={buttonClass({ size: 'lg', className: 'group shadow-soft hover:-translate-y-0.5 active:translate-y-0' })}>
+              Start growing — free
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
             </button>
           </SignInButton>
-          <p className="text-xs text-ink-faint mt-3">No credit card required</p>
+          <p className="mt-3 text-sm text-ink-faint">No credit card. No bank login. Ever.</p>
         </div>
 
         {/* Feature cards */}
-        <div className="mt-14 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl w-full animate-fade-up delay-300">
-          {features.map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="bg-surface border border-line rounded-2xl p-5 text-left shadow-sm">
-              <div className="w-9 h-9 rounded-xl bg-sage-50 flex items-center justify-center mb-3">
-                <Icon className="h-4 w-4 text-sage-600" />
+        <div className="animate-fade-up delay-300 mt-14 grid w-full max-w-3xl grid-cols-1 gap-4 sm:grid-cols-3">
+          {features.map(({ doodle, tint, title, desc }) => (
+            <div key={title} className="card-soft p-5 text-left">
+              <div className={`mb-3.5 flex h-11 w-11 items-center justify-center rounded-[var(--radius-md)] ${tint}`}>
+                <Doodle name={doodle} className="h-5 w-5 text-sage-700" strokeWidth={1.5} />
               </div>
-              <h3 className="text-sm font-semibold text-ink mb-1">{title}</h3>
-              <p className="text-xs text-ink-soft leading-relaxed">{desc}</p>
+              <h2 className="mb-1.5 text-base font-semibold text-ink">{title}</h2>
+              <p className="text-sm leading-relaxed text-ink-soft">{desc}</p>
             </div>
           ))}
         </div>
 
-        <p className="mt-10 text-xs text-ink-faint animate-fade-up delay-300">
-          Powered by Claude AI ·{' '}
-          <Link href="/privacy" className="underline decoration-sage-300 underline-offset-2 hover:text-sage-600">
+        <p className="mt-12 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-ink-faint">
+          <span>Powered by Claude AI</span>
+          <span aria-hidden="true">·</span>
+          <Link href="/privacy" className="underline decoration-sage-300 underline-offset-4 hover:text-sage-700">
             Your data stays private
           </Link>
-          {' '}·{' '}
-          <Link href="/pricing" className="underline decoration-sage-300 underline-offset-2 hover:text-sage-600">
+          <span aria-hidden="true">·</span>
+          <Link href="/pricing" className="underline decoration-sage-300 underline-offset-4 hover:text-sage-700">
             Pricing
           </Link>
-          {' '}·{' '}
-          <Link href="/terms" className="underline decoration-sage-300 underline-offset-2 hover:text-sage-600">
+          <span aria-hidden="true">·</span>
+          <Link href="/terms" className="underline decoration-sage-300 underline-offset-4 hover:text-sage-700">
             Terms
           </Link>
         </p>
@@ -145,51 +161,60 @@ export default function Home() {
     <div className="min-h-screen bg-app flex flex-col">
 
       {/* ── Top header ── */}
-      <header className="sticky top-0 z-40 bg-surface border-b border-line">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Image src="/sprout-svgrepo-com.svg" alt="" width={28} height={28} className="w-7 h-7" />
-            <span className="font-bold text-ink text-base">Penny Sprout</span>
+      <header className="sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur-sm">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2">
+            <Image src="/sprout-svgrepo-com.svg" alt="" width={30} height={30} className="h-7 w-7 flex-shrink-0" />
+            <span className="truncate font-display text-lg font-bold text-ink">Penny Sprout</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Link href="/pricing"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-sage-700 hover:text-sage-800 bg-sage-50 hover:bg-sage-100 px-2.5 py-1.5 rounded-lg transition-colors">
-              <Sparkles className="h-3.5 w-3.5" /> Pro
+          <div className="flex flex-shrink-0 items-center gap-1">
+            <Link
+              href="/pricing"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-sage-50 px-3 text-xs font-semibold text-sage-700 transition-colors hover:bg-sage-100"
+            >
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Pro
             </Link>
-            <Link href="/settings" aria-label="Settings"
-              className="p-1.5 text-ink-faint hover:text-sage-700 transition-colors">
-              <Settings className="h-4 w-4" />
+            <Link
+              href="/settings"
+              aria-label="Settings"
+              title="Settings"
+              className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-sm)] text-ink-faint transition-colors hover:bg-surface-hover hover:text-sage-700"
+            >
+              <Settings className="h-4.5 w-4.5" />
             </Link>
             <ThemeToggle />
-            <span className="hidden sm:block text-sm text-ink-soft truncate max-w-[160px]">
+            <span className="hidden max-w-[150px] truncate pl-1 text-sm text-ink-soft lg:block">
               {user.firstName || user.emailAddresses[0].emailAddress}
             </span>
             <UserButton />
           </div>
         </div>
 
-        {/* Desktop nav tabs */}
-        <nav aria-label="Primary" className="hidden sm:flex max-w-6xl mx-auto px-6 gap-1">
-          {NAV_ITEMS.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              onClick={() => setActiveView(id)}
-              aria-current={activeView === id ? 'page' : undefined}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                activeView === id
-                  ? 'border-sage-600 text-sage-700'
-                  : 'border-transparent text-ink-faint hover:text-sage-700'
-              }`}
-            >
-              <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-              {label}
-            </button>
-          ))}
+        {/* Desktop nav — soft pill tabs rather than hard underlines */}
+        <nav aria-label="Primary" className="mx-auto hidden max-w-6xl gap-1 px-4 pb-2 sm:flex sm:px-6">
+          {NAV_ITEMS.map(({ id, label, Icon }) => {
+            const active = activeView === id
+            return (
+              <button
+                key={id}
+                onClick={() => setActiveView(id)}
+                aria-current={active ? 'page' : undefined}
+                className={`inline-flex min-h-10 items-center gap-2 rounded-full px-4 text-sm font-semibold transition-colors ${
+                  active
+                    ? 'bg-sage-100 text-sage-800'
+                    : 'text-ink-faint hover:bg-surface-hover hover:text-sage-700'
+                }`}
+              >
+                <Icon className="h-4 w-4" aria-hidden="true" />
+                {label}
+              </button>
+            )
+          })}
         </nav>
       </header>
 
       {/* ── Page content ── */}
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-6 pb-24 sm:pb-8">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 pb-28 sm:px-6 sm:py-8 sm:pb-10">
         {/* key remounts the wrapper per tab so each switch gets a soft entrance */}
         <div key={activeView} className="animate-page-in">
 
@@ -198,6 +223,7 @@ export default function Home() {
               onOpenCalendar={() => setActiveView('calendar')}
               onOpenUpload={() => setActiveView('files')}
               onOpenAnalysis={() => setActiveView('dashboard')}
+              onOpenBudgets={() => setActiveView('budgets')}
             />
           )}
 
@@ -219,22 +245,39 @@ export default function Home() {
         </div>
       </main>
 
-      {/* ── Mobile bottom nav ── */}
-      <nav aria-label="Primary" className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-line">
+      {/* ── Mobile bottom nav ──
+           Thumb-friendly: 5 targets across the full width, each at least 56px
+           tall, with the active tab marked by a pastel pill *and* a label
+           weight change (never color alone). Padded for the home-indicator
+           inset so the last row isn't clipped on modern phones. */}
+      <nav
+        aria-label="Primary"
+        className="fixed bottom-0 left-0 right-0 z-40 border-t border-line bg-surface/95 backdrop-blur-sm sm:hidden"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
         <div className="flex">
-          {NAV_ITEMS.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              onClick={() => setActiveView(id)}
-              aria-current={activeView === id ? 'page' : undefined}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 text-xs font-medium transition-colors ${
-                activeView === id ? 'text-sage-700' : 'text-ink-faint hover:text-sage-600'
-              }`}
-            >
-              <Icon className={`h-5 w-5 ${activeView === id ? 'text-sage-600' : ''}`} aria-hidden="true" />
-              {label}
-            </button>
-          ))}
+          {NAV_ITEMS.map(({ id, label, Icon }) => {
+            const active = activeView === id
+            return (
+              <button
+                key={id}
+                onClick={() => setActiveView(id)}
+                aria-current={active ? 'page' : undefined}
+                className="flex min-h-[3.5rem] flex-1 flex-col items-center justify-center gap-1 py-2 transition-colors"
+              >
+                <span
+                  className={`flex h-7 w-12 items-center justify-center rounded-full transition-colors ${
+                    active ? 'bg-sage-100 text-sage-800' : 'text-ink-faint'
+                  }`}
+                >
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <span className={`text-xs ${active ? 'font-semibold text-sage-800' : 'font-medium text-ink-faint'}`}>
+                  {label}
+                </span>
+              </button>
+            )
+          })}
         </div>
       </nav>
 

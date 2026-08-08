@@ -12,7 +12,7 @@ function Section({ title, children }) {
   return (
     <section className="mt-8">
       <h2 className="text-lg font-semibold text-ink">{title}</h2>
-      <div className="mt-2 space-y-3 text-sm leading-relaxed text-ink-soft">{children}</div>
+      <div className="mt-2.5 space-y-3 text-base leading-relaxed text-ink-soft">{children}</div>
     </section>
   )
 }
@@ -21,14 +21,14 @@ export default function TermsPage() {
   return (
     <main className="min-h-screen bg-app">
       <div className="mx-auto max-w-2xl px-5 py-12 sm:py-16">
-        <Link href="/" className="text-sm font-medium text-sage-600 hover:text-sage-700">
+        <Link href="/" className="inline-flex min-h-10 items-center text-sm font-medium text-sage-600 hover:text-sage-700">
           ← Back to Penny Sprout
         </Link>
 
-        <h1 className="mt-6 text-2xl font-bold text-ink">Terms of Service</h1>
-        <p className="mt-1 text-xs text-ink-faint">Last updated {UPDATED}</p>
+        <h1 className="mt-6 font-display text-3xl font-bold tracking-tight text-ink">Terms of Service</h1>
+        <p className="mt-1.5 text-sm text-ink-faint">Last updated {UPDATED}</p>
 
-        <p className="mt-6 text-sm leading-relaxed text-ink-soft">
+        <p className="mt-6 text-base leading-relaxed text-ink-soft">
           These terms govern your use of Penny Sprout. By creating an account or using the app,
           you agree to them. We&apos;ve written them in plain language on purpose — if anything is
           unclear, ask us.

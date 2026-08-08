@@ -1,18 +1,21 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightSm, CalendarDays, X } from 'lucide-react'
-import { normalizeCategory, categoryColor, calcSpending, calcIncome, categoryTotals } from '@/lib/categories'
+import { normalizeCategory, categoryColor, categoryTint, calcSpending, calcIncome, categoryTotals } from '@/lib/categories'
 import {
   parseDate, toKey, fromKey, MONTHS_SHORT,
   periodRange, periodLabel, stepPeriod, startOfWeek, addDays,
 } from '@/lib/date'
-import { money, moneyExact } from '@/lib/format'
+import { money, moneyExact, moneyCompact } from '@/lib/format'
 import { useTransactions } from './useTransactions'
 import { useTargetPurchaseMatches } from './useTargetPurchaseMatches'
 import { TargetItemsToggle, TargetItemsList } from './TargetItemsList'
 import LoadError from './LoadError'
 import { DashboardSkeleton } from './ui/Skeletons'
 import EmptyState from './ui/EmptyState'
+import { IconButton } from './ui/Button'
+import { PageHeader } from './ui/SectionHeader'
+import Doodle from './ui/Doodle'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const SCALES = [
@@ -21,6 +24,11 @@ const SCALES = [
   { id: 'year',  label: 'Year'  },
 ]
 
+// Calendar cells are the one place in the app where a full figure genuinely
+// doesn't fit: seven columns across a 375px phone leaves ~45px per day. Rather
+// than shrink the type below 12px, the grid abbreviates ($1.2k) and the day
+// inspector shows the exact amount on tap. money0 keeps the full figure for
+// the roomier week cells and the year-view tooltips.
 const money0 = (n) => `$${Math.round(Math.abs(n)).toLocaleString('en-US')}`
 
 export default function SpendingCalendar() {
@@ -144,8 +152,8 @@ export default function SpendingCalendar() {
     return (
       <EmptyState
         icon={CalendarDays}
-        title="No transaction history yet"
-        description="Upload statements to see your spending calendar."
+        title="Your calendar is still blank"
+        description="Upload a statement and your spending will fill in, day by day."
       />
     )
   }
@@ -164,33 +172,41 @@ export default function SpendingCalendar() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+
+      <PageHeader
+        title="Calendar"
+        subtitle="Your money, laid out day by day — like entries in a journal."
+        doodle="flower"
+      />
 
       {/* ── Unified calendar panel: toolbar + grid + inspector ── */}
-      <div className="bg-surface rounded-2xl border border-line shadow-sm overflow-hidden">
+      <div className="card-soft overflow-hidden">
 
         {/* Toolbar */}
-        <div className="flex items-center justify-between gap-3 flex-wrap px-4 sm:px-5 py-3.5 border-b border-line">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <h2 className="text-base sm:text-lg font-semibold text-ink tracking-tight truncate" aria-live="polite">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3.5 sm:px-5">
+          <div className="flex min-w-0 items-center gap-2">
+            <h2 className="truncate text-lg font-bold tracking-tight text-ink sm:text-xl" aria-live="polite">
               {periodLabel(scale, anchor)}
             </h2>
-            <button onClick={jumpToLatest}
-              className="px-2.5 py-1 text-xs font-medium text-sage-700 hover:bg-surface-hover rounded-lg transition-colors">
+            <button
+              onClick={jumpToLatest}
+              className="min-h-9 rounded-full px-3 text-sm font-semibold text-sage-700 transition-colors hover:bg-sage-50"
+            >
               Today
             </button>
           </div>
 
           <div className="flex items-center gap-2">
             {/* Scale segmented control */}
-            <div className="inline-flex bg-surface-2 rounded-xl p-1">
+            <div className="inline-flex rounded-full bg-surface-2 p-1">
               {SCALES.map(s => (
                 <button
                   key={s.id}
                   onClick={() => setScaleAndClear(s.id)}
                   aria-pressed={scale === s.id}
-                  className={`px-3 py-1 text-sm font-medium rounded-lg transition-colors ${
-                    scale === s.id ? 'bg-surface text-ink shadow-sm' : 'text-ink-faint hover:text-ink'
+                  className={`min-h-9 rounded-full px-3.5 text-sm font-semibold transition-colors ${
+                    scale === s.id ? 'bg-surface text-ink shadow-xs' : 'text-ink-faint hover:text-ink'
                   }`}
                 >
                   {s.label}
@@ -198,16 +214,14 @@ export default function SpendingCalendar() {
               ))}
             </div>
             {/* Period nav */}
-            <div className="inline-flex items-center rounded-xl border border-line">
-              <button onClick={() => go(-1)} aria-label={`Previous ${scale}`}
-                className="p-1.5 rounded-l-xl hover:bg-surface-hover text-ink-faint hover:text-ink transition-colors">
+            <div className="inline-flex items-center overflow-hidden rounded-full border border-line">
+              <IconButton label={`Previous ${scale}`} onClick={() => go(-1)} className="rounded-none">
                 <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-              </button>
+              </IconButton>
               <span className="w-px self-stretch bg-line" aria-hidden="true" />
-              <button onClick={() => go(1)} aria-label={`Next ${scale}`}
-                className="p-1.5 rounded-r-xl hover:bg-surface-hover text-ink-faint hover:text-ink transition-colors">
+              <IconButton label={`Next ${scale}`} onClick={() => go(1)} className="rounded-none">
                 <ChevronRight className="h-4 w-4" aria-hidden="true" />
-              </button>
+              </IconButton>
             </div>
           </div>
         </div>
@@ -215,8 +229,8 @@ export default function SpendingCalendar() {
         {/* Grid + inspector. min-w-0 lets the grid column shrink below its
             content's natural width instead of shoving the inspector out of
             the clipped (overflow-hidden) panel. */}
-        <div className="lg:grid lg:grid-cols-[1fr_300px]">
-          <div className="p-3 sm:p-4 min-w-0">
+        <div className="lg:grid lg:grid-cols-[1fr_320px]">
+          <div className="min-w-0 p-3 sm:p-4">
             {scale === 'month' && (
               <MonthGrid {...{ anchor, byDate, dayTotals, selectedDate, selectDate, latestKey }} />
             )}
@@ -226,14 +240,14 @@ export default function SpendingCalendar() {
             {scale === 'year' && (
               <YearGrid {...{ anchor, byDate, dayTotals, selectedDate, selectDate, openMonth }} />
             )}
-            <p className="hidden lg:block text-[11px] text-ink-faint mt-3 px-1">
-              <kbd className="px-1 py-0.5 rounded bg-surface-2 font-sans">←</kbd>{' '}
-              <kbd className="px-1 py-0.5 rounded bg-surface-2 font-sans">→</kbd> move ·{' '}
-              <kbd className="px-1 py-0.5 rounded bg-surface-2 font-sans">W</kbd>{' '}
-              <kbd className="px-1 py-0.5 rounded bg-surface-2 font-sans">M</kbd>{' '}
-              <kbd className="px-1 py-0.5 rounded bg-surface-2 font-sans">Y</kbd> scale ·{' '}
-              <kbd className="px-1 py-0.5 rounded bg-surface-2 font-sans">T</kbd> today ·{' '}
-              <kbd className="px-1 py-0.5 rounded bg-surface-2 font-sans">Esc</kbd> deselect
+            <p className="mt-3 hidden px-1 text-xs text-ink-faint lg:block">
+              <kbd className="rounded-[6px] bg-surface-2 px-1.5 py-0.5 font-sans">←</kbd>{' '}
+              <kbd className="rounded-[6px] bg-surface-2 px-1.5 py-0.5 font-sans">→</kbd> move ·{' '}
+              <kbd className="rounded-[6px] bg-surface-2 px-1.5 py-0.5 font-sans">W</kbd>{' '}
+              <kbd className="rounded-[6px] bg-surface-2 px-1.5 py-0.5 font-sans">M</kbd>{' '}
+              <kbd className="rounded-[6px] bg-surface-2 px-1.5 py-0.5 font-sans">Y</kbd> scale ·{' '}
+              <kbd className="rounded-[6px] bg-surface-2 px-1.5 py-0.5 font-sans">T</kbd> today ·{' '}
+              <kbd className="rounded-[6px] bg-surface-2 px-1.5 py-0.5 font-sans">Esc</kbd> deselect
             </p>
           </div>
 
@@ -273,25 +287,24 @@ function DayInspector({ dateKey, data, txCount, totals, expandedCategory, setExp
   return (
     <div className="animate-expand">
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-xs font-medium text-ink-faint uppercase tracking-wide">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
             {date.toLocaleDateString('en-US', { weekday: 'long' })}
           </p>
-          <h3 className="text-lg font-semibold text-ink tracking-tight">
+          <h3 className="text-lg font-bold tracking-tight text-ink">
             {date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
           </h3>
-          <p className="text-xs text-ink-faint mt-0.5">{txCount} transaction{txCount !== 1 ? 's' : ''}</p>
+          <p className="mt-0.5 text-sm tnum text-ink-faint">{txCount} transaction{txCount !== 1 ? 's' : ''}</p>
         </div>
-        <button onClick={onClose} aria-label="Close day details"
-          className="p-1.5 -mr-1 rounded-lg text-ink-faint hover:text-ink hover:bg-surface-hover transition-colors">
+        <IconButton label="Close day details" onClick={onClose} className="-mr-2 -mt-1">
           <X className="h-4 w-4" aria-hidden="true" />
-        </button>
+        </IconButton>
       </div>
 
       {(totals.spending > 0 || totals.income > 0) && (
-        <div className="flex gap-4 mt-3 pb-3 border-b border-line text-sm">
-          {totals.spending > 0 && <span className="font-semibold text-spend-600">−{money(totals.spending)}</span>}
-          {totals.income > 0 && <span className="font-semibold text-sage-600">+{money(totals.income)}</span>}
+        <div className="mt-3 flex gap-4 border-b border-line pb-3 text-base tnum">
+          {totals.spending > 0 && <span className="font-bold text-spend-600">−{money(totals.spending)}</span>}
+          {totals.income > 0 && <span className="font-bold text-sage-600">+{money(totals.income)}</span>}
         </div>
       )}
 
@@ -304,26 +317,26 @@ function DayInspector({ dateKey, data, txCount, totals, expandedCategory, setExp
               <button
                 onClick={() => setExpandedCategory(isOpen ? null : category)}
                 aria-expanded={isOpen}
-                className="w-full flex items-center justify-between gap-2 px-2 py-2 rounded-lg hover:bg-surface-hover transition-colors text-left"
+                className="flex min-h-11 w-full items-center justify-between gap-2 rounded-[var(--radius-sm)] px-2 py-2 text-left transition-colors hover:bg-surface-hover"
               >
-                <span className="flex items-center gap-2 min-w-0">
+                <span className="flex min-w-0 items-center gap-2">
                   {isOpen
-                    ? <ChevronDown className="h-3.5 w-3.5 text-sage-500 flex-shrink-0" aria-hidden="true" />
-                    : <ChevronRightSm className="h-3.5 w-3.5 text-ink-faint flex-shrink-0" aria-hidden="true" />}
-                  <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                  <span className="text-sm font-medium text-ink truncate">{category}</span>
+                    ? <ChevronDown className="h-4 w-4 flex-shrink-0 text-sage-500" aria-hidden="true" />
+                    : <ChevronRightSm className="h-4 w-4 flex-shrink-0 text-ink-faint" aria-hidden="true" />}
+                  <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />
+                  <span className="truncate text-sm font-medium text-ink">{category}</span>
                 </span>
-                <span className="text-sm font-semibold text-ink flex-shrink-0">{moneyExact(total)}</span>
+                <span className="flex-shrink-0 text-sm font-bold tnum text-ink">{moneyExact(total)}</span>
               </button>
               {isOpen && (
-                <div className="ml-7 mr-2 mb-2 space-y-1 animate-expand">
+                <div className="animate-expand mb-2 ml-7 mr-2 space-y-1">
                   {transactions.map((t, i) => {
                     const hasItems = targetMatchedIds.has(t.id)
                     return (
                       <div key={t.id ?? i} className="py-1">
-                        <div className="flex justify-between items-center gap-3">
-                          <p className="text-xs text-ink-soft truncate">{t['Description'] || '—'}</p>
-                          <div className="flex items-center gap-1 flex-shrink-0">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="truncate text-sm text-ink-soft">{t['Description'] || '—'}</p>
+                          <div className="flex flex-shrink-0 items-center gap-1">
                             {hasItems && (
                               <TargetItemsToggle
                                 description={t['Description'] || ''}
@@ -331,7 +344,7 @@ function DayInspector({ dateKey, data, txCount, totals, expandedCategory, setExp
                                 onClick={() => toggleTargetItems(t.id)}
                               />
                             )}
-                            <span className="text-xs font-medium text-ink">
+                            <span className="text-sm font-semibold tnum text-ink">
                               {moneyExact(Math.abs(parseFloat(t.Amount) || 0))}
                             </span>
                           </div>
@@ -359,43 +372,46 @@ function PeriodInspector({ scale, summary }) {
   const net = summary.income - summary.spending
   return (
     <div className="animate-expand">
-      <p className="text-xs font-medium text-ink-faint uppercase tracking-wide">This {scale}</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">This {scale}</p>
 
-      <div className="mt-3 space-y-2.5">
+      <dl className="mt-3 space-y-3">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-ink-soft">Income</span>
-          <span className="font-semibold text-sage-600">+{money(summary.income)}</span>
+          <dt className="text-ink-soft">Income</dt>
+          <dd className="font-bold tnum text-sage-600">+{money(summary.income)}</dd>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-ink-soft">Spending</span>
-          <span className="font-semibold text-spend-600">−{money(summary.spending)}</span>
+          <dt className="text-ink-soft">Spending</dt>
+          <dd className="font-bold tnum text-spend-600">−{money(summary.spending)}</dd>
         </div>
-        <div className="flex items-center justify-between text-sm pt-2.5 border-t border-line">
-          <span className="text-ink-soft">Net</span>
-          <span className={`font-semibold ${net >= 0 ? 'text-sage-600' : 'text-spend-600'}`}>
+        <div className="flex items-center justify-between border-t border-line pt-3 text-sm">
+          <dt className="text-ink-soft">Net</dt>
+          <dd className={`font-bold tnum ${net >= 0 ? 'text-sage-600' : 'text-spend-600'}`}>
             {net >= 0 ? '+' : '−'}{money(net)}
-          </span>
+          </dd>
         </div>
-      </div>
+      </dl>
 
       {summary.topCats.length > 0 && (
         <>
-          <p className="text-xs font-medium text-ink-faint uppercase tracking-wide mt-6 mb-2">Top categories</p>
-          <div className="space-y-2">
+          <p className="mb-2.5 mt-6 text-xs font-semibold uppercase tracking-wide text-ink-faint">Top categories</p>
+          <ul className="space-y-2.5">
             {summary.topCats.map(({ category, amount }) => (
-              <div key={category} className="flex items-center justify-between gap-2 text-sm">
-                <span className="flex items-center gap-2 min-w-0">
-                  <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: categoryColor(category) }} />
-                  <span className="text-ink-soft truncate">{category}</span>
+              <li key={category} className="flex items-center justify-between gap-2 text-sm">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: categoryColor(category) }} aria-hidden="true" />
+                  <span className="truncate text-ink-soft">{category}</span>
                 </span>
-                <span className="font-medium text-ink flex-shrink-0">{money(amount)}</span>
-              </div>
+                <span className="flex-shrink-0 font-semibold tnum text-ink">{money(amount)}</span>
+              </li>
             ))}
-          </div>
+          </ul>
         </>
       )}
 
-      <p className="text-xs text-ink-faint mt-6">Select a day to see its transactions.</p>
+      <p className="mt-6 flex items-center gap-1.5 text-sm text-ink-faint">
+        <Doodle name="arrow" className="h-4 w-4 flex-shrink-0 -scale-x-100 text-sage-300" />
+        Pick a day to see its transactions.
+      </p>
     </div>
   )
 }
@@ -410,13 +426,18 @@ function MonthGrid({ anchor, byDate, dayTotals, selectedDate, selectDate, latest
 
   return (
     <div>
-      <div className="grid grid-cols-7 mb-1">
+      <div className="mb-1 grid grid-cols-7">
         {DAYS.map(d => (
-          <div key={d} className="text-center text-[10px] sm:text-[11px] font-medium uppercase tracking-wide text-ink-faint py-1">
-            {d}
+          <div key={d} className="py-1.5 text-center text-xs font-semibold uppercase tracking-wide text-ink-faint">
+            {/* One letter on the narrowest phones, three from sm up */}
+            <span className="sm:hidden">{d[0]}</span>
+            <span className="hidden sm:inline">{d}</span>
           </div>
         ))}
       </div>
+      {/* Tighter gutters and cell padding on phones: seven columns of ~47px
+          have to fit an amount like −$316 on ONE line at 12px. Anything
+          looser and the minus sign wraps onto its own row. */}
       <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
         {cells.map((day, i) => {
           if (!day) return <div key={`b-${i}`} />
@@ -432,22 +453,24 @@ function MonthGrid({ anchor, byDate, dayTotals, selectedDate, selectDate, latest
               onClick={() => hasData && selectDate(key)}
               disabled={!hasData}
               aria-pressed={isSelected}
-              className={`relative flex flex-col items-center rounded-xl px-1 pt-1.5 pb-1 min-h-[58px] sm:min-h-[72px] transition-all
-                ${isSelected ? 'bg-sage-50 ring-1 ring-sage-400' : ''}
-                ${hasData && !isSelected ? 'hover:bg-surface-hover cursor-pointer' : ''}
+              // Selection is marked by a fill AND a 2px ring, so it survives
+              // both color-blindness and a dimmed screen.
+              className={`relative flex min-h-[62px] flex-col items-center rounded-[var(--radius-md)] px-0.5 pb-1.5 pt-1.5 transition-all sm:min-h-[76px] sm:px-1
+                ${isSelected ? 'bg-sage-50 ring-2 ring-sage-500' : ''}
+                ${hasData && !isSelected ? 'cursor-pointer hover:bg-surface-hover' : ''}
                 ${!hasData ? 'cursor-default' : ''}`}
             >
-              <span className={`text-xs sm:text-sm font-medium leading-none flex items-center justify-center
-                ${isLatest ? 'h-5 w-5 sm:h-6 sm:w-6 rounded-full bg-sage-600 text-white' : hasData ? 'text-ink h-5 sm:h-6' : 'text-ink-faint/50 h-5 sm:h-6'}`}>
+              <span className={`flex items-center justify-center text-sm font-semibold leading-none
+                ${isLatest ? 'h-6 w-6 rounded-full bg-sage-600 text-white' : hasData ? 'h-6 text-ink' : 'h-6 text-ink-faint'}`}>
                 {day}
               </span>
               {hasData && (
-                <span className="mt-auto flex flex-col items-center leading-tight">
+                <span className="mt-auto flex flex-col items-center gap-0.5 leading-tight">
                   {spending > 0 && (
-                    <span className="text-[10px] sm:text-[11px] font-medium text-spend-600">−{money0(spending)}</span>
+                    <span className="whitespace-nowrap text-xs font-semibold tracking-tight tnum text-spend-600">−{moneyCompact(spending)}</span>
                   )}
                   {income > 0 && (
-                    <span className="text-[10px] sm:text-[11px] font-medium text-sage-600">+{money0(income)}</span>
+                    <span className="whitespace-nowrap text-xs font-semibold tracking-tight tnum text-sage-600">+{moneyCompact(income)}</span>
                   )}
                 </span>
               )}
@@ -484,26 +507,30 @@ function WeekGrid({ anchor, byDate, dayTotals, selectedDate, selectDate }) {
             onClick={() => txns.length && selectDate(key)}
             disabled={!txns.length}
             aria-pressed={isSelected}
-            className={`flex flex-col text-left rounded-xl border p-2.5 min-h-[120px] transition-all
-              ${isSelected ? 'border-sage-400 bg-sage-50 ring-1 ring-sage-400' : 'border-line hover:bg-surface-hover'}
-              ${!txns.length ? 'opacity-60 cursor-default hover:bg-transparent' : 'cursor-pointer'}`}
+            className={`flex min-h-[130px] flex-col rounded-[var(--radius-md)] border p-2.5 text-left transition-all
+              ${isSelected ? 'border-sage-500 bg-sage-50 ring-2 ring-sage-500' : 'border-line hover:bg-surface-hover'}
+              ${!txns.length ? 'cursor-default opacity-60 hover:bg-transparent' : 'cursor-pointer'}`}
           >
-            <div className="flex items-baseline justify-between mb-1.5">
-              <span className="text-[10px] font-medium uppercase tracking-wide text-ink-faint">{DAYS[d.getDay()]}</span>
-              <span className="text-sm font-semibold text-ink">{d.getDate()}</span>
+            <div className="mb-2 flex items-baseline justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">{DAYS[d.getDay()]}</span>
+              <span className="text-base font-bold tnum text-ink">{d.getDate()}</span>
             </div>
-            <div className="flex flex-col gap-1 flex-1">
+            <div className="flex flex-1 flex-col gap-1">
               {events.map(([cat, amt]) => (
-                <span key={cat} className="text-[10px] leading-tight rounded px-1.5 py-0.5 truncate"
-                  style={{ backgroundColor: `${categoryColor(cat)}22`, color: 'var(--ink)' }}>
-                  <span className="font-medium">{cat}</span> {money0(amt)}
+                <span
+                  key={cat}
+                  className="truncate rounded-[var(--radius-xs)] px-1.5 py-1 text-xs leading-tight text-ink"
+                  style={{ backgroundColor: categoryTint(cat, 0.18) }}
+                >
+                  <span className="font-semibold">{cat}</span>{' '}
+                  <span className="tnum">{money0(amt)}</span>
                 </span>
               ))}
             </div>
             {(spending > 0 || income > 0) && (
-              <div className="mt-1.5 pt-1.5 border-t border-line flex items-center justify-between text-[10px]">
-                {spending > 0 && <span className="text-spend-600 font-medium">−{money0(spending)}</span>}
-                {income > 0 && <span className="text-sage-600 font-medium">+{money0(income)}</span>}
+              <div className="mt-2 flex items-center justify-between border-t border-line pt-1.5 text-xs tnum">
+                {spending > 0 && <span className="font-semibold text-spend-600">−{money0(spending)}</span>}
+                {income > 0 && <span className="font-semibold text-sage-600">+{money0(income)}</span>}
               </div>
             )}
           </button>
@@ -536,10 +563,14 @@ function YearGrid({ anchor, byDate, dayTotals, selectedDate, selectDate, openMon
           <MiniMonth key={month} {...{ year, month, byDate, dayTotals, max, selectedDate, selectDate, openMonth }} />
         ))}
       </div>
-      <div className="flex items-center gap-3 mt-4 px-1 text-[10px] text-ink-faint">
-        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-sage-500" />net positive</span>
-        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-spend-500" />net negative</span>
-        <span>· darker = larger · click a day for detail</span>
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 px-1 text-xs text-ink-faint">
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-[4px] bg-sage-500" aria-hidden="true" />money in
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-[4px] bg-spend-500" aria-hidden="true" />money out
+        </span>
+        <span>· darker = larger · tap a day for detail</span>
       </div>
     </div>
   )
@@ -568,7 +599,7 @@ function MiniMonth({ year, month, byDate, dayTotals, max, selectedDate, selectDa
           const { net } = dayTotals(txns)
           const mag = max > 0 ? Math.min(1, Math.abs(net) / max) : 0
           let bg = 'var(--surface-2)'
-          if (has && net > 0) bg = `rgba(92,122,85,${0.25 + mag * 0.6})`
+          if (has && net > 0) bg = `rgba(var(--sage-heat-rgb),${0.25 + mag * 0.6})`
           else if (has && net < 0) bg = `rgba(var(--spend-heat-rgb),${0.25 + mag * 0.6})`
           const isSelected = selectedDate === key
           return (

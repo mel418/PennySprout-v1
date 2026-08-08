@@ -1,24 +1,25 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Target, PiggyBank, Plus, Pencil, Trash2, X, Check, TrendingUp } from 'lucide-react'
-import { normalizeCategory, categoryColor, STANDARD_CATEGORIES } from '@/lib/categories'
+import { Target, PiggyBank, Plus, Pencil, Trash2, X, Check } from 'lucide-react'
+import { normalizeCategory, STANDARD_CATEGORIES } from '@/lib/categories'
 import { parseDate, MONTHS } from '@/lib/date'
+import { money, moneyExact } from '@/lib/format'
 import { useTransactions } from './useTransactions'
 import LoadError from './LoadError'
 import { BudgetsSkeleton } from './ui/Skeletons'
-import Card from './ui/Card'
+import Card, { CARD_BODY } from './ui/Card'
+import Button, { IconButton } from './ui/Button'
+import Doodle from './ui/Doodle'
+import ProgressBar, { GrowthTrail, budgetTone } from './ui/Progress'
+import GrowthPlant, { stageForRatio } from './ui/GrowthPlant'
+import { CategoryChip } from './ui/Chip'
+import Field, { inputClass, selectClass, labelClass, Banner } from './ui/Field'
+import { PageHeader } from './ui/SectionHeader'
 
-const money = (n) => `$${Math.abs(n).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
-const moneyExact = (n) => `$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-
-// Budget progress states: calm green while comfortably under, gold as the
-// limit approaches, plum once it's crossed — informed, never punished.
-function progressTone(ratio) {
-  if (ratio >= 1) return { bar: 'var(--spend-600)', label: 'over budget', text: 'text-spend-600' }
-  if (ratio >= 0.8) return { bar: '#C2A06B', label: 'getting close', text: 'text-amber-600' }
-  return { bar: 'var(--sage-500)', label: 'on track', text: 'text-sage-600' }
-}
-
+// Budgets & Goals is the app's most expressive financial screen: budgets read
+// like a planner's habit tracker, and each savings goal is a plant the user is
+// nurturing. The figures stay clean and tabular throughout — the growth
+// imagery sits beside them, never on top of them.
 export default function Budgets() {
   const { transactions, isLoading: txLoading, error: txError, retry } = useTransactions()
 
@@ -186,18 +187,15 @@ export default function Budgets() {
   const monthLabel = `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
 
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-ink tracking-tight">Budgets & Goals</h1>
-        <p className="text-sm text-ink-soft mt-0.5">{monthLabel} · limits you set, progress from your real spending</p>
-      </div>
+      <PageHeader
+        title="Budgets & Goals"
+        subtitle={`${monthLabel} · limits you set, progress from your real spending`}
+        doodle="tulip"
+      />
 
-      {saveError && (
-        <div role="alert" className="bg-danger-50 border border-danger-200 text-danger-600 text-sm rounded-xl px-4 py-3">
-          {saveError}
-        </div>
-      )}
+      {saveError && <Banner tone="error" role="alert">{saveError}</Banner>}
 
       {/* ── Category budgets ── */}
       <Card
@@ -206,235 +204,268 @@ export default function Budgets() {
         icon={Target}
         action={
           !budgetForm && availableCategories.length > 0 && (
-            <button
+            <Button
+              size="sm"
+              variant="soft"
               onClick={() => setBudgetForm({ category: availableCategories[0], limit: '' })}
-              className="inline-flex items-center gap-1 text-sm font-medium text-sage-700 hover:text-sage-800 transition-colors">
-              <Plus className="h-4 w-4" /> Add budget
-            </button>
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" /> Add budget
+            </Button>
           )
         }
       >
-        <div className="px-5 pb-5 space-y-4">
+        <div className={`${CARD_BODY} space-y-5`}>
 
           {budgetForm && (
-            <div className="flex flex-wrap items-end gap-3 bg-surface-2 rounded-xl p-4">
-              <div className="flex-1 min-w-[140px]">
-                <label htmlFor="budget-category" className="block text-xs font-medium text-ink-faint mb-1">Category</label>
+            <div className="well-soft flex flex-wrap items-end gap-3 p-4">
+              <Field label="Category" htmlFor="budget-category" className="min-w-[9rem] flex-1">
                 <select
                   id="budget-category"
                   value={budgetForm.category}
                   onChange={e => setBudgetForm(f => ({ ...f, category: e.target.value }))}
                   disabled={budgetForm.editing}
-                  className="w-full text-sm border border-line rounded-lg px-3 py-2 bg-surface text-ink disabled:opacity-60">
+                  className={selectClass()}
+                >
                   {budgetForm.editing
                     ? <option>{budgetForm.category}</option>
                     : availableCategories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
-              </div>
-              <div className="w-36">
-                <label htmlFor="budget-limit" className="block text-xs font-medium text-ink-faint mb-1">Monthly limit ($)</label>
+              </Field>
+              <Field label="Monthly limit ($)" htmlFor="budget-limit" className="w-36">
                 <input
                   id="budget-limit"
-                  type="number" min="1" step="1" placeholder="300"
+                  type="number" min="1" step="1" placeholder="300" inputMode="decimal"
                   value={budgetForm.limit}
                   onChange={e => setBudgetForm(f => ({ ...f, limit: e.target.value }))}
                   onKeyDown={e => { if (e.key === 'Enter') saveBudget() }}
-                  className="w-full text-sm border border-line rounded-lg px-3 py-2 bg-surface text-ink"
+                  className={inputClass('tnum')}
                   autoFocus
                 />
-              </div>
+              </Field>
               <div className="flex gap-2">
-                <button onClick={saveBudget}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-sage-600 hover:bg-sage-700 text-white text-sm font-semibold rounded-lg transition-colors">
-                  <Check className="h-4 w-4" /> Save
-                </button>
-                <button onClick={() => setBudgetForm(null)} aria-label="Cancel"
-                  className="inline-flex items-center px-2.5 py-2 text-ink-faint hover:text-ink border border-line rounded-lg transition-colors">
+                <Button onClick={saveBudget}>
+                  <Check className="h-4 w-4" aria-hidden="true" /> Save
+                </Button>
+                <IconButton label="Cancel" onClick={() => setBudgetForm(null)} className="border border-line">
                   <X className="h-4 w-4" />
-                </button>
+                </IconButton>
               </div>
             </div>
           )}
 
           {budgets.length === 0 && !budgetForm ? (
-            <div className="text-center py-8">
-              <Target className="mx-auto h-10 w-10 text-sage-300 mb-3" />
-              <p className="text-sm font-medium text-ink mb-1">No budgets yet</p>
-              <p className="text-sm text-ink-soft max-w-sm mx-auto">
-                Set a monthly limit for a category and PennySprout will track your real spending against it.
+            <div className="py-8 text-center">
+              <Doodle name="flower" className="mx-auto mb-3 h-10 w-10 text-sage-300" strokeWidth={1.4} />
+              <p className="text-base font-semibold text-ink">No budgets yet</p>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-ink-soft">
+                Set a monthly limit for a category and we&apos;ll track your real spending against it.
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <ul className="space-y-6">
               {budgets.map(b => {
                 const spent = monthSpendByCategory[b.category] || 0
                 const ratio = spent / b.monthlyLimit
-                const tone = progressTone(ratio)
+                const pct = Math.round(ratio * 100)
+                const tone = budgetTone(ratio)
                 const remaining = b.monthlyLimit - spent
                 return (
-                  <div key={b.category}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: categoryColor(b.category) }} />
-                        <span className="text-sm font-medium text-ink truncate">{b.category}</span>
-                        <span className={`text-xs font-medium ${tone.text}`}>{tone.label}</span>
+                  <li key={b.category}>
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <CategoryChip category={b.category} />
+                        {/* Status in words as well as color — never color alone */}
+                        <span className={`text-xs font-semibold ${tone.text}`}>{tone.label}</span>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-sm text-ink-soft">
-                          <span className="font-semibold text-ink">{money(spent)}</span> of {money(b.monthlyLimit)}
+                      <div className="flex flex-shrink-0 items-center gap-1">
+                        <span className="text-sm tnum text-ink-soft">
+                          <span className="font-bold text-ink">{money(spent)}</span> / {money(b.monthlyLimit)}
                         </span>
-                        <button onClick={() => setBudgetForm({ category: b.category, limit: String(b.monthlyLimit), editing: true })}
-                          aria-label={`Edit ${b.category} budget`}
-                          className="p-1 text-ink-faint hover:text-sage-700 transition-colors">
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button onClick={() => removeBudget(b.category)}
-                          aria-label={`Remove ${b.category} budget`}
-                          className="p-1 text-ink-faint hover:text-danger-600 transition-colors">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        <span className="ml-1.5 text-sm font-semibold tnum text-ink-faint">{pct}%</span>
+                        <IconButton
+                          label={`Edit ${b.category} budget`}
+                          tone="sage"
+                          onClick={() => setBudgetForm({ category: b.category, limit: String(b.monthlyLimit), editing: true })}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </IconButton>
+                        <IconButton
+                          label={`Remove ${b.category} budget`}
+                          tone="danger"
+                          onClick={() => removeBudget(b.category)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </IconButton>
                       </div>
                     </div>
-                    <div className="h-2 rounded-full bg-surface-2 overflow-hidden">
-                      <div className="h-full rounded-full transition-all"
-                        style={{ width: `${Math.min(100, ratio * 100)}%`, backgroundColor: tone.bar }} />
-                    </div>
-                    <p className="text-xs text-ink-faint mt-1">
-                      {remaining >= 0
-                        ? `${money(remaining)} left this month`
-                        : `${money(-remaining)} over — it happens; next month is a fresh start`}
+                    <ProgressBar
+                      value={spent}
+                      max={b.monthlyLimit}
+                      tone={tone.tone}
+                      label={`${b.category}: ${money(spent)} of ${money(b.monthlyLimit)} spent, ${pct} percent, ${tone.label}`}
+                    />
+                    <p className="mt-2 flex items-center gap-1.5 text-sm text-ink-soft">
+                      {remaining >= 0 ? (
+                        <>
+                          <Doodle name="leaf" className="h-3.5 w-3.5 flex-shrink-0 text-sage-400" />
+                          <span className="tnum">{money(remaining)}</span> left this month
+                        </>
+                      ) : (
+                        <>
+                          <Doodle name="sprout" className="h-3.5 w-3.5 flex-shrink-0 text-sage-400" />
+                          <span className="tnum">{money(-remaining)}</span> over — it happens; next month is a fresh start
+                        </>
+                      )}
                     </p>
-                  </div>
+                  </li>
                 )
               })}
-            </div>
+            </ul>
           )}
         </div>
       </Card>
 
-      {/* ── Savings goals ── */}
+      {/* ── Savings goals — the most expressive part of the app ── */}
       <Card
         title="Savings goals"
         hint={goals.length > 0 ? `${goals.length} active` : undefined}
         icon={PiggyBank}
+        accent="butter"
         action={
           !goalForm && (
-            <button
-              onClick={() => setGoalForm({ name: '', target: '', saved: '', date: '' })}
-              className="inline-flex items-center gap-1 text-sm font-medium text-sage-700 hover:text-sage-800 transition-colors">
-              <Plus className="h-4 w-4" /> Add goal
-            </button>
+            <Button size="sm" variant="soft" onClick={() => setGoalForm({ name: '', target: '', saved: '', date: '' })}>
+              <Plus className="h-4 w-4" aria-hidden="true" /> Add goal
+            </Button>
           )
         }
       >
-        <div className="px-5 pb-5 space-y-4">
+        <div className={`${CARD_BODY} space-y-4`}>
 
           {goalForm && (
-            <div className="bg-surface-2 rounded-xl p-4 space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="goal-name" className="block text-xs font-medium text-ink-faint mb-1">Goal name</label>
-                  <input id="goal-name" type="text" placeholder="Emergency fund" maxLength={80}
+            <div className="well-soft space-y-4 p-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Goal name" htmlFor="goal-name">
+                  <input id="goal-name" type="text" placeholder="Japan trip" maxLength={80}
                     value={goalForm.name}
                     onChange={e => setGoalForm(f => ({ ...f, name: e.target.value }))}
-                    className="w-full text-sm border border-line rounded-lg px-3 py-2 bg-surface text-ink"
+                    className={inputClass()}
                     autoFocus />
-                </div>
-                <div>
-                  <label htmlFor="goal-target" className="block text-xs font-medium text-ink-faint mb-1">Target ($)</label>
-                  <input id="goal-target" type="number" min="1" step="1" placeholder="1000"
+                </Field>
+                <Field label="Target ($)" htmlFor="goal-target">
+                  <input id="goal-target" type="number" min="1" step="1" placeholder="2000" inputMode="decimal"
                     value={goalForm.target}
                     onChange={e => setGoalForm(f => ({ ...f, target: e.target.value }))}
-                    className="w-full text-sm border border-line rounded-lg px-3 py-2 bg-surface text-ink" />
-                </div>
-                <div>
-                  <label htmlFor="goal-saved" className="block text-xs font-medium text-ink-faint mb-1">Already saved ($, optional)</label>
-                  <input id="goal-saved" type="number" min="0" step="1" placeholder="0"
+                    className={inputClass('tnum')} />
+                </Field>
+                <Field label="Already saved ($, optional)" htmlFor="goal-saved">
+                  <input id="goal-saved" type="number" min="0" step="1" placeholder="0" inputMode="decimal"
                     value={goalForm.saved}
                     onChange={e => setGoalForm(f => ({ ...f, saved: e.target.value }))}
-                    className="w-full text-sm border border-line rounded-lg px-3 py-2 bg-surface text-ink" />
-                </div>
-                <div>
-                  <label htmlFor="goal-date" className="block text-xs font-medium text-ink-faint mb-1">Target date (optional)</label>
+                    className={inputClass('tnum')} />
+                </Field>
+                <Field label="Target date (optional)" htmlFor="goal-date">
                   <input id="goal-date" type="date"
                     value={goalForm.date}
                     onChange={e => setGoalForm(f => ({ ...f, date: e.target.value }))}
-                    className="w-full text-sm border border-line rounded-lg px-3 py-2 bg-surface text-ink" />
-                </div>
+                    className={inputClass()} />
+                </Field>
               </div>
               <div className="flex gap-2">
-                <button onClick={saveGoal}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-sage-600 hover:bg-sage-700 text-white text-sm font-semibold rounded-lg transition-colors">
-                  <Check className="h-4 w-4" /> Create goal
-                </button>
-                <button onClick={() => setGoalForm(null)} aria-label="Cancel"
-                  className="inline-flex items-center px-2.5 py-2 text-ink-faint hover:text-ink border border-line rounded-lg transition-colors">
+                <Button onClick={saveGoal}>
+                  <Check className="h-4 w-4" aria-hidden="true" /> Create goal
+                </Button>
+                <IconButton label="Cancel" onClick={() => setGoalForm(null)} className="border border-line">
                   <X className="h-4 w-4" />
-                </button>
+                </IconButton>
               </div>
             </div>
           )}
 
           {goals.length === 0 && !goalForm ? (
-            <div className="text-center py-8">
-              <PiggyBank className="mx-auto h-10 w-10 text-sage-300 mb-3" />
-              <p className="text-sm font-medium text-ink mb-1">No goals yet</p>
-              <p className="text-sm text-ink-soft max-w-sm mx-auto">
+            <div className="py-8 text-center">
+              <Doodle name="tulip" className="mx-auto mb-3 h-10 w-10 text-sage-300" strokeWidth={1.4} />
+              <p className="text-base font-semibold text-ink">Nothing growing yet</p>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-ink-soft">
                 Name something you&apos;re saving toward, set a target, and log contributions as you go.
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               {goals.map(g => {
                 const ratio = g.targetAmount > 0 ? g.savedAmount / g.targetAmount : 0
                 const pct = Math.min(100, Math.round(ratio * 100))
                 const done = g.savedAmount >= g.targetAmount
+                const remaining = Math.max(0, g.targetAmount - g.savedAmount)
+                const stage = stageForRatio(ratio)
                 return (
-                  <div key={g.id} className="border border-line rounded-xl p-4">
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-ink truncate">{g.name}</p>
-                        <p className="text-xs text-ink-faint">
-                          {moneyExact(g.savedAmount)} of {money(g.targetAmount)}
-                          {g.targetDate ? ` · by ${g.targetDate}` : ''}
+                  <li
+                    key={g.id}
+                    className={`relative rounded-[var(--radius-lg)] border p-4 sm:p-5 ${
+                      done ? 'border-sage-300 bg-sage-50' : 'border-line bg-surface'
+                    }`}
+                  >
+                    <div className="flex items-start gap-4">
+                      <GrowthPlant
+                        stage={stage}
+                        className="h-14 w-14 flex-shrink-0"
+                        label={`${g.name}: ${pct}% saved`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="truncate text-base font-semibold text-ink">{g.name}</p>
+                          <IconButton label={`Delete goal ${g.name}`} tone="danger" onClick={() => removeGoal(g.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </IconButton>
+                        </div>
+                        <p className="text-lg font-bold tnum text-ink">
+                          {moneyExact(g.savedAmount)}
+                          <span className="text-sm font-medium text-ink-soft"> / {money(g.targetAmount)}</span>
                         </p>
+                        {g.targetDate && (
+                          <p className="mt-0.5 text-xs text-ink-faint">by {g.targetDate}</p>
+                        )}
                       </div>
-                      <button onClick={() => removeGoal(g.id)} aria-label={`Delete goal ${g.name}`}
-                        className="p-1 text-ink-faint hover:text-danger-600 transition-colors flex-shrink-0">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
                     </div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="flex-1 h-2 rounded-full bg-surface-2 overflow-hidden">
-                        <div className={`h-full rounded-full transition-all ${done ? 'bg-sage-500' : 'bg-blue-500'}`}
-                          style={{ width: `${Math.max(2, pct)}%` }} />
-                      </div>
-                      <span className={`text-xs font-semibold ${done ? 'text-sage-600' : 'text-ink-soft'}`}>{pct}%</span>
+
+                    <div className="mt-4 flex items-center gap-3">
+                      <ProgressBar
+                        value={g.savedAmount}
+                        max={g.targetAmount}
+                        tone={done ? 'deep' : 'butter'}
+                        className="flex-1"
+                        label={`${g.name}: ${pct} percent saved`}
+                      />
+                      <span className={`text-sm font-bold tnum ${done ? 'text-sage-600' : 'text-ink-soft'}`}>{pct}%</span>
                     </div>
+
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                      <GrowthTrail stage={stage} />
+                      {!done && (
+                        <span className="text-sm tnum text-ink-soft">{money(remaining)} to go</span>
+                      )}
+                    </div>
+
                     {done ? (
-                      <p className="text-xs font-medium text-sage-600 flex items-center gap-1">
-                        <TrendingUp className="h-3.5 w-3.5" /> Goal reached — well done!
+                      <p className="animate-bloom mt-3 flex items-center gap-1.5 text-sm font-semibold text-sage-700">
+                        <Doodle name="flower" className="h-4 w-4 flex-shrink-0" /> Goal reached — lovely work.
                       </p>
                     ) : (
-                      <div className="flex gap-2">
+                      <div className="mt-3 flex gap-2">
                         <input
-                          type="number" step="1" placeholder="Add amount"
+                          type="number" step="1" placeholder="Add amount" inputMode="decimal"
                           aria-label={`Add contribution to ${g.name}`}
                           value={contributions[g.id] || ''}
                           onChange={e => setContributions(c => ({ ...c, [g.id]: e.target.value }))}
                           onKeyDown={e => { if (e.key === 'Enter') addContribution(g) }}
-                          className="flex-1 min-w-0 text-sm border border-line rounded-lg px-3 py-1.5 bg-surface text-ink"
+                          className={inputClass('min-w-0 flex-1 tnum')}
                         />
-                        <button onClick={() => addContribution(g)}
-                          className="px-3 py-1.5 bg-sage-600 hover:bg-sage-700 text-white text-sm font-semibold rounded-lg transition-colors flex-shrink-0">
-                          Log
-                        </button>
+                        <Button onClick={() => addContribution(g)} className="flex-shrink-0">Log</Button>
                       </div>
                     )}
-                  </div>
+                  </li>
                 )
               })}
-            </div>
+            </ul>
           )}
         </div>
       </Card>

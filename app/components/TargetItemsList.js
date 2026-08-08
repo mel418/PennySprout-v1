@@ -8,10 +8,14 @@ import { moneyExact } from '@/lib/format'
 export function TargetItemsToggle({ description, isOpen, onClick, className = '' }) {
   return (
     <button
+      type="button"
       onClick={onClick}
+      aria-expanded={isOpen}
       aria-label={isOpen ? `Hide items for ${description}` : `View items for ${description}`}
       title="View what you bought"
-      className={`p-1 flex-shrink-0 flex items-center gap-0.5 transition-colors ${isOpen ? 'text-sage-700' : 'text-sage-600 hover:text-sage-700'} ${className}`}
+      className={`flex h-11 w-11 flex-shrink-0 items-center justify-center gap-0.5 rounded-[var(--radius-sm)]
+        transition-colors hover:bg-sage-50 sm:h-9 sm:w-9
+        ${isOpen ? 'text-sage-700' : 'text-sage-600 hover:text-sage-700'} ${className}`}
     >
       <ShoppingBag className="h-4 w-4" />
       <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -27,41 +31,42 @@ export function TargetItemsToggle({ description, isOpen, onClick, className = ''
 // is implied by the transaction they're attached to; the import review
 // modal (one CSV spanning many days) sets both.
 export function TargetItemsList({ items, isLoading }) {
-  if (isLoading) return <p className="text-xs text-ink-faint">Loading items…</p>
-  if (!items || items.length === 0) return <p className="text-xs text-ink-faint">No items found.</p>
+  if (isLoading) return <p className="text-sm text-ink-faint">Loading items…</p>
+  if (!items || items.length === 0) return <p className="text-sm text-ink-faint">No items found.</p>
 
   return (
-    <div className="space-y-2">
+    <ul className="space-y-2.5">
       {items.map(item => {
         const meta = [item.date, item.qty > 1 ? `Qty ${item.qty}` : null].filter(Boolean).join(' · ')
         return (
-          <div key={item.id} className="flex items-center gap-2.5">
+          <li key={item.id} className="flex items-center gap-3">
             {item.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={item.imageUrl}
                 alt=""
-                className="w-10 h-10 rounded-lg object-cover bg-surface flex-shrink-0"
+                className="h-11 w-11 flex-shrink-0 rounded-[var(--radius-sm)] bg-surface object-cover"
                 loading="lazy"
               />
             ) : (
-              <div className="w-10 h-10 rounded-lg bg-surface flex-shrink-0" />
+              <div className="h-11 w-11 flex-shrink-0 rounded-[var(--radius-sm)] bg-surface" aria-hidden="true" />
             )}
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-ink truncate">{item.itemName}</p>
-              {meta && <p className="text-[11px] text-ink-faint">{meta}</p>}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm text-ink">{item.itemName}</p>
+              {meta && <p className="text-xs tnum text-ink-faint">{meta}</p>}
             </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
+            <div className="flex flex-shrink-0 items-center gap-1.5">
               {item.matched && (
                 <span title="Linked to a transaction" className="text-sage-600">
-                  <Check className="h-3 w-3" aria-hidden="true" />
+                  <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="sr-only">Linked to a transaction</span>
                 </span>
               )}
-              <span className="text-xs text-ink-soft">{moneyExact(item.lineTotal)}</span>
+              <span className="text-sm font-medium tnum text-ink-soft">{moneyExact(item.lineTotal)}</span>
             </div>
-          </div>
+          </li>
         )
       })}
-    </div>
+    </ul>
   )
 }
