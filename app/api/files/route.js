@@ -1,6 +1,6 @@
 import { currentUser } from '@clerk/nextjs/server'
 import { getUserFiles, saveUserFile, deleteUserFile, findFileByHash } from '@/lib/fileStorage'
-import { insertTransactions } from '@/lib/transactionStorage'
+import { insertTransactions, findDuplicateTransactions } from '@/lib/transactionStorage'
 import { checkBudgetAlerts } from '@/lib/budgetAlerts'
 import { hashTransactionSet } from '@/lib/transactionHash'
 import { matchUnmatchedItems } from '@/lib/targetPurchaseStorage'
@@ -48,6 +48,20 @@ export async function POST(request) {
       const existing = await findFileByHash(user.id, contentHash)
       if (existing) {
         return Response.json({ error: 'duplicate', existingFile: existing }, { status: 409 })
+      }
+    }
+
+    // Catches PARTIAL overlap with existing data — e.g. two statements whose
+    // billing cycles overlap by a few days, or the same account exported
+    // twice with different date ranges. The whole-file hash above only
+    // catches an exact re-upload of an IDENTICAL set of transactions; two
+    // files that share just some rows hash differently and sail right past
+    // it. Skipped once the client has already reviewed the matches and
+    // resubmitted with its own decision about which rows to keep.
+    if (!fileData.skipDuplicateCheck) {
+      const duplicates = await findDuplicateTransactions(user.id, fileData.transactions)
+      if (duplicates.length > 0) {
+        return Response.json({ error: 'transaction-duplicates', duplicates }, { status: 409 })
       }
     }
 
