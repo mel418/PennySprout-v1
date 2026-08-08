@@ -1,10 +1,12 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Trash2, FileText, Calendar, Pencil, Check, X, StickyNote, RotateCcw, ShoppingBag, ChevronDown } from 'lucide-react'
+import { Trash2, FileText, Calendar, Pencil, Check, X, StickyNote, RotateCcw } from 'lucide-react'
 import { calcSpending, STANDARD_CATEGORIES } from '@/lib/categories'
 import { parseDate, monthKey, monthKeyLabel } from '@/lib/date'
 import { moneyExact } from '@/lib/format'
 import { useTransactions } from './useTransactions'
+import { useTargetPurchaseMatches } from './useTargetPurchaseMatches'
+import { TargetItemsToggle, TargetItemsList } from './TargetItemsList'
 import LoadError from './LoadError'
 import { ListSkeleton } from './ui/Skeletons'
 import EmptyState from './ui/EmptyState'
@@ -48,41 +50,19 @@ export default function UserFiles({ userId }) {
   const [noteEditId, setNoteEditId] = useState(null)
   const [noteDraft, setNoteDraft] = useState('')
 
-  // Transaction ids that have matched Target purchase items (see
-  // TargetPurchaseImport) — drives the "view items" icon in the review
-  // modal. Fetched once; cheap (ids only, no item payload).
-  const [targetMatchedIds, setTargetMatchedIds] = useState(new Set())
-  // Which matched transaction's item list is expanded, and the fetched
-  // items per transaction id (fetched lazily, on first expand).
-  const [expandedTargetId, setExpandedTargetId] = useState(null)
-  const [targetItemsById, setTargetItemsById] = useState({})
-  const [targetItemsLoadingId, setTargetItemsLoadingId] = useState(null)
-
-  useEffect(() => {
-    fetch('/api/target-purchases')
-      .then(r => r.ok ? r.json() : { matchedTransactionIds: [] })
-      .then(({ matchedTransactionIds }) => setTargetMatchedIds(new Set(matchedTransactionIds || [])))
-      .catch(() => {})
-  }, [])
-
-  const toggleTargetItems = async (transactionId) => {
-    if (expandedTargetId === transactionId) { setExpandedTargetId(null); return }
-    setExpandedTargetId(transactionId)
-    if (targetItemsById[transactionId]) return
-    setTargetItemsLoadingId(transactionId)
-    try {
-      const res = await fetch(`/api/target-purchases?transactionId=${transactionId}`)
-      const { items } = await res.json()
-      setTargetItemsById(prev => ({ ...prev, [transactionId]: items || [] }))
-    } catch {
-      setTargetItemsById(prev => ({ ...prev, [transactionId]: [] }))
-    } finally {
-      setTargetItemsLoadingId(null)
-    }
-  }
+  // Matched Target purchase items — drives the "view items" icon and its
+  // expandable item list in the review modal (see useTargetPurchaseMatches).
+  const {
+    matchedIds: targetMatchedIds,
+    expandedId: expandedTargetId,
+    itemsById: targetItemsById,
+    loadingId: targetItemsLoadingId,
+    toggle: toggleTargetItems,
+    close: closeTargetItems,
+  } = useTargetPurchaseMatches()
 
   // Stable close handler — Modal's useDialog takes it as an effect dependency.
-  const closeReview = useCallback(() => { setReviewFile(null); setNoteEditId(null); setExpandedTargetId(null) }, [])
+  const closeReview = useCallback(() => { setReviewFile(null); setNoteEditId(null); closeTargetItems() }, [closeTargetItems])
 
   const fetchFiles = useCallback(async () => {
     setIsLoadingFiles(true)
@@ -497,15 +477,11 @@ export default function UserFiles({ userId }) {
                             <StickyNote className="h-4 w-4" />
                           </button>
                           {targetMatchedIds.has(t.id) && (
-                            <button
+                            <TargetItemsToggle
+                              description={description}
+                              isOpen={expandedTargetId === t.id}
                               onClick={() => toggleTargetItems(t.id)}
-                              aria-label={expandedTargetId === t.id ? `Hide items for ${description}` : `View items for ${description}`}
-                              title="View what you bought"
-                              className={`p-1 flex-shrink-0 flex items-center gap-0.5 transition-colors ${expandedTargetId === t.id ? 'text-sage-700' : 'text-sage-600 hover:text-sage-700'}`}
-                            >
-                              <ShoppingBag className="h-4 w-4" />
-                              <ChevronDown className={`h-3 w-3 transition-transform ${expandedTargetId === t.id ? 'rotate-180' : ''}`} />
-                            </button>
+                            />
                           )}
                           <select
                             value={category}
@@ -568,31 +544,8 @@ export default function UserFiles({ userId }) {
                         {/* Matched Target purchase items — thumbnails from Target's own
                             public CDN (target.scene7.com), nothing hosted by us. */}
                         {expandedTargetId === t.id && (
-                          <div className="mt-3 pt-3 border-t border-line space-y-2">
-                            {targetItemsLoadingId === t.id ? (
-                              <p className="text-xs text-ink-faint">Loading items…</p>
-                            ) : (targetItemsById[t.id] || []).length === 0 ? (
-                              <p className="text-xs text-ink-faint">No items found for this trip.</p>
-                            ) : (
-                              targetItemsById[t.id].map(item => (
-                                <div key={item.id} className="flex items-center gap-2.5">
-                                  {item.imageUrl && (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                      src={item.imageUrl}
-                                      alt=""
-                                      className="w-10 h-10 rounded-lg object-cover bg-surface flex-shrink-0"
-                                      loading="lazy"
-                                    />
-                                  )}
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs text-ink truncate">{item.itemName}</p>
-                                    {item.qty > 1 && <p className="text-[11px] text-ink-faint">Qty {item.qty}</p>}
-                                  </div>
-                                  <span className="text-xs text-ink-soft flex-shrink-0">{moneyExact(item.lineTotal)}</span>
-                                </div>
-                              ))
-                            )}
+                          <div className="mt-3 pt-3 border-t border-line">
+                            <TargetItemsList items={targetItemsById[t.id]} isLoading={targetItemsLoadingId === t.id} />
                           </div>
                         )}
                       </div>
