@@ -1,5 +1,6 @@
 import { currentUser } from '@clerk/nextjs/server'
 import { getBudgets, upsertBudget, deleteBudget } from '@/lib/budgetStorage'
+import { checkWriteLimit } from '@/lib/rateLimit'
 
 // Budget categories can be anything present in the user's data, but Income and
 // Bills & Payments are excluded from the spending total everywhere else, so a
@@ -27,6 +28,9 @@ export async function PUT(request) {
     const user = await currentUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
+    const blocked = await checkWriteLimit(user.id)
+    if (blocked) return blocked
+
     const { category, monthlyLimit } = await request.json()
 
     const trimmed = typeof category === 'string' ? category.trim() : ''
@@ -52,6 +56,9 @@ export async function DELETE(request) {
   try {
     const user = await currentUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const blocked = await checkWriteLimit(user.id)
+    if (blocked) return blocked
 
     const { searchParams } = new URL(request.url)
     const category = (searchParams.get('category') || '').trim()

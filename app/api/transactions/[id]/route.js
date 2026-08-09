@@ -1,5 +1,6 @@
 import { currentUser } from '@clerk/nextjs/server'
 import { updateTransactionById, deleteTransactionById } from '@/lib/transactionStorage'
+import { checkWriteLimit } from '@/lib/rateLimit'
 
 // PATCH /api/transactions/:id — edit one transaction by its stable row id.
 // Body: { category?: string, note?: string }. Replaces the old
@@ -14,6 +15,9 @@ export async function PATCH(request, { params }) {
   try {
     const user = await currentUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const blocked = await checkWriteLimit(user.id)
+    if (blocked) return blocked
 
     const { id } = await params
     const { category, note } = await request.json()
@@ -56,6 +60,9 @@ export async function DELETE(request, { params }) {
   try {
     const user = await currentUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const blocked = await checkWriteLimit(user.id)
+    if (blocked) return blocked
 
     const { id } = await params
     await deleteTransactionById(user.id, id)

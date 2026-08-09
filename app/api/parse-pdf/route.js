@@ -19,8 +19,14 @@ export async function POST(request) {
     // Auth alone doesn't cap Anthropic spend — enforce a per-user daily limit
     // (Pro subscribers get a higher ceiling).
     const plan = await getPlan(user.id)
-    const { allowed, limit } = await checkRateLimit(user.id, 'parse-pdf', plan)
+    const { allowed, limit, infraError } = await checkRateLimit(user.id, 'parse-pdf', plan)
     if (!allowed) {
+      if (infraError) {
+        return Response.json(
+          { error: 'Something went wrong on our end — please try again in a moment.' },
+          { status: 503 }
+        )
+      }
       const upsell = plan === 'free' ? ' Upgrade to Pro for a higher daily limit.' : ''
       return Response.json(
         { error: `Daily PDF upload limit reached (${limit}/day). Try again tomorrow.${upsell}` },

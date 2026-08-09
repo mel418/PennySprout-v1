@@ -35,8 +35,14 @@ export async function POST(request) {
     // Each chat message is one model call — same cost profile as the old
     // per-month analysis, so it shares that daily cap (higher on Pro).
     const plan = await getPlan(user.id)
-    const { allowed, limit } = await checkRateLimit(user.id, 'chat', plan)
+    const { allowed, limit, infraError } = await checkRateLimit(user.id, 'chat', plan)
     if (!allowed) {
+      if (infraError) {
+        return Response.json(
+          { error: 'Something went wrong on our end — please try again in a moment.' },
+          { status: 503 }
+        )
+      }
       const upsell = plan === 'free' ? ' Upgrade to Pro for a higher daily limit.' : ''
       return Response.json(
         { error: `Daily chat limit reached (${limit}/day). Try again tomorrow.${upsell}` },

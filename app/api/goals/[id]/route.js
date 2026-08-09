@@ -1,5 +1,6 @@
 import { currentUser } from '@clerk/nextjs/server'
 import { updateGoalById, deleteGoalById } from '@/lib/budgetStorage'
+import { checkWriteLimit } from '@/lib/rateLimit'
 
 // PATCH /api/goals/:id — edit one goal.
 // Body: { name?, targetAmount?, savedAmount?, targetDate? } — targetDate may be
@@ -8,6 +9,9 @@ export async function PATCH(request, { params }) {
   try {
     const user = await currentUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const blocked = await checkWriteLimit(user.id)
+    if (blocked) return blocked
 
     const { id } = await params
     const { name, targetAmount, savedAmount, targetDate } = await request.json()
@@ -63,6 +67,9 @@ export async function DELETE(request, { params }) {
   try {
     const user = await currentUser()
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const blocked = await checkWriteLimit(user.id)
+    if (blocked) return blocked
 
     const { id } = await params
     await deleteGoalById(user.id, id)
