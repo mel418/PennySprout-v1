@@ -43,7 +43,7 @@ const themeInit = `(function(){try{var t=localStorage.getItem('theme');var d=t?t
 
 export default function RootLayout({ children }) {
   return (
-    <ClerkProvider>
+    <ClerkProvider telemetry={false}>
       {/* suppressHydrationWarning: the inline script may add .dark before React hydrates */}
       <html lang="en" className={`${nunito.variable} ${quicksand.variable}`} suppressHydrationWarning>
         <body className="font-sans antialiased">

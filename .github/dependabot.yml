@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # npm dependencies — Clerk, Supabase, Stripe, Anthropic SDK, Next.js, etc.
+  # all handle real money and real user data, so vulnerability patches should
+  # surface as PRs automatically instead of waiting for someone to notice.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      # Routine minor/patch bumps land as one PR per week instead of a dozen,
+      # so they're easy to skim and merge together.
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    # Security patches always get their own immediate PR, ungrouped, even for
+    # a major bump — never batched with routine updates.
+    labels:
+      - "dependencies"
