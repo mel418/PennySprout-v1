@@ -10,6 +10,7 @@ import UserFiles from './components/UserFiles'
 import SpendingCalendar from './components/SpendingCalendar'
 import Overview from './components/Overview'
 import Budgets from './components/Budgets'
+import TransactionSearchWidget from './components/TransactionSearchWidget'
 import Spinner from './components/ui/Spinner'
 import ThemeToggle from './components/ui/ThemeToggle'
 import Doodle from './components/ui/Doodle'
@@ -244,6 +245,10 @@ export default function Home() {
           {activeView === 'budgets' && <Budgets />}
         </div>
       </main>
+
+      {/* Floating search widget — docked bottom-right, available from every
+          tab so finding a transaction never requires navigating away first. */}
+      <TransactionSearchWidget />
 
       {/* ── Mobile bottom nav ──
            Thumb-friendly: 5 targets across the full width, each at least 56px

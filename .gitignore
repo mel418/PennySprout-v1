@@ -42,3 +42,6 @@ next-env.d.ts
 
 data/*
 data/users.json
+
+# local Claude Code launch config (dev server command, per-machine)
+.claude/launch.json

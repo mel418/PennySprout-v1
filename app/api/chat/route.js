@@ -5,15 +5,17 @@ import { getPlan } from '@/lib/subscriptionStorage'
 import { getTransactions } from '@/lib/transactionStorage'
 import { getBudgets } from '@/lib/budgetStorage'
 import { normalizeCategory } from '@/lib/categories'
-import { monthKeyLabel } from '@/lib/date'
+import { parseDate, monthKey, monthKeyLabel } from '@/lib/date'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-// POST /api/chat — conversational insights about one calendar month, streamed
-// as plain text. Replaces the old one-shot /api/analyze report: instead of a
-// canned summary, the user asks their own questions.
+// POST /api/chat — conversational insights, streamed as plain text. Replaces
+// the old one-shot /api/analyze report: instead of a canned summary, the
+// user asks their own questions.
 //
-// Body: { month: 'YYYY-MM', messages: [{ role: 'user'|'assistant', content }] }
+// Body: { month: 'YYYY-MM', messages } — one calendar month's finances, or
+//       { scope: 'all', messages } — everything the user has ever uploaded
+//       (the Ask Penny tab in the floating search widget).
 //
 // The client sends ONLY the conversation. All financial context (totals,
 // categories, transactions, budgets) is loaded server-side from the database,
@@ -22,6 +24,8 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 // annotations (the old analyze flow required an explicit per-run opt-in).
 const MAX_MESSAGES = 20
 const MAX_MESSAGE_LENGTH = 2000
+const MAX_TOP_TXNS = 60
+const MAX_MONTH_ROWS = 24
 
 export async function POST(request) {
   try {
@@ -40,9 +44,10 @@ export async function POST(request) {
       )
     }
 
-    const { month, messages } = await request.json()
+    const { month, scope, messages } = await request.json()
+    const isAllScope = scope === 'all'
 
-    if (!/^\d{4}-\d{2}$/.test(String(month))) {
+    if (!isAllScope && !/^\d{4}-\d{2}$/.test(String(month))) {
       return Response.json({ error: 'Invalid month' }, { status: 400 })
     }
     if (!Array.isArray(messages) || messages.length === 0 || messages.length > MAX_MESSAGES) {
@@ -56,28 +61,43 @@ export async function POST(request) {
       }
     }
 
-    // ── Build the month's financial context server-side ──
-    const [y, mo] = month.split('-').map(Number)
-    const lastDay = new Date(y, mo, 0).getDate()
-    const transactions = await getTransactions(user.id, {
-      from: `${month}-01`,
-      to: `${month}-${String(lastDay).padStart(2, '0')}`,
-    })
+    // ── Build the financial context server-side ──
+    let transactions
+    if (isAllScope) {
+      transactions = await getTransactions(user.id)
+    } else {
+      const [y, mo] = month.split('-').map(Number)
+      const lastDay = new Date(y, mo, 0).getDate()
+      transactions = await getTransactions(user.id, {
+        from: `${month}-01`,
+        to: `${month}-${String(lastDay).padStart(2, '0')}`,
+      })
+    }
 
     if (transactions.length === 0) {
-      return Response.json({ error: 'No transactions in this month' }, { status: 400 })
+      return Response.json({ error: isAllScope ? 'No transactions yet' : 'No transactions in this month' }, { status: 400 })
     }
 
     let income = 0, spending = 0, bills = 0
     const byCategory = {}
+    const byMonth = {}
     for (const t of transactions) {
       const cat = normalizeCategory(t.Category, t.Amount)
       const amt = Math.abs(parseFloat(t.Amount) || 0)
-      if (cat === 'Income') income += amt
-      else if (cat === 'Bills & Payments') bills += amt
-      else if (cat !== 'Transfer') {
+      const d = isAllScope ? parseDate(t) : null
+      const mKey = d ? monthKey(d) : null
+      if (mKey) byMonth[mKey] ||= { income: 0, spending: 0, bills: 0 }
+
+      if (cat === 'Income') {
+        income += amt
+        if (byMonth[mKey]) byMonth[mKey].income += amt
+      } else if (cat === 'Bills & Payments') {
+        bills += amt
+        if (byMonth[mKey]) byMonth[mKey].bills += amt
+      } else if (cat !== 'Transfer') {
         spending += amt
         byCategory[cat] = (byCategory[cat] || 0) + amt
+        if (byMonth[mKey]) byMonth[mKey].spending += amt
       }
     }
     const categoryLines = Object.entries(byCategory)
@@ -89,19 +109,54 @@ export async function POST(request) {
     const topTxns = transactions
       .slice()
       .sort((a, b) => Math.abs(parseFloat(b.Amount) || 0) - Math.abs(parseFloat(a.Amount) || 0))
-      .slice(0, 60)
+      .slice(0, MAX_TOP_TXNS)
       .map(t => `  ${t.Date || '?'} | ${t.Description || '—'} | $${Math.abs(parseFloat(t.Amount) || 0).toFixed(2)} | ${normalizeCategory(t.Category, t.Amount)}`)
       .join('\n')
 
-    const budgets = await getBudgets(user.id).catch(() => [])
-    const budgetLines = budgets.length
-      ? budgets.map(b => {
-          const spent = byCategory[b.category] || 0
-          return `  ${b.category}: $${spent.toFixed(2)} spent of $${b.monthlyLimit.toFixed(2)} limit`
-        }).join('\n')
-      : '  (no budgets set)'
+    let system
+    if (isAllScope) {
+      const dates = transactions.map(parseDate).filter(Boolean).map(d => d.getTime())
+      const earliest = dates.length ? new Date(Math.min(...dates)).toLocaleDateString() : '?'
+      const latest = dates.length ? new Date(Math.max(...dates)).toLocaleDateString() : '?'
+      const monthEntries = Object.entries(byMonth).sort(([a], [b]) => b.localeCompare(a)).slice(0, MAX_MONTH_ROWS)
+      const monthLines = monthEntries
+        .map(([k, v]) => `  ${monthKeyLabel(k)}: income $${v.income.toFixed(2)}, spending $${v.spending.toFixed(2)}, bills $${v.bills.toFixed(2)}, net $${(v.income - v.spending - v.bills).toFixed(2)}`)
+        .join('\n')
 
-    const system = `You are Penny Sprout's financial companion — calm, encouraging, and never judgmental about spending. You answer questions about the user's ${monthKeyLabel(month)} finances using ONLY the data below.
+      system = `You are Penny Sprout's financial companion — calm, encouraging, and never judgmental about spending. You answer questions about the user's ENTIRE transaction history using ONLY the data below.
+
+DATA COVERS: ${earliest} through ${latest} (${transactions.length} transactions total)
+
+EXACT ALL-TIME TOTALS (computed in code — authoritative):
+  Income: $${income.toFixed(2)}
+  Spending (excl. bills): $${spending.toFixed(2)}
+  Bills & Payments: $${bills.toFixed(2)}
+  Net: $${(income - spending - bills).toFixed(2)}
+
+SPENDING BY CATEGORY (all-time):
+${categoryLines || '  (none)'}
+
+BY MONTH (most recent ${monthEntries.length} of ${Object.keys(byMonth).length}):
+${monthLines || '  (none)'}
+
+LARGEST TRANSACTIONS (top ${Math.min(MAX_TOP_TXNS, transactions.length)} of ${transactions.length} by amount):
+${topTxns}
+
+Rules:
+- Use the exact totals above; never recompute or invent figures.
+- If a question needs a specific transaction not listed above, answer from the aggregates rather than guessing at details you can't see.
+- Keep answers short and conversational — 2-5 sentences unless a breakdown is asked for. Plain text, no markdown headers or tables.
+- You may offer gentle, practical suggestions, but you are not a licensed financial advisor and must not give investment advice.`
+    } else {
+      const budgets = await getBudgets(user.id).catch(() => [])
+      const budgetLines = budgets.length
+        ? budgets.map(b => {
+            const spent = byCategory[b.category] || 0
+            return `  ${b.category}: $${spent.toFixed(2)} spent of $${b.monthlyLimit.toFixed(2)} limit`
+          }).join('\n')
+        : '  (no budgets set)'
+
+      system = `You are Penny Sprout's financial companion — calm, encouraging, and never judgmental about spending. You answer questions about the user's ${monthKeyLabel(month)} finances using ONLY the data below.
 
 EXACT TOTALS for ${monthKeyLabel(month)} (computed in code — authoritative):
   Income: $${income.toFixed(2)}
@@ -116,7 +171,7 @@ ${categoryLines || '  (none)'}
 MONTHLY BUDGETS:
 ${budgetLines}
 
-LARGEST TRANSACTIONS (top ${Math.min(60, transactions.length)} of ${transactions.length} by amount):
+LARGEST TRANSACTIONS (top ${Math.min(MAX_TOP_TXNS, transactions.length)} of ${transactions.length} by amount):
 ${topTxns}
 
 Rules:
@@ -124,6 +179,7 @@ Rules:
 - If asked about something not in this data (other months, account balances, investments), say you can only see ${monthKeyLabel(month)}'s transactions and suggest switching months.
 - Keep answers short and conversational — 2-5 sentences unless a breakdown is asked for. Plain text, no markdown headers or tables.
 - You may offer gentle, practical suggestions, but you are not a licensed financial advisor and must not give investment advice.`
+    }
 
     const stream = anthropic.messages.stream({
       model: 'claude-sonnet-4-6',
