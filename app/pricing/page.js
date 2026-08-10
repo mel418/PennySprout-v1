@@ -16,11 +16,12 @@ const FREE_FEATURES = [
   '30 AI chat questions per day',
   'Budgets & savings goals',
   'Spending calendar & insights dashboard',
-  'Privacy-first: no bank login required, ever',
+  'Privacy-first: no bank login required',
 ]
 
 const PRO_FEATURES = [
   'Everything in Free',
+  'Connect your bank for automatic daily transaction sync',
   '100 PDF statement extractions per day',
   '200 AI chat questions per day',
   'Priority support',
@@ -100,7 +101,8 @@ export default function PricingPage() {
           <Image src="/sprout-svgrepo-com.svg" alt="" width={56} height={56} className="mx-auto mb-4 h-13 w-13" />
           <h1 className="mb-2 font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">Simple pricing</h1>
           <p className="mx-auto max-w-md text-base leading-relaxed text-ink-soft">
-            Start free. Upgrade when you want more room to grow — either way, your bank login stays yours.
+            Start free with uploads, always. Upgrade for more room to grow — and if you want it,
+            automatic bank syncing.
           </p>
         </div>
 

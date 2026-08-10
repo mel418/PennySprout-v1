@@ -24,18 +24,25 @@ function sentryIngestHost(dsn) {
 
 const clerkHost = clerkFrontendApiHost(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
 const sentryHost = sentryIngestHost(process.env.NEXT_PUBLIC_SENTRY_DSN)
+// Same env-gating every optional integration in this app follows (see
+// lib/plaid.js plaidEnabled): only widen the CSP for Plaid when it's
+// actually configured, so a deployment that never sets these vars doesn't
+// carry a third-party allowance it has no use for.
+const plaidConfigured = Boolean(process.env.PLAID_CLIENT_ID && process.env.PLAID_SECRET)
 
 // Report-Only, not enforced: Clerk's login flow (its script, XHR calls, and
-// the Cloudflare Turnstile bot-check frame it embeds) and the Target
-// purchase-item thumbnails are the parts most likely to break from a wrong
-// directive, and there's no way to click through the real, signed-in app in
-// this environment to confirm the allowlist is complete before it ships.
-// Report-Only logs violations to the browser console without blocking
-// anything, so it's safe to ship now. Once you've used the app for a few
-// days (sign-in, billing redirect, Target item thumbnails, PDF upload) with
-// DevTools open and see no CSP violations logged, flip the header name below
-// from Content-Security-Policy-Report-Only to Content-Security-Policy to
-// actually enforce it.
+// the Cloudflare Turnstile bot-check frame it embeds), the Target
+// purchase-item thumbnails, and Plaid Link (its script + the modal it opens,
+// used by the optional bank-sync feature) are the parts most likely to break
+// from a wrong directive, and there's no way to click through the real,
+// signed-in app in this environment to confirm the allowlist is complete
+// before it ships. Report-Only logs violations to the browser console
+// without blocking anything, so it's safe to ship now. Once you've used the
+// app for a few days (sign-in, billing redirect, Target item thumbnails, PDF
+// upload, and — if Plaid is configured — connecting a bank) with DevTools
+// open and see no CSP violations logged, flip the header name below from
+// Content-Security-Policy-Report-Only to Content-Security-Policy to actually
+// enforce it.
 const cspDirectives = [
   `default-src 'self'`,
   `base-uri 'self'`,
@@ -46,11 +53,18 @@ const cspDirectives = [
   `img-src 'self' data: https://img.clerk.com https://target.scene7.com https://*.scene7.com`,
   `font-src 'self' data:`,
   `style-src 'self' 'unsafe-inline'`,
-  `frame-src https://challenges.cloudflare.com`,
-  [`script-src 'self' 'unsafe-inline'`, clerkHost && `https://${clerkHost}`, `https://challenges.cloudflare.com`]
+  [`frame-src https://challenges.cloudflare.com`, plaidConfigured && `https://cdn.plaid.com`]
     .filter(Boolean).join(' '),
-  [`connect-src 'self'`, clerkHost && `https://${clerkHost}`, clerkHost && `wss://${clerkHost}`, sentryHost && `https://${sentryHost}`]
+  [`script-src 'self' 'unsafe-inline'`, clerkHost && `https://${clerkHost}`, `https://challenges.cloudflare.com`, plaidConfigured && `https://cdn.plaid.com`]
     .filter(Boolean).join(' '),
+  [
+    `connect-src 'self'`, clerkHost && `https://${clerkHost}`, clerkHost && `wss://${clerkHost}`,
+    sentryHost && `https://${sentryHost}`,
+    // Link itself (loaded from cdn.plaid.com) talks to Plaid's API hosts
+    // directly from the browser during the connect flow — the access
+    // token exchange still only ever happens server-side (lib/plaid.js).
+    plaidConfigured && `https://cdn.plaid.com https://production.plaid.com https://sandbox.plaid.com`,
+  ].filter(Boolean).join(' '),
 ].join('; ')
 
 /** @type {import('next').NextConfig} */

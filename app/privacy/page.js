@@ -5,7 +5,7 @@ export const metadata = {
   description: 'How Penny Sprout handles, stores, and protects your financial data.',
 }
 
-const UPDATED = 'July 9, 2026'
+const UPDATED = 'August 9, 2026'
 const CONTACT = 'melodygatan@gmail.com' // ← change to your support address if you add one
 
 function Section({ title, children }) {
@@ -62,6 +62,30 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
+        <Section title="Optional bank connections (Sprout Pro)">
+          <p>
+            Uploading statements is never required — Penny Sprout works fully on the free plan without
+            ever connecting to your bank. If you choose to, Sprout Pro lets you optionally connect a
+            bank account through Plaid, a bank-connection provider used by many financial apps, so
+            transactions sync automatically instead of you uploading statements by hand.
+          </p>
+          <p>
+            This is a materially different level of access than an uploaded statement: it&rsquo;s tied
+            to a real bank login rather than a de-identified file you chose to share. Your bank
+            credentials go directly to Plaid and its banking partners — <strong>we never see or store
+            them</strong>. What we store is the long-lived connection token Plaid issues us to fetch
+            new transactions, which is encrypted before it&rsquo;s saved and never sent to your
+            browser. Synced transactions are stored the same way — and go through the same PII
+            scrubbing — as ones you upload.
+          </p>
+          <p>
+            You can disconnect a bank at any time from the Files tab; this stops syncing immediately.
+            You choose separately whether to also delete the transactions already synced from it — by
+            default they&rsquo;re kept as part of your history, since Plaid can&apos;t re-deliver data
+            it has already sent us.
+          </p>
+        </Section>
+
         <Section title="Where your data is stored">
           <p>
             Your transaction data is stored in a managed Postgres database (Supabase). It is encrypted
@@ -87,6 +111,10 @@ export default function PrivacyPage() {
               Personal notes you attach to transactions are <strong>not</strong> included in AI
               analysis unless you explicitly opt in via the checkbox for that specific analysis.
             </li>
+            <li>
+              <strong>Plaid</strong> — if you choose to connect a bank (Sprout Pro), Plaid handles the
+              connection and provides your transaction data to us. See the section above for details.
+            </li>
           </ul>
         </Section>
 
@@ -100,9 +128,10 @@ export default function PrivacyPage() {
 
         <Section title="Your control over your data">
           <p>
-            You can delete any uploaded statement from within the app at any time; deleting it removes
-            the associated transactions from our database. If you would like your entire account and all
-            associated data deleted, contact us at the address below and we will remove it.
+            You can delete any uploaded statement, or disconnect a linked bank, from within the app at
+            any time; deleting a statement removes its transactions from our database. If you would
+            like your entire account and all associated data deleted, use the Delete Account option in
+            Settings — it also disconnects any linked banks — or contact us at the address below.
           </p>
         </Section>
 

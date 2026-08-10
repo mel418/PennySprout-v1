@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useUser, SignInButton, UserButton } from '@clerk/nextjs'
 import { FolderOpen, BarChart2, CalendarDays, LayoutGrid, Sparkles, ArrowRight, Target, Settings } from 'lucide-react'
 import FileUpload from './components/FileUpload'
+import ConnectedAccounts from './components/ConnectedAccounts'
 import SpendingDashboard from './components/SpendingDashboard'
 import UserFiles from './components/UserFiles'
 import SpendingCalendar from './components/SpendingCalendar'
@@ -74,7 +75,7 @@ function LandingPage() {
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
             </button>
           </SignInButton>
-          <p className="mt-3 text-sm text-ink-faint">No credit card. No bank login. Ever.</p>
+          <p className="mt-3 text-sm text-ink-faint">No credit card. No bank login required.</p>
         </div>
 
         {/* Feature cards */}
@@ -122,7 +123,14 @@ const NAV_ITEMS = [
 
 const VALID_VIEWS = NAV_ITEMS.map(i => i.id)
 const viewFromUrl = () => {
-  const tab = new URLSearchParams(window.location.search).get('tab')
+  const params = new URLSearchParams(window.location.search)
+  // Plaid's OAuth redirect (see app/components/usePlaidLinkFlow.js) lands
+  // the whole page back at the registered redirect_uri — the site root,
+  // with no ?tab= of its own — carrying ?oauth_state_id=... instead. The
+  // Connect-a-bank UI that needs to catch that and resume Link lives on the
+  // Files tab, so force it here regardless of any other tab param.
+  if (params.has('oauth_state_id')) return 'files'
+  const tab = params.get('tab')
   if (tab === 'upload') return 'files' // upload merged into Files; keep old links working
   return VALID_VIEWS.includes(tab) ? tab : 'overview'
 }
@@ -233,6 +241,7 @@ export default function Home() {
               after each successful upload batch. */}
           {activeView === 'files' && (
             <div className="space-y-6">
+              <ConnectedAccounts />
               <FileUpload onDataLoaded={() => setFilesRefresh(k => k + 1)} userId={user.id} />
               <UserFiles key={filesRefresh} userId={user.id} />
             </div>
