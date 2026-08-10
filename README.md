@@ -1,62 +1,45 @@
 # 🌱 Penny Sprout
 
-An AI-powered personal finance analyzer that helps you understand your spending habits and make smarter financial decisions.
+An AI-powered personal finance analyzer: upload statements (or connect a bank on Pro) and see your spending laid out on a calendar, with an AI chat that answers questions grounded in your real transactions.
 
 ## Features
 
-- **Multi-format Upload**: Upload CSV files (credit cards) and PDF bank statements — select multiple files at once to combine accounts
-- **AI Chat**: Ask questions about any month's spending ("where did most of my money go?") and get streamed answers grounded in your real transactions, categories, and budgets — powered by Claude
-- **Interactive Dashboard**: Clickable charts showing spending by category and distribution — tap any category to see individual transactions
-- **Spending Calendar**: Month-by-month calendar view across all saved files showing daily spending and income at a glance, with color-coded categories in the daily breakdown
-- **Cash Flow Trends**: A collapsible, mobile-optimized chart on the calendar plots daily income/spending and a cumulative net-balance line for the selected month
-- **Income & Bills Separation**: Income and Bills & Payments are tracked separately and excluded from your spending total for an accurate picture
-- **Zelle / Transfer Detection**: Automatically distinguishes received transfers (income) from sent transfers (spending)
-- **Budgets & Goals**: Per-category monthly spending limits with progress tracking, plus savings goals with logged contributions
-- **Subscriptions (Stripe)**: Free tier + $5/mo Pro tier (higher daily AI caps) via Stripe Checkout, customer portal, and webhook-synced plan state
-- **Email Nudges**: Budget-exceeded alerts on upload and a monthly "upload your statement" reminder (Resend, env-gated)
-- **Data Export & Account Deletion**: Self-serve CSV export of all transactions and immediate, complete account deletion from the Settings page
-- **File Management**: Save, rename, and manage multiple statement files with persistent analysis history
-- **Privacy by Design**: Statements are de-identified before storage — only merchant, date, amount, and category are kept (no names, account numbers, or other PII)
-- **Secure Data Access**: Clerk-authenticated sessions, server-only database access via the service-role key, and Row Level Security on the data table
-- **Keyboard Shortcuts**: the calendar supports `←/→` (move), `W`/`M`/`Y` (scale), `T` (today), and `Esc` (deselect)
-- **Mobile Friendly**: Responsive layout with a bottom navigation bar on mobile
+- **Multi-format upload**: CSV (parsed in the browser) and PDF bank statements (extracted by Claude) — select multiple files at once
+- **Bank sync (Sprout Pro)**: optionally connect a bank via Plaid for automatic daily transaction syncing — uploads are never required, this is purely additive
+- **Spending calendar & dashboard**: month-by-month calendar of daily spending/income, plus a category breakdown with clickable drill-down to individual transactions
+- **AI chat**: ask questions about any month's spending, grounded in your real transactions, categories, and budgets
+- **Budgets & goals**: per-category monthly limits with progress tracking, plus savings goals with logged contributions
+- **Income/Bills/Transfer handling**: income and bill payments are excluded from the spending total; Zelle-style transfers are split into received (income) vs. sent (spending)
+- **Privacy by design**: statements are de-identified before storage (merchant, date, amount, category only — no names or account numbers); all data access is server-only through Row Level Security
+- **Self-serve data control**: CSV export and immediate account deletion from Settings
+- **Subscriptions**: free tier + Pro (Stripe) for higher AI rate limits and bank sync
+
+See the in-app [privacy policy](app/privacy/page.js) (`/privacy`) for full detail on data handling.
 
 ## Tech Stack
 
-- **Frontend**: Next.js 15, React 19, Tailwind CSS v4
-- **Charts**: Recharts
-- **Authentication**: Clerk
-- **AI**: Anthropic Claude API (analysis + native PDF parsing)
-- **Database**: Supabase (PostgreSQL)
-- **Icons**: Lucide React
+Next.js 15 (App Router) · React 19 · Tailwind CSS v4 · Recharts · Clerk (auth) · Supabase/Postgres (data) · Anthropic Claude (AI analysis + PDF parsing) · Plaid (optional bank sync) · Stripe (billing)
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+
-- npm
-- Anthropic API key
-- Clerk account and API keys
-- Supabase project
+- Node.js 18+ and npm
+- Accounts/API keys for: Anthropic, Clerk, Supabase — required
+- Accounts/API keys for: Stripe, Resend, Plaid — optional, each is env-gated to a silent no-op when unset
 
 ### Installation
 
-1. Clone the repository:
 ```bash
 git clone <your-repo-url>
 cd spending-analyzer
-```
-
-2. Install dependencies:
-```bash
 npm install
 ```
 
-3. Create a `.env.local` file in the root directory:
+Create `.env.local` in the root directory:
+
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 ANTHROPIC_API_KEY=your_anthropic_api_key
@@ -68,19 +51,34 @@ NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/
 NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/
 
+# The deployed origin — used to build Stripe redirect and email links.
+# Defaults to the request's own origin if unset, but set it explicitly in
+# production so those links are never wrong.
+NEXT_PUBLIC_APP_URL=https://your-deployed-domain.com
+
 # Optional — error monitoring (create a free project at sentry.io).
 # Leave unset and Sentry is a silent no-op.
 SENTRY_DSN=your_sentry_dsn
 NEXT_PUBLIC_SENTRY_DSN=your_sentry_dsn
 
-# Optional — billing (Stripe). Leave all three unset and billing is a silent
-# no-op (the pricing page shows "not configured"). Set all three or none:
-# create a $5/mo recurring Price in the Stripe dashboard for STRIPE_PRICE_ID;
-# STRIPE_WEBHOOK_SECRET comes from `stripe listen` (dev) or the dashboard
-# webhook endpoint (prod, pointing at /api/billing/webhook).
+# Optional — billing (Stripe). Set all three or none. Create a $5/mo
+# recurring Price in the Stripe dashboard for STRIPE_PRICE_ID.
+# STRIPE_WEBHOOK_SECRET comes from the Stripe CLI's `stripe listen` command
+# in dev, or the dashboard's webhook endpoint config in production (pointing
+# at /api/billing/webhook). The Stripe CLI is not a project dependency —
+# install it separately if you want to test webhooks locally.
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_PRICE_ID=price_...
 STRIPE_WEBHOOK_SECRET=whsec_...
+
+# Optional — bank connections via Plaid (Sprout Pro feature). Set all four
+# or none. PLAID_ENCRYPTION_KEY encrypts stored access tokens — generate
+# with `openssl rand -base64 32` and back it up: losing it means every
+# connection must be relinked, and orphaned Plaid Items keep billing.
+PLAID_CLIENT_ID=your_plaid_client_id
+PLAID_SECRET=your_plaid_sandbox_or_production_secret
+PLAID_ENV=sandbox
+PLAID_ENCRYPTION_KEY=base64_32_byte_key
 
 # Optional — email nudges (Resend free tier). Leave unset and emails no-op.
 RESEND_API_KEY=re_...
@@ -90,112 +88,58 @@ EMAIL_FROM="Penny Sprout <hello@yourdomain.com>"
 CRON_SECRET=any_long_random_string
 ```
 
-4. Run the development server:
+`lib/env.js` is the authoritative list of what's required vs. optional — it validates at boot (`instrumentation.js`) and throws with the exact missing var name if something required is absent.
+
+Then:
+
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000).
 
 ### Supabase Setup
 
-The database schema lives in versioned migrations under [`supabase/migrations/`](supabase/migrations) and is applied with the Supabase CLI (installed as a dev dependency — no global install needed):
+Schema lives in versioned migrations under [`supabase/migrations/`](supabase/migrations), applied with the Supabase CLI (a dev dependency — no global install needed):
 
 ```bash
-# One-time: authenticate and link your Supabase project
 npx supabase login
 npx supabase link --project-ref <your-project-ref>   # ref is in your project's dashboard URL
-
-# Apply all pending migrations
 npm run db:push
 ```
 
-`db:push` creates every table (`user_files`, `monthly_analysis`, `api_usage`, `transactions`, `budgets`, `goals`, `subscriptions`, `email_log`), enables Row Level Security on each, and records which migrations have run — so it's safe to run repeatedly and it never double-applies. The migrations are also idempotent, so a database that predates this tooling (tables created by hand) adopts cleanly: the first push just fills in whatever's missing.
+`db:push` is idempotent and safe to run repeatedly — it only applies migrations that haven't run yet. To make a schema change, never edit the database by hand: `npm run db:new <name>` scaffolds a new migration file, then `npm run db:push` applies it.
 
-To make a future schema change, never edit the database by hand — add a migration instead:
-
-```bash
-npm run db:new my_change_name    # creates supabase/migrations/<timestamp>_my_change_name.sql
-# ...write the SQL in the new file, then:
-npm run db:push
-```
-
-**Why RLS everywhere:** the anon key is public (it ships in the browser bundle), so every table has RLS enabled with **no** policies — the anon key reads zero rows. The app reaches the tables only through the server-side service-role key (which bypasses RLS by design) and filters every query by the Clerk `user_id`.
+**Why RLS everywhere:** every table has Row Level Security enabled with **no policies**, so the public anon key (which ships in the browser bundle) reads zero rows. The app reaches every table only through the server-side service-role key (`lib/supabase.js`, `server-only`), which bypasses RLS by design and scopes every query by the Clerk `user_id` itself.
 
 ## Usage
 
-### 1. Sign In
-Click **Get Started Free** on the landing page and authenticate with Clerk.
-
-### 2. Upload Statements
-- Go to **Files** and drop one or more CSV or PDF files into the upload zone at the top
-- CSV files (e.g. Discover, Chase) are parsed in the browser
-- PDF bank statements are sent to Claude for extraction
-- Each file is saved as its own record, listed right below the dropzone
-
-### 3. View Your Dashboard
-The **Analysis** tab works by **calendar month** — pick a month and it pools every transaction from that month across all your files (not per file). Statements that close mid-month no longer skew the numbers. For the selected month it shows:
-- Total spending (excluding income and bills) and income total
-- Financial health score (1–10), computed from your savings rate
-- Spending by category (bar chart) and distribution (pie chart)
-- Click any chart bar or category to see individual transactions
-- Bills & Payments shown separately below the charts
-- An **AI chat** at the bottom: ask anything about the month ("what subscriptions am I paying for?") and answers stream in, grounded in your real transactions and budgets
-
-### 4. Spending Calendar
-The **Calendar** tab shows every month covered by your saved files. Each date shows daily spending (blue) and income (green). Click a date to see transactions grouped by category, then click a category to expand individual transactions.
-
-### 5. Files
-- The same tab where you upload: all saved statement files with spending totals
-- Click the pencil icon on any file name to rename it
-- Click **Review** to see that file's transactions
-- Delete files you no longer need
+- **Overview** — an at-a-glance summary with shortcuts into the other tabs
+- **Calendar** — every month covered by your data, daily spending (blue) and income (green); click a date for a category breakdown, click a category to expand individual transactions
+- **Analysis** — pick a calendar month to see total spending/income, a financial health score, category charts, and an AI chat scoped to that month
+- **Budgets** — per-category monthly limits with progress bars, plus savings goals
+- **Files** — connect a bank (Pro) at the top, upload CSV/PDF statements below, and manage saved files (rename, review, delete)
 
 ## Supported File Formats
 
-### CSV
-Any CSV with these columns (exact names may vary by bank):
+**CSV** — any file with `Trans. Date, Description, Amount, Category` columns (exact names vary by bank); both positive- and negative-purchase sign conventions are handled automatically.
 
-```
-Trans. Date, Description, Amount, Category
-01/15/2026, Coffee Shop, -4.50, Food & Drink
-01/16/2026, Payroll, 2500.00, Income
-```
-
-Both positive-purchase (Discover) and negative-purchase (most banks) sign conventions are handled automatically.
-
-### PDF
-Standard bank statement PDFs. Claude reads the PDF natively and extracts transactions — no OCR required.
+**PDF** — standard bank statement PDFs; Claude reads them natively, no OCR required.
 
 ## Project Structure
 
 ```
 spending-analyzer/
 ├── app/
-│   ├── api/
-│   │   ├── chat/             # Month-scoped AI chat (streams)
-│   │   ├── files/            # File CRUD endpoints
-│   │   │   └── [fileId]/     # DELETE (delete) + PATCH (rename)
-│   │   └── parse-pdf/        # PDF → transactions via Claude
-│   ├── components/
-│   │   ├── FileUpload.js     # Multi-file CSV + PDF upload
-│   │   ├── MonthChat.js      # AI chat panel on the Analysis tab
-│   │   ├── SpendingCalendar.js # Month calendar view
-│   │   ├── SpendingDashboard.js # Charts, cards, AI chat
-│   │   └── UserFiles.js      # Saved files list with rename
-│   ├── privacy/              # Privacy policy page (/privacy)
-│   ├── globals.css           # Sage color palette + animations
-│   ├── layout.js             # Root layout with Clerk + metadata
-│   └── page.js               # App shell + botanical landing page
-├── lib/
-│   ├── categories.js         # Shared normalizeCategory, calcSpending, categoryColor
-│   ├── fileStorage.js        # Supabase CRUD helpers
-│   └── supabase.js           # Supabase client (service role, server-only)
-├── supabase/
-│   ├── config.toml           # Supabase CLI project config
-│   └── migrations/           # Versioned schema migrations (npm run db:push)
+│   ├── api/            # Route handlers — transactions, files, budgets, goals,
+│   │                    #   billing, Plaid, chat, export, account deletion, cron
+│   ├── components/      # App components; components/ui/ is the shared design system
+│   ├── pricing/ settings/ privacy/ terms/   # Standalone pages
+│   └── page.js          # App shell (tabbed nav) + landing page
+├── lib/                 # All business logic (storage, mapping, categories, PII,
+│                         #   rate limiting, email) + __tests__/ (vitest)
+├── supabase/migrations/ # Versioned, idempotent schema migrations
 └── public/
-    └── sprout-svgrepo-com.svg # App logo / favicon
 ```
 
 ## API Endpoints
@@ -203,45 +147,54 @@ spending-analyzer/
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/api/chat` | Month-scoped AI chat (streams plain text) |
-| `GET` | `/api/files` | List user's saved files (metadata only) |
-| `POST` | `/api/files` | Save a new file + its transaction rows |
-| `DELETE` | `/api/files/[fileId]` | Delete a file (cascades to its transactions) |
-| `PATCH` | `/api/files/[fileId]` | Rename a file |
-| `GET` | `/api/transactions` | List transactions (`?fileId=`, `?from=`/`?to=` filters) |
-| `PATCH` | `/api/transactions/[id]` | Correct a transaction's category or note |
+| `GET`/`POST` | `/api/files` | List / save statement files |
+| `PATCH`/`DELETE` | `/api/files/[fileId]` | Rename / delete a file |
+| `GET`/`PATCH`/`DELETE` | `/api/transactions`, `/api/transactions/[id]` | List transactions; correct category/note or delete one |
 | `POST` | `/api/parse-pdf` | Extract transactions from a PDF |
-| `GET`/`PUT`/`DELETE` | `/api/budgets` | List / upsert / remove category budgets |
-| `GET`/`POST` | `/api/goals` | List / create savings goals |
-| `PATCH`/`DELETE` | `/api/goals/[id]` | Update / delete one goal |
-| `POST` | `/api/billing/checkout` | Start Stripe Checkout for Pro |
-| `POST` | `/api/billing/portal` | Open the Stripe customer portal |
-| `GET` | `/api/billing/status` | Current plan (`free`/`pro`) |
+| `GET`/`PUT`/`DELETE` | `/api/budgets` | Category budgets |
+| `GET`/`POST`/`PATCH`/`DELETE` | `/api/goals`, `/api/goals/[id]` | Savings goals |
+| `GET`/`POST` | `/api/target-purchases`, `/api/target-purchase-imports` | Target.com purchase-history import + line-item matching |
+| `POST` | `/api/plaid/link-token` | Start a Plaid Link session (Pro) |
+| `POST` | `/api/plaid/exchange` | Finish linking a bank connection (Pro) |
+| `GET` | `/api/plaid/items` | List connected banks |
+| `DELETE` | `/api/plaid/items/[id]` | Disconnect a bank |
+| `POST` | `/api/plaid/sync` | Sync one or all connected banks now (Pro) |
+| `POST`/`GET` | `/api/billing/checkout`, `/api/billing/portal`, `/api/billing/status` | Stripe Checkout, customer portal, current plan |
 | `POST` | `/api/billing/webhook` | Stripe webhook (signature-authenticated) |
 | `GET` | `/api/export` | Download all transactions as CSV |
 | `DELETE` | `/api/account` | Self-serve account deletion (requires `{ confirm: "DELETE" }`) |
-| `GET` | `/api/cron/upload-reminder` | Monthly reminder cron (requires `CRON_SECRET` bearer) |
+| `GET` | `/api/cron/upload-reminder`, `/api/cron/plaid-sync` | Scheduled jobs (require `CRON_SECRET` bearer) |
 
 ## Category Logic
 
-All category normalization lives in `lib/categories.js` and is shared between the dashboard and file list:
+Category normalization lives in `lib/categories.js`, shared by every view:
+- `"Bills"` / `"Payments and Credits"` → **Bills & Payments**, excluded from the spending total
+- `"Transfer"` with a positive amount → **Income** (Zelle received); negative → counted as spending (Zelle sent)
+- Everything else is shown as-is
 
-- `"Payments and Credits"`, `"Bills"` → **Bills & Payments** (excluded from spending total)
-- `"Transfer"` with a positive amount → **Income** (Zelle received)
-- `"Transfer"` with a negative amount → counted as spending (Zelle sent)
-- Everything else is shown as-is in the charts
+## Development
+
+```bash
+npm test          # run the vitest suite (lib/__tests__/ — pure logic, no route/component tests)
+npm run test:watch
+npm run lint
+npm run build
+```
 
 ## Privacy & Security
 
-- **De-identification at the source**: When a statement is parsed, the model is instructed to drop all PII (names, addresses, account/routing numbers, SSNs). Only merchant, date, amount, and category are ever stored. The uploaded file itself is processed in memory and not retained.
-- **Server-only data access**: All database access goes through the service-role key in `lib/supabase.js`, which imports `server-only` so the key can never be bundled into client code. The public anon key is not used for data access.
-- **Row Level Security**: RLS is enabled on every table by the migrations in [`supabase/migrations/`](supabase/migrations); the public anon key returns zero rows.
-- **Authenticated routes**: Every API route requires a signed-in Clerk user, including `/api/chat` (so the Anthropic API can't be abused anonymously).
-- **Encryption**: Data is encrypted in transit (TLS) and at rest (AES-256) by Supabase. Note this is *not* end-to-end encryption — the server reads transactions to generate charts and insights.
-- **MFA**: Not enabled yet (gated behind Clerk's paid plan); on the roadmap for launch. See the in-app [privacy policy](app/privacy/page.js) at `/privacy`.
+- Statements are de-identified before storage — only merchant, date, amount, and category are kept
+- All database access is server-only via the service-role key; RLS blocks the public anon key entirely (see "Why RLS everywhere" above)
+- Every API route requires a signed-in Clerk session
+- Data is encrypted in transit (TLS) and at rest (AES-256); Plaid access tokens get an additional application-level encryption layer (`lib/plaidCrypto.js`) since they're long-lived bank credentials, not just data
+- Not end-to-end encrypted — the server reads transactions to generate charts and AI insights
+- MFA is not enabled yet (gated behind Clerk's paid plan)
+
+Full detail in the in-app [privacy policy](app/privacy/page.js) at `/privacy`.
 
 ## License
 
-This project is licensed under the MIT License — see the LICENSE file for details.
+MIT — see [LICENSE](LICENSE).
 
 ---
 

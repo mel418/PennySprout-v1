@@ -330,7 +330,9 @@ export default function SpendingDashboard() {
                     <div key={t.id ?? i} className="well-soft p-3.5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-ink">{description}</p>
+                          <p className="truncate text-sm font-medium text-ink" title={t.accountName || undefined}>
+                            {description}
+                          </p>
                           <p className="mt-0.5 text-xs tnum text-ink-faint">{date}</p>
                         </div>
                         <div className="flex flex-shrink-0 items-center gap-1">

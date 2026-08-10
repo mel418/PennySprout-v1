@@ -3,9 +3,13 @@ import { supabase } from '@/lib/supabase'
 import { emailEnabled, sendOnce } from '@/lib/email'
 
 // GET /api/cron/upload-reminder — monthly "your statement closed, upload it"
-// nudge, the retention loop for a product with no bank connection: fresh data
-// arrives only when the user brings it, so we remind them at the start of
-// each month.
+// nudge, the retention loop for users on manual uploads: fresh data only
+// arrives when they bring it, so we remind them at the start of each month.
+// (Pro users with a connected bank get fresh data automatically via
+// app/api/cron/plaid-sync and don't need this nudge — but this query only
+// looks at upload recency, not Plaid connections, so it may still reach
+// someone who's since switched to syncing. Low cost either way: dedupe key
+// is per-month and the copy below already accounts for that reader.)
 //
 // Called by a scheduler (vercel.json cron), NOT a browser — exempted from the
 // Clerk middleware gate and authenticated by CRON_SECRET instead (Vercel
@@ -70,8 +74,9 @@ export async function GET(request) {
             spending, income, and how your budgets held up.
           </p>
           <p style="font-size:14px;color:#5B6159;margin:0;">
-            It takes about a minute, and your bank login never comes anywhere
-            near us — that's the whole point.
+            It takes about a minute, and no bank login is required — or if
+            you'd rather skip this altogether, Sprout Pro can sync new
+            transactions automatically.
           </p>`,
       })
       if (didSend) sent++

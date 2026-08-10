@@ -26,10 +26,18 @@ Must land before any public or paid launch.
 
 ## Phase 2 — Monetization readiness
 
-> **Strategy note (2026-07-10):** Plaid/bank connections are deliberately DEFERRED.
-> "No bank login required" is the product's one real differentiator; the retention
-> loop is built instead around budgets, goals, and monthly upload-reminder emails.
-> Revisit only if month-2 retention flatlines despite those.
+> **Strategy note (2026-07-10, reversed 2026-08-09):** Plaid/bank connections were
+> deliberately deferred to protect "no bank login required" as the product's one
+> real differentiator, with the retention loop built instead around budgets, goals,
+> and monthly upload-reminder emails.
+>
+> Reversed: Plaid is now built as an **additive, opt-in Pro feature** rather than a
+> replacement for the upload flow. The free tier stays 100% upload-only — "no bank
+> login required" still holds for anyone who never opts in — but Sprout Pro can now
+> sync transactions automatically instead of requiring manual statement uploads.
+> Landing/pricing copy changed from "no bank login. Ever." to "no bank login
+> required." See `lib/plaid.js`, `lib/plaidSyncEngine.js`, and
+> `app/components/ConnectedAccounts.js`.
 
 14a. **Enable Clerk MFA** — requires Clerk Pro (~$25/mo), so treat it as a first-revenue purchase: turn it on once the product charges money and a handful of subscribers cover the cost. The privacy policy already honestly states MFA is on the roadmap.
 15. Memoize dashboard/calendar aggregate computations (`useMemo`) — currently recomputed on every render.
@@ -64,6 +72,7 @@ Must land before any public or paid launch.
 40. ~~Keyboard shortcuts.~~ ✅ **Done (2026-07-10)** — deliberately calendar-only, where repeated navigation actually happens: `←/→` move, `W/M/Y` switch scale, `T` jumps to today/latest, `Esc` deselects (hinted inline under the grid). Global tab-switching shortcuts were built, then removed as not worth the surface area.
 34. Guided onboarding with a sample dataset so new users see value before uploading.
 35. PWA manifest + installability for home-screen return visits.
+41. Split `Bills & Payments` into a counted "Bills" category and an excluded "Payments & Credits" category. Surfaced by the Plaid integration (2026-08-09): rent (Plaid's `RENT_AND_UTILITIES`) maps to `Bills` and is therefore excluded from `calcSpending` along with credit-card payments — already true for AI-parsed PDF statements, but far more visible once a checking account's live feed makes rent one of the largest transactions in the app. See `lib/plaidMapping.js`.
 
 ---
 *See the full audit for architecture, database, security, and code-quality detail behind each item.*

@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useUser, SignInButton, UserButton } from '@clerk/nextjs'
 import { FolderOpen, BarChart2, CalendarDays, LayoutGrid, Sparkles, ArrowRight, Target, Settings } from 'lucide-react'
 import FileUpload from './components/FileUpload'
+import ConnectedAccounts from './components/ConnectedAccounts'
 import SpendingDashboard from './components/SpendingDashboard'
 import UserFiles from './components/UserFiles'
 import SpendingCalendar from './components/SpendingCalendar'
@@ -74,7 +75,7 @@ function LandingPage() {
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
             </button>
           </SignInButton>
-          <p className="mt-3 text-sm text-ink-faint">No credit card. No bank login. Ever.</p>
+          <p className="mt-3 text-sm text-ink-faint">No credit card. No bank login required.</p>
         </div>
 
         {/* Feature cards */}
@@ -233,6 +234,7 @@ export default function Home() {
               after each successful upload batch. */}
           {activeView === 'files' && (
             <div className="space-y-6">
+              <ConnectedAccounts />
               <FileUpload onDataLoaded={() => setFilesRefresh(k => k + 1)} userId={user.id} />
               <UserFiles key={filesRefresh} userId={user.id} />
             </div>

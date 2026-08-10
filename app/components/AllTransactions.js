@@ -65,8 +65,11 @@ export default function AllTransactions() {
   const accountOptions = useMemo(() => {
     const set = new Set()
     files.forEach(f => { if (f.accountName) set.add(f.accountName) })
+    // Plaid-synced rows carry their own account label (see
+    // lib/transactionStorage.js getTransactions) rather than a file's.
+    allTxns.forEach(t => { if (t.accountName) set.add(t.accountName) })
     return [...set].sort()
-  }, [files])
+  }, [files, allTxns])
 
   const hasActiveFilters = Boolean(
     search || category !== 'all' || account !== 'all' || dateFrom || dateTo || amountMin || amountMax
@@ -97,7 +100,7 @@ export default function AllTransactions() {
         if (!haystack.includes(q)) return false
       }
       if (category !== 'all' && normalizeCategory(t.Category, t.Amount) !== category) return false
-      if (account !== 'all' && accountByFileId[t.fileId] !== account) return false
+      if (account !== 'all' && (t.accountName || accountByFileId[t.fileId]) !== account) return false
 
       const d = parseDate(t)
       if (fromDate && (!d || d < fromDate)) return false
@@ -240,7 +243,7 @@ export default function AllTransactions() {
             const date = parseDate(t)?.toLocaleDateString() || ''
             const amount = Math.abs(parseFloat(t.Amount) || 0)
             const cat = normalizeCategory(t.Category, t.Amount)
-            const acct = accountByFileId[t.fileId]
+            const acct = t.accountName || accountByFileId[t.fileId]
             return (
               <div key={t.id} className="well-soft p-3.5">
                 <div className="flex items-start justify-between gap-3">

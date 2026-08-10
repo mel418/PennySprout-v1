@@ -105,8 +105,8 @@ export default function SettingsPage() {
             </div>
             <p className="mb-5 text-sm leading-relaxed text-ink-soft">
               Permanently deletes your login and every transaction, file, budget, goal, and analysis —
-              immediately, with no recovery. Any active subscription is canceled first.
-              Consider downloading your CSV export before you do this.
+              immediately, with no recovery. Any active subscription is canceled and any connected
+              bank is disconnected first. Consider downloading your CSV export before you do this.
             </p>
 
             {error && <Banner tone="error" role="alert" className="mb-5">{error}</Banner>}

@@ -335,7 +335,9 @@ function DayInspector({ dateKey, data, txCount, totals, expandedCategory, setExp
                     return (
                       <div key={t.id ?? i} className="py-1">
                         <div className="flex items-center justify-between gap-3">
-                          <p className="truncate text-sm text-ink-soft">{t['Description'] || '—'}</p>
+                          <p className="truncate text-sm text-ink-soft" title={t.accountName || undefined}>
+                            {t['Description'] || '—'}
+                          </p>
                           <div className="flex flex-shrink-0 items-center gap-1">
                             {hasItems && (
                               <TargetItemsToggle
