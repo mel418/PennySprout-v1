@@ -123,7 +123,14 @@ const NAV_ITEMS = [
 
 const VALID_VIEWS = NAV_ITEMS.map(i => i.id)
 const viewFromUrl = () => {
-  const tab = new URLSearchParams(window.location.search).get('tab')
+  const params = new URLSearchParams(window.location.search)
+  // Plaid's OAuth redirect (see app/components/usePlaidLinkFlow.js) lands
+  // the whole page back at the registered redirect_uri — the site root,
+  // with no ?tab= of its own — carrying ?oauth_state_id=... instead. The
+  // Connect-a-bank UI that needs to catch that and resume Link lives on the
+  // Files tab, so force it here regardless of any other tab param.
+  if (params.has('oauth_state_id')) return 'files'
+  const tab = params.get('tab')
   if (tab === 'upload') return 'files' // upload merged into Files; keep old links working
   return VALID_VIEWS.includes(tab) ? tab : 'overview'
 }

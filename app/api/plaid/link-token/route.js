@@ -44,11 +44,27 @@ export async function POST(request) {
 
     const { itemId } = await request.json().catch(() => ({}))
 
+    // OAuth institutions (Chase and other large US banks, in Production —
+    // not Sandbox) redirect the whole page to their own login, then back to
+    // this URI; see app/components/usePlaidLinkFlow.js for the client side
+    // of that round trip. Plaid validates redirect_uri against the exact
+    // list registered in the Dashboard and REJECTS THE ENTIRE
+    // linkTokenCreate CALL — not just OAuth institutions — if it's set but
+    // doesn't match one of them. So this is only included when
+    // NEXT_PUBLIC_APP_URL is actually configured (i.e. deliberately, in an
+    // environment where it's presumably also been registered); local dev
+    // (where it's normally unset) omits it entirely and keeps working
+    // exactly as before for non-OAuth Sandbox testing.
+    const redirectUri = process.env.NEXT_PUBLIC_APP_URL
+      ? new URL('/', process.env.NEXT_PUBLIC_APP_URL).toString()
+      : null
+
     const baseRequest = {
       user: { client_user_id: user.id },
       client_name: 'Penny Sprout',
       language: 'en',
       country_codes: [CountryCode.Us],
+      ...(redirectUri ? { redirect_uri: redirectUri } : {}),
     }
 
     let linkRequest

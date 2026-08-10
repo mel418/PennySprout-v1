@@ -80,6 +80,12 @@ PLAID_SECRET=your_plaid_sandbox_or_production_secret
 PLAID_ENV=sandbox
 PLAID_ENCRYPTION_KEY=base64_32_byte_key
 
+# If NEXT_PUBLIC_APP_URL (above) is set, it's also sent to Plaid as the
+# OAuth redirect_uri — required for Chase and other large US banks in
+# Production (not Sandbox). It must be registered EXACTLY (Dashboard →
+# Developers → API → Allowed redirect URIs) before it's used here, or
+# Plaid rejects the whole link-token request, not just OAuth institutions.
+
 # Optional — email nudges (Resend free tier). Leave unset and emails no-op.
 RESEND_API_KEY=re_...
 EMAIL_FROM="Penny Sprout <hello@yourdomain.com>"
