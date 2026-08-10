@@ -18,7 +18,7 @@
     "@sentry/nextjs": "^10.64.0",
     "@supabase/supabase-js": "^2.58.0",
     "lucide-react": "^0.514.0",
-    "next": "15.3.8",
+    "next": "16.3.0",
     "plaid": "^45.0.0",
     "postcss": "^8.5.5",
     "react": "^19.0.0",
