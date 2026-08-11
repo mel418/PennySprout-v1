@@ -47,6 +47,11 @@ export default function ConnectedAccounts() {
   const [candidates, setCandidates] = useState([])
   const [selectedIds, setSelectedIds] = useState(() => new Set())
   const [hidingBusy, setHidingBusy] = useState(false)
+  // { [itemId]: count } — a live badge, not a cached counter, so it reflects
+  // duplicates found by ANY sync (a manual "Sync now", or the daily cron)
+  // the moment the Files tab is next viewed, not just ones from a sync this
+  // session happened to trigger.
+  const [duplicateCounts, setDuplicateCounts] = useState({})
 
   const fetchItems = useCallback(async () => {
     setLoadError(null)
@@ -61,6 +66,32 @@ export default function ConnectedAccounts() {
   }, [])
 
   useEffect(() => { fetchItems() }, [fetchItems])
+
+  // Refreshes the duplicate-count badges whenever the item list changes
+  // (initial load, after connecting/disconnecting/syncing). Best-effort —
+  // a failed count check just leaves that item's badge at 0, it doesn't
+  // block anything else on the page.
+  useEffect(() => {
+    if (!state?.items?.length) return
+    let cancelled = false
+    Promise.all(
+      state.items
+        .filter(item => item.status !== 'login_required')
+        .map(async item => {
+          try {
+            const res = await fetch(`/api/plaid/items/${item.id}/duplicates`)
+            if (!res.ok) return [item.id, 0]
+            const data = await res.json()
+            return [item.id, (data.candidates || []).length]
+          } catch {
+            return [item.id, 0]
+          }
+        })
+    ).then(pairs => {
+      if (!cancelled) setDuplicateCounts(Object.fromEntries(pairs))
+    })
+    return () => { cancelled = true }
+  }, [state?.items])
 
   const { start, busy: linkBusy } = usePlaidLinkFlow({
     onConnected: () => fetchItems(),
@@ -178,7 +209,21 @@ export default function ConnectedAccounts() {
 
   return (
     <div className="space-y-3">
-      <SectionHeader title="Connected banks" doodle="dots" />
+      <SectionHeader
+        title="Connected banks"
+        doodle="dots"
+        action={
+          // Only the empty-state card offers "Connect a bank" below — once
+          // at least one is connected, this is the only way to add another
+          // (e.g. a credit card alongside a checking/savings connection).
+          isPro && items.length > 0 && (
+            <Button size="sm" variant="secondary" onClick={() => start()} disabled={linkBusy}>
+              <Landmark className="h-3.5 w-3.5" aria-hidden="true" />
+              {linkBusy ? 'Connecting…' : 'Connect another bank'}
+            </Button>
+          )
+        }
+      />
 
       {actionError && <Banner tone="error" role="alert">{actionError}</Banner>}
 
@@ -287,6 +332,9 @@ export default function ConnectedAccounts() {
                           <Button size="sm" variant="secondary" disabled={isScanning} onClick={() => scanForDuplicates(item)}>
                             <Copy className="h-3.5 w-3.5" aria-hidden="true" />
                             {isScanning ? 'Checking…' : 'Find duplicate imports'}
+                            {!isScanning && duplicateCounts[item.id] > 0 && (
+                              <Pill tone="peach" className="ml-0.5 px-1.5 py-0">{duplicateCounts[item.id]}</Pill>
+                            )}
                           </Button>
                         )}
                         <IconButton label={`Disconnect ${item.institutionName || 'bank'}`} tone="danger" onClick={() => setConfirmingDeleteId(item.id)}>
