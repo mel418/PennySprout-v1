@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightSm, CalendarDays, X } from 'lucide-react'
-import { normalizeCategory, categoryColor, categoryTint, calcSpending, calcIncome, categoryTotals } from '@/lib/categories'
+import { normalizeCategory, categoryColor, categoryTint, calcSpending, calcIncome, categoryTotals, EXCLUDED_FROM_TOTALS } from '@/lib/categories'
 import {
   parseDate, toKey, fromKey, MONTHS_SHORT,
   periodRange, periodLabel, stepPeriod, startOfWeek, addDays,
@@ -68,7 +68,7 @@ export default function SpendingCalendar() {
       const cat = normalizeCategory(t.Category, t.Amount)
       const amt = Math.abs(parseFloat(t.Amount) || 0)
       if (cat === 'Income') income += amt
-      else if (cat !== 'Bills & Payments' && cat !== 'Transfer') spending += amt
+      else if (!EXCLUDED_FROM_TOTALS.has(cat)) spending += amt
     })
     return { spending, income, net: income - spending }
   }, [])
