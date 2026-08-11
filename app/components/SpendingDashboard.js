@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { Sparkles } from 'lucide-react'
-import { normalizeCategory, categoryColor, calcSpending, calcIncome, categoryTotals } from '@/lib/categories'
+import { normalizeCategory, categoryColor, calcSpending, calcIncome, categoryTotals, EXCLUDED_FROM_TOTALS } from '@/lib/categories'
 import { parseDate, periodRange, monthKey, monthKeyLabel, monthKeyToDate } from '@/lib/date'
 import { moneyExact } from '@/lib/format'
 import { useTransactions } from './useTransactions'
@@ -93,10 +93,7 @@ export default function SpendingDashboard() {
   const getCategoryTransactions = (categoryName) => {
     const byDateDesc = (arr) => arr.slice().sort((a, b) => (parseDate(b)?.getTime() || 0) - (parseDate(a)?.getTime() || 0))
     if (categoryName === '__spending__') {
-      return byDateDesc(monthTxns.filter(t => {
-        const cat = normalizeCategory(t.Category, t.Amount)
-        return cat !== 'Income' && cat !== 'Bills & Payments' && cat !== 'Transfer'
-      }))
+      return byDateDesc(monthTxns.filter(t => !EXCLUDED_FROM_TOTALS.has(normalizeCategory(t.Category, t.Amount))))
     }
     return byDateDesc(monthTxns.filter(t => normalizeCategory(t.Category, t.Amount) === categoryName))
   }

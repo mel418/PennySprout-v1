@@ -4,7 +4,7 @@ import { checkRateLimit } from '@/lib/rateLimit'
 import { getPlan } from '@/lib/subscriptionStorage'
 import { getTransactions } from '@/lib/transactionStorage'
 import { getBudgets } from '@/lib/budgetStorage'
-import { normalizeCategory } from '@/lib/categories'
+import { normalizeCategory, EXCLUDED_FROM_TOTALS } from '@/lib/categories'
 import { parseDate, monthKey, monthKeyLabel } from '@/lib/date'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -100,7 +100,7 @@ export async function POST(request) {
       } else if (cat === 'Bills & Payments') {
         bills += amt
         if (byMonth[mKey]) byMonth[mKey].bills += amt
-      } else if (cat !== 'Transfer') {
+      } else if (!EXCLUDED_FROM_TOTALS.has(cat)) {
         spending += amt
         byCategory[cat] = (byCategory[cat] || 0) + amt
         if (byMonth[mKey]) byMonth[mKey].spending += amt

@@ -2,7 +2,7 @@
 import { useMemo } from 'react'
 import { AreaChart, Area, XAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { CalendarDays, ChevronRight, Receipt, Wallet, TrendingUp, TrendingDown } from 'lucide-react'
-import { normalizeCategory, categoryTotals, SEMANTIC_COLORS } from '@/lib/categories'
+import { normalizeCategory, categoryTotals, SEMANTIC_COLORS, EXCLUDED_FROM_TOTALS } from '@/lib/categories'
 import { detectRecurring } from '@/lib/recurring'
 import { parseDate, MONTHS_SHORT, monthKey, monthKeyLabel } from '@/lib/date'
 import { money, moneyExact } from '@/lib/format'
@@ -43,7 +43,7 @@ export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis,
       const amt = Math.abs(parseFloat(t.Amount) || 0)
       if (cat === 'Income') monthly[k].income += amt
       else if (cat === 'Bills & Payments') monthly[k].bills += amt
-      else if (cat !== 'Transfer') monthly[k].spending += amt
+      else if (!EXCLUDED_FROM_TOTALS.has(cat)) monthly[k].spending += amt
     })
     return { monthly, latest }
   }, [allTransactions])
