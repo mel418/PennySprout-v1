@@ -6,6 +6,7 @@ import { ArrowLeft, Download, CreditCard, Trash2, AlertTriangle } from 'lucide-r
 import Spinner from '../components/ui/Spinner'
 import Button, { buttonClass } from '../components/ui/Button'
 import { inputClass, Banner } from '../components/ui/Field'
+import HiddenImports from '../components/HiddenImports'
 
 // Settings: data export, billing shortcut, and account deletion. Deletion is
 // self-serve and immediate — the privacy policy's erasure promise, in-product
@@ -96,6 +97,8 @@ export default function SettingsPage() {
               Open pricing &amp; billing
             </Link>
           </section>
+
+          <HiddenImports />
 
           {/* Danger zone */}
           <section className="rounded-[var(--radius-lg)] border border-danger-200 bg-surface p-5 shadow-soft sm:p-6">
