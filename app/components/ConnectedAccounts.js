@@ -155,6 +155,11 @@ export default function ConnectedAccounts() {
   // old backfill from before auto-hide existed, or an upload added after the
   // last sync). Reversible: hidden transactions can be restored from the
   // "Hidden imports" panel in Settings.
+  // Chunked well under POST /api/transactions/hide's own MAX_IDS (1000) — a
+  // full-history scan across a connection's whole synced range can turn up
+  // more matches than that in one pass.
+  const HIDE_CHUNK_SIZE = 500
+
   const scanForDuplicates = async (item) => {
     setScanningId(item.id)
     setActionError(null)
@@ -163,12 +168,14 @@ export default function ConnectedAccounts() {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'scan failed')
       const candidates = data.candidates || []
+      const ids = candidates.map(c => c.uploadTransactionId)
 
-      if (candidates.length > 0) {
+      for (let i = 0; i < ids.length; i += HIDE_CHUNK_SIZE) {
+        const chunk = ids.slice(i, i + HIDE_CHUNK_SIZE)
         const hideRes = await fetch('/api/transactions/hide', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ids: candidates.map(c => c.uploadTransactionId), hidden: true }),
+          body: JSON.stringify({ ids: chunk, hidden: true }),
         })
         if (!hideRes.ok) throw new Error('hide failed')
       }
@@ -292,8 +299,17 @@ export default function ConnectedAccounts() {
 
                     <p className="mt-2 text-sm text-ink-faint" title={item.lastSyncedAt || ''}>
                       {isPro ? `Last synced ${timeAgo(item.lastSyncedAt)}` : 'Syncing paused'}
+                      {/* "Synced back to", not "Transactions back to" — this is
+                          Plaid's own live-feed depth for the connection, which
+                          the bank/Plaid can cap well short of the 730-day max
+                          we request at link time regardless of what we ask
+                          for. It says nothing about the account's full
+                          history: manually uploaded statements for the same
+                          account aren't Plaid rows, aren't counted here, and
+                          are completely unaffected — they still count in
+                          every total, chart, and export exactly as before. */}
                       {isPro && item.earliestTransactionDate && (
-                        <> · Transactions back to {fromKey(item.earliestTransactionDate).toLocaleDateString()}</>
+                        <> · Synced back to {fromKey(item.earliestTransactionDate).toLocaleDateString()}</>
                       )}
                     </p>
                   </div>

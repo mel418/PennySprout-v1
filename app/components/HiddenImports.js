@@ -30,16 +30,27 @@ export default function HiddenImports() {
 
   useEffect(() => { load() }, [load])
 
+  // Chunked well under POST /api/transactions/hide's own MAX_IDS (1000) —
+  // "Restore all" can easily be restoring more than that in one go now that
+  // auto-hide runs on every sync, and sending it in pieces also means an
+  // error partway through leaves the earlier chunks restored rather than
+  // failing the whole batch atomically.
+  const RESTORE_CHUNK_SIZE = 500
+
   const restore = async (ids) => {
     setError(null)
     try {
-      const res = await fetch('/api/transactions/hide', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids, hidden: false }),
-      })
-      if (!res.ok) throw new Error('restore failed')
-      setTransactions(prev => prev.filter(t => !ids.includes(t.id)))
+      for (let i = 0; i < ids.length; i += RESTORE_CHUNK_SIZE) {
+        const chunk = ids.slice(i, i + RESTORE_CHUNK_SIZE)
+        const res = await fetch('/api/transactions/hide', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: chunk, hidden: false }),
+        })
+        if (!res.ok) throw new Error('restore failed')
+        const restoredSet = new Set(chunk)
+        setTransactions(prev => prev.filter(t => !restoredSet.has(t.id)))
+      }
     } catch (err) {
       console.error('Error restoring hidden transactions:', err)
       setError("Couldn't restore that. Please try again.")
