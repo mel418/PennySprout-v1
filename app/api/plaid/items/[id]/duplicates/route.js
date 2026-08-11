@@ -6,11 +6,13 @@ import { findDuplicateCandidatesForItem } from '@/lib/transactionStorage'
 
 // GET /api/plaid/items/[id]/duplicates — scans this connection's ENTIRE
 // synced history against manually uploaded transactions for likely
-// duplicates (same date + amount), for the "review possible duplicate
-// imports" flow. Returns candidate pairs only — nothing is hidden here; the
-// client shows them side by side (Plaid description vs. upload
-// description) and the user confirms which to hide via
-// POST /api/transactions/hide.
+// duplicates (same date + amount). A regular sync only auto-hides matches
+// against transactions newly added by THAT sync (see
+// lib/plaidSyncEngine.js syncItem) — this full-history scan is the catch-all
+// for anything that predates that (an old backfill from before auto-hide
+// existed, or an upload added after the last sync). Returns candidate pairs
+// only; nothing is hidden here — the client immediately follows up with
+// POST /api/transactions/hide for every candidate found.
 export async function GET(request, { params }) {
   try {
     const user = await currentUser()
