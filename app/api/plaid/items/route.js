@@ -2,6 +2,7 @@ import { currentUser } from '@clerk/nextjs/server'
 import { plaidEnabled } from '@/lib/plaid'
 import { getPlan } from '@/lib/subscriptionStorage'
 import { getPlaidItems } from '@/lib/plaidItemStorage'
+import { getEarliestSyncedDate } from '@/lib/transactionStorage'
 
 // GET /api/plaid/items — the signed-in user's bank connections, with
 // accounts nested. Deliberately NOT Pro-gated (unlike link-token/exchange/
@@ -21,7 +22,18 @@ export async function GET() {
       getPlaidItems(user.id),
     ])
 
-    return Response.json({ enabled: true, plan, items })
+    // "How far back" each connection's synced history goes, next to "Last
+    // synced" in the UI — one query per item (never more than a handful per
+    // user), not fetched inside getPlaidItems since most callers of that
+    // function (sync, disconnect) don't need it.
+    const withDates = await Promise.all(
+      items.map(async item => ({
+        ...item,
+        earliestTransactionDate: await getEarliestSyncedDate(user.id, item.id),
+      }))
+    )
+
+    return Response.json({ enabled: true, plan, items: withDates })
   } catch (error) {
     console.error('Error fetching Plaid items:', error)
     return Response.json({ error: 'Failed to fetch bank connections' }, { status: 500 })

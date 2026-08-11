@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Landmark, RefreshCw, Trash2, AlertTriangle, Sparkles, Copy } from 'lucide-react'
+import { Landmark, RefreshCw, Trash2, AlertTriangle, Sparkles, Copy, X } from 'lucide-react'
 import Link from 'next/link'
 import { usePlaidLinkFlow } from './usePlaidLinkFlow'
 import { ListSkeleton } from './ui/Skeletons'
@@ -11,7 +11,7 @@ import { Pill } from './ui/Chip'
 import { Banner } from './ui/Field'
 import { SectionHeader } from './ui/SectionHeader'
 import Doodle from './ui/Doodle'
-import { moneyExact } from '@/lib/format'
+import { fromKey } from '@/lib/date'
 
 // "2 hours ago" / "3 days ago" / "just now" — coarse on purpose, this is a
 // status hint, not a precise timestamp (which is available on hover via title).
@@ -41,12 +41,16 @@ export default function ConnectedAccounts() {
   const [deleteAlsoTransactions, setDeleteAlsoTransactions] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
 
-  // "Find duplicate imports" review flow — see GET /api/plaid/items/[id]/duplicates.
+  // "Find duplicate imports" — see GET /api/plaid/items/[id]/duplicates.
+  // Scanning immediately hides whatever it finds (no review step — a sync
+  // already auto-hides its own newly-added duplicates the same way; see
+  // lib/plaidSyncEngine.js), then this surfaces a one-line result so the
+  // action doesn't feel silent.
   const [scanningId, setScanningId] = useState(null)
-  const [duplicateReviewItem, setDuplicateReviewItem] = useState(null) // the item being reviewed, or null
-  const [candidates, setCandidates] = useState([])
-  const [selectedIds, setSelectedIds] = useState(() => new Set())
-  const [hidingBusy, setHidingBusy] = useState(false)
+  // { item, count } | null — the result of the most recent hide, whether it
+  // came from a manual scan or from "Sync now" finding + hiding duplicates
+  // on its own. Dismissed by the user or replaced by the next action.
+  const [hideResult, setHideResult] = useState(null)
   // { [itemId]: count } — a live badge, not a cached counter, so it reflects
   // duplicates found by ANY sync (a manual "Sync now", or the daily cron)
   // the moment the Files tab is next viewed, not just ones from a sync this
@@ -110,6 +114,12 @@ export default function ConnectedAccounts() {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'sync failed')
       await fetchItems()
+      // The sync itself already hid any duplicates it found (see
+      // lib/plaidSyncEngine.js) — just surface the count here.
+      if (data.hiddenDuplicates > 0) {
+        const item = state?.items?.find(i => i.id === itemId)
+        setHideResult({ item, count: data.hiddenDuplicates })
+      }
     } catch (error) {
       console.error('Error syncing Plaid item:', error)
       setActionError("Couldn't sync that connection. Please try again.")
@@ -140,7 +150,11 @@ export default function ConnectedAccounts() {
   }
 
   // Scans this connection's whole synced history for likely duplicates of
-  // manually uploaded transactions — nothing is hidden yet, just found.
+  // manually uploaded transactions, then immediately hides every match — the
+  // catch-all for anything a regular sync's own auto-hide didn't cover (an
+  // old backfill from before auto-hide existed, or an upload added after the
+  // last sync). Reversible: hidden transactions can be restored from the
+  // "Hidden imports" panel in Settings.
   const scanForDuplicates = async (item) => {
     setScanningId(item.id)
     setActionError(null)
@@ -148,52 +162,24 @@ export default function ConnectedAccounts() {
       const res = await fetch(`/api/plaid/items/${item.id}/duplicates`)
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'scan failed')
-      setCandidates(data.candidates || [])
-      setSelectedIds(new Set((data.candidates || []).map(c => c.uploadTransactionId)))
-      setDuplicateReviewItem(item)
+      const candidates = data.candidates || []
+
+      if (candidates.length > 0) {
+        const hideRes = await fetch('/api/transactions/hide', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: candidates.map(c => c.uploadTransactionId), hidden: true }),
+        })
+        if (!hideRes.ok) throw new Error('hide failed')
+      }
+
+      setDuplicateCounts(prev => ({ ...prev, [item.id]: 0 }))
+      setHideResult({ item, count: candidates.length })
     } catch (error) {
-      console.error('Error scanning for duplicate transactions:', error)
+      console.error('Error hiding duplicate transactions:', error)
       setActionError("Couldn't check for duplicate imports. Please try again.")
     } finally {
       setScanningId(null)
-    }
-  }
-
-  const toggleCandidate = (uploadTransactionId) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev)
-      if (next.has(uploadTransactionId)) next.delete(uploadTransactionId)
-      else next.add(uploadTransactionId)
-      return next
-    })
-  }
-
-  const closeDuplicateReview = () => {
-    setDuplicateReviewItem(null)
-    setCandidates([])
-    setSelectedIds(new Set())
-  }
-
-  // Confirms the hide — the only place setTransactionsHidden(hidden: true)
-  // gets called from the UI. Reversible: hidden transactions can be
-  // restored from the "Hidden imports" panel in Settings.
-  const confirmHide = async () => {
-    if (selectedIds.size === 0) return
-    setHidingBusy(true)
-    setActionError(null)
-    try {
-      const res = await fetch('/api/transactions/hide', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: [...selectedIds], hidden: true }),
-      })
-      if (!res.ok) throw new Error('hide failed')
-      closeDuplicateReview()
-    } catch (error) {
-      console.error('Error hiding duplicate transactions:', error)
-      setActionError("Couldn't hide those transactions. Please try again.")
-    } finally {
-      setHidingBusy(false)
     }
   }
 
@@ -306,6 +292,9 @@ export default function ConnectedAccounts() {
 
                     <p className="mt-2 text-sm text-ink-faint" title={item.lastSyncedAt || ''}>
                       {isPro ? `Last synced ${timeAgo(item.lastSyncedAt)}` : 'Syncing paused'}
+                      {isPro && item.earliestTransactionDate && (
+                        <> · Transactions back to {fromKey(item.earliestTransactionDate).toLocaleDateString()}</>
+                      )}
                     </p>
                   </div>
 
@@ -331,7 +320,7 @@ export default function ConnectedAccounts() {
                         {isPro && !needsReauth && (
                           <Button size="sm" variant="secondary" disabled={isScanning} onClick={() => scanForDuplicates(item)}>
                             <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                            {isScanning ? 'Checking…' : 'Find duplicate imports'}
+                            {isScanning ? 'Hiding…' : 'Hide duplicate imports'}
                             {!isScanning && duplicateCounts[item.id] > 0 && (
                               <Pill tone="peach" className="ml-0.5 px-1.5 py-0">{duplicateCounts[item.id]}</Pill>
                             )}
@@ -398,71 +387,22 @@ export default function ConnectedAccounts() {
         </Modal>
       )}
 
-      {/* Duplicate-import review — never hides anything until the user
-          confirms. Matches are (date, amount) only, since Plaid and upload
-          descriptions for the same real transaction are usually worded
-          completely differently. */}
-      {duplicateReviewItem && (
-        <Modal
-          isOpen
-          onClose={closeDuplicateReview}
-          title="Possible duplicate imports"
-          subtitle={`${duplicateReviewItem.institutionName || 'This bank'} — ${candidates.length} match${candidates.length === 1 ? '' : 'es'} found`}
-          ariaLabel="Review possible duplicate imports"
-        >
-          <div className="flex flex-col">
-            {candidates.length === 0 ? (
-              <p className="p-4 text-sm text-ink-soft sm:p-5">
-                No matches found — nothing you&apos;ve uploaded looks like it overlaps with this connection&apos;s synced transactions.
-              </p>
-            ) : (
-              <>
-                <p className="px-4 pt-4 text-sm leading-relaxed text-ink-soft sm:px-5 sm:pt-5">
-                  These uploaded transactions match a synced transaction from {duplicateReviewItem.institutionName || 'this bank'}
-                  {' '}on the same date for the same amount — almost certainly the same real transaction, counted twice.
-                  Checked ones will be hidden everywhere (charts, totals, search) but not deleted — you can restore them
-                  anytime from Settings.
-                </p>
-                <ul className="max-h-72 space-y-0.5 overflow-y-auto px-2 py-3 sm:px-3">
-                  {candidates.map(c => {
-                    const checked = selectedIds.has(c.uploadTransactionId)
-                    return (
-                      <li key={c.uploadTransactionId}>
-                        <label className="flex cursor-pointer items-start justify-between gap-3 rounded-[var(--radius-xs)] px-2 py-2 text-sm hover:bg-surface-hover">
-                          <span className="flex min-w-0 items-start gap-2.5">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleCandidate(c.uploadTransactionId)}
-                              className="mt-0.5 h-4 w-4 flex-shrink-0 accent-sage-600"
-                            />
-                            <span className="min-w-0">
-                              <span className="block truncate text-ink-soft">
-                                <span className="text-ink-faint">Uploaded:</span> {c.uploadDescription || '—'}
-                              </span>
-                              <span className="block truncate text-xs text-ink-faint">
-                                <span className="text-ink-faint">Synced:</span> {c.plaidDescription || '—'}
-                              </span>
-                            </span>
-                          </span>
-                          <span className="flex-shrink-0 whitespace-nowrap tnum text-ink-faint">
-                            {c.date} · {moneyExact(Math.abs(parseFloat(c.amount) || 0))}
-                          </span>
-                        </label>
-                      </li>
-                    )
-                  })}
-                </ul>
-                <div className="flex justify-end gap-2 border-t border-line p-4 sm:p-5">
-                  <Button variant="ghost" onClick={closeDuplicateReview}>Cancel</Button>
-                  <Button disabled={selectedIds.size === 0 || hidingBusy} onClick={confirmHide}>
-                    {hidingBusy ? 'Hiding…' : `Hide ${selectedIds.size} transaction${selectedIds.size === 1 ? '' : 's'}`}
-                  </Button>
-                </div>
-              </>
-            )}
+      {/* Result of the most recent hide — from a manual "Hide duplicate
+          imports" scan or from a sync's own auto-hide. Informational only;
+          nothing to confirm since the hide already happened. */}
+      {hideResult && (
+        <Banner tone={hideResult.count > 0 ? 'success' : 'info'}>
+          <div className="flex items-start justify-between gap-3">
+            <span>
+              {hideResult.count > 0
+                ? `Hid ${hideResult.count} duplicate transaction${hideResult.count === 1 ? '' : 's'}${hideResult.item?.institutionName ? ` from ${hideResult.item.institutionName}` : ''} — restore any of them from Settings > Hidden imports.`
+                : `No duplicates found${hideResult.item?.institutionName ? ` for ${hideResult.item.institutionName}` : ''} — nothing you've uploaded looks like it overlaps with this connection's synced transactions.`}
+            </span>
+            <IconButton label="Dismiss" onClick={() => setHideResult(null)} className="flex-shrink-0">
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+            </IconButton>
           </div>
-        </Modal>
+        </Banner>
       )}
     </div>
   )

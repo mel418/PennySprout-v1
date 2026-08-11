@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Trash2, FileText, Calendar, Pencil, Check, X, StickyNote, RotateCcw } from 'lucide-react'
+import { Trash2, FileText, Calendar, Pencil, Check, X, StickyNote, RotateCcw, EyeOff } from 'lucide-react'
 import { calcSpending, STANDARD_CATEGORIES } from '@/lib/categories'
 import { parseDate, monthKey, monthKeyLabel } from '@/lib/date'
 import { moneyExact } from '@/lib/format'
@@ -29,6 +29,18 @@ export default function UserFiles({ userId }) {
   const [actionError, setActionError] = useState(null)
   // Two-step delete: first click arms this file's row, second click deletes.
   const [confirmingDeleteId, setConfirmingDeleteId] = useState(null)
+
+  // "Hide all transactions in this file" — for when a whole statement is now
+  // redundant because a connected bank (Files' "Connected banks" section)
+  // covers the same account. Two-step like delete, but reversible: hidden
+  // rows are restorable from Settings > Hidden imports, not deleted.
+  const [confirmingHideId, setConfirmingHideId] = useState(null)
+  const [hidingId, setHidingId] = useState(null)
+  // Files hidden this session — the file's own transactions disappear from
+  // `allTransactions` the moment they're hidden (useTransactions' source,
+  // /api/transactions, always excludes hidden rows), so this is what lets
+  // the card show "hidden" instead of looking like it silently lost its data.
+  const [hiddenFileIds, setHiddenFileIds] = useState(() => new Set())
 
   // Bumped after a successful Target CSV import to remount (and refetch)
   // TargetImportsList — same key-remount pattern page.js uses for this list.
@@ -180,6 +192,67 @@ export default function UserFiles({ userId }) {
     } catch (error) {
       console.error('Error deleting file:', error)
       setActionError('Failed to delete file. Please try again.')
+    }
+  }
+
+  // Hides every transaction from this file at once (POST /api/files/:id/hide)
+  // — the blunt alternative to per-transaction duplicate matching, for when
+  // the whole statement is now covered by a bank connection. Removes the
+  // rows from local state immediately (same optimistic pattern as
+  // deleteTransaction) rather than waiting on a refetch.
+  const hideFileTransactions = async (file) => {
+    setConfirmingHideId(null)
+    setActionError(null)
+    setHidingId(file.id)
+    const ids = (byFile[file.id] || []).map(t => t.id)
+    try {
+      const response = await fetch(`/api/files/${file.id}/hide`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hidden: true }),
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'hide failed')
+      }
+      ids.forEach(removeLocal)
+      setHiddenFileIds(prev => new Set(prev).add(file.id))
+    } catch (error) {
+      console.error('Error hiding file transactions:', error)
+      setActionError(
+        error.message === 'This feature is part of Sprout Pro.'
+          ? error.message
+          : "Couldn't hide those transactions. Please try again."
+      )
+    } finally {
+      setHidingId(null)
+    }
+  }
+
+  // Undoes hideFileTransactions — the hidden rows aren't in local state
+  // anymore, so bring them back with a full refetch rather than trying to
+  // reconstruct them.
+  const unhideFileTransactions = async (file) => {
+    setActionError(null)
+    setHidingId(file.id)
+    try {
+      const response = await fetch(`/api/files/${file.id}/hide`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hidden: false }),
+      })
+      if (!response.ok) throw new Error('unhide failed')
+      setHiddenFileIds(prev => {
+        const next = new Set(prev)
+        next.delete(file.id)
+        return next
+      })
+      retry()
+    } catch (error) {
+      console.error('Error restoring file transactions:', error)
+      setActionError("Couldn't restore those transactions. Please try again.")
+    } finally {
+      setHidingId(null)
     }
   }
 
@@ -349,6 +422,8 @@ export default function UserFiles({ userId }) {
             const fileTxns = byFile[file.id] || []
             const spending = calcSpending(fileTxns)
             const isEditing = editingId === file.id
+            const isHidden = hiddenFileIds.has(file.id)
+            const isHidingBusy = hidingId === file.id
 
             return (
               <div key={file.id} className="card-soft p-4 transition-colors hover:border-sage-300 sm:p-5">
@@ -407,25 +482,42 @@ export default function UserFiles({ userId }) {
                       </div>
                     )}
 
-                    {/* Metadata row */}
-                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-ink-faint">
-                      <span className="flex items-center gap-1.5">
-                        <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
-                        <span className="tnum">{new Date(file.uploadDate).toLocaleDateString()}</span>
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                        {/* Live count from actual rows, not the stored metadata —
-                            stays correct after deleting an individual transaction. */}
-                        <span className="tnum">{fileTxns.length}</span> transaction{fileTxns.length === 1 ? '' : 's'}
-                      </span>
-                      <span className="font-semibold tnum text-ink-soft">
-                        {moneyExact(spending)} spending
-                      </span>
-                    </div>
+                    {/* Metadata row — swapped out entirely once hidden, since
+                        fileTxns is empty at that point (hidden rows are
+                        excluded from every fetch) and "0 transactions" would
+                        read as data loss rather than an intentional hide. */}
+                    {isHidden ? (
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-ink-faint">
+                        <span className="flex items-center gap-1.5">
+                          <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
+                          <span className="tnum">{new Date(file.uploadDate).toLocaleDateString()}</span>
+                        </span>
+                        <span className="flex items-center gap-1.5 font-semibold text-sage-600">
+                          <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
+                          Hidden as duplicate imports
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-ink-faint">
+                        <span className="flex items-center gap-1.5">
+                          <Calendar className="h-3.5 w-3.5" aria-hidden="true" />
+                          <span className="tnum">{new Date(file.uploadDate).toLocaleDateString()}</span>
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                          {/* Live count from actual rows, not the stored metadata —
+                              stays correct after deleting an individual transaction. */}
+                          <span className="tnum">{fileTxns.length}</span> transaction{fileTxns.length === 1 ? '' : 's'}
+                        </span>
+                        <span className="font-semibold tnum text-ink-soft">
+                          {moneyExact(spending)} spending
+                        </span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Action buttons — delete is two-step: arm, then confirm inline */}
+                  {/* Action buttons — delete and hide-all are both two-step:
+                      arm, then confirm inline */}
                   <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
                     {confirmingDeleteId === file.id ? (
                       <>
@@ -433,9 +525,38 @@ export default function UserFiles({ userId }) {
                         <Button size="sm" variant="danger" onClick={() => deleteFile(file.id)}>Delete</Button>
                         <Button size="sm" variant="ghost" onClick={() => setConfirmingDeleteId(null)}>Cancel</Button>
                       </>
+                    ) : confirmingHideId === file.id ? (
+                      <>
+                        <span className="text-sm text-ink-soft">
+                          Hide all {fileTxns.length} transaction{fileTxns.length === 1 ? '' : 's'}?
+                        </span>
+                        <Button size="sm" disabled={isHidingBusy} onClick={() => hideFileTransactions(file)}>
+                          {isHidingBusy ? 'Hiding…' : 'Hide'}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setConfirmingHideId(null)}>Cancel</Button>
+                      </>
+                    ) : isHidden ? (
+                      <>
+                        <Button size="sm" variant="secondary" disabled={isHidingBusy} onClick={() => unhideFileTransactions(file)}>
+                          <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                          {isHidingBusy ? 'Restoring…' : 'Unhide'}
+                        </Button>
+                        <IconButton label={`Delete ${file.name}`} tone="danger" onClick={() => setConfirmingDeleteId(file.id)}>
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        </IconButton>
+                      </>
                     ) : (
                       <>
                         <Button size="sm" onClick={() => setReviewFile(file)}>Review</Button>
+                        {fileTxns.length > 0 && (
+                          <IconButton
+                            label={`Hide all transactions in ${file.name} — this account is now covered by a connected bank`}
+                            tone="sage"
+                            onClick={() => setConfirmingHideId(file.id)}
+                          >
+                            <EyeOff className="h-4 w-4" aria-hidden="true" />
+                          </IconButton>
+                        )}
                         <IconButton label={`Delete ${file.name}`} tone="danger" onClick={() => setConfirmingDeleteId(file.id)}>
                           <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </IconButton>

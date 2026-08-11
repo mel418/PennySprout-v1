@@ -6,11 +6,11 @@ import { setTransactionsHidden } from '@/lib/transactionStorage'
 const MAX_IDS = 1000
 
 // POST /api/transactions/hide — bulk hide or restore transactions. Body:
-// { ids: string[], hidden: boolean }. Hiding is the confirmed step of the
-// "review possible duplicate imports" flow (see
-// GET /api/plaid/items/[id]/duplicates) — never automatic, always something
-// the user reviewed a candidate list and chose. Reversible: passing
-// hidden: false on the same ids restores them everywhere.
+// { ids: string[], hidden: boolean }. Called automatically after a Plaid
+// sync finds duplicates (lib/plaidSyncEngine.js) and by the client right
+// after a manual "Find duplicate imports" scan
+// (GET /api/plaid/items/[id]/duplicates). Reversible: passing hidden: false
+// on the same ids restores them everywhere.
 //
 // Pro-gated because the whole hide/restore mechanism only exists to resolve
 // duplicates a Plaid connection creates against manually uploaded data, and
