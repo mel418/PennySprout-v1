@@ -12,6 +12,7 @@ import { Banner } from './ui/Field'
 import { SectionHeader } from './ui/SectionHeader'
 import Doodle from './ui/Doodle'
 import { fromKey } from '@/lib/date'
+import { moneyExact } from '@/lib/format'
 
 // "2 hours ago" / "3 days ago" / "just now" — coarse on purpose, this is a
 // status hint, not a precise timestamp (which is available on hover via title).
@@ -290,8 +291,18 @@ export default function ConnectedAccounts() {
                     {item.accounts?.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {item.accounts.map(a => (
-                          <Pill key={a.id} tone="sage">
+                          <Pill
+                            key={a.id}
+                            tone="sage"
+                            title={a.balanceUpdatedAt ? `Balance as of ${new Date(a.balanceUpdatedAt).toLocaleString()}` : ''}
+                          >
                             {a.name}{a.mask ? ` •••• ${a.mask}` : ''}
+                            {a.currentBalance != null && (
+                              <span className="ml-1 rounded-full bg-surface px-2 py-0.5 text-sm font-bold tnum text-ink shadow-xs">
+                                {moneyExact(Math.abs(a.currentBalance))}
+                                {a.type === 'credit' ? ' owed' : ''}
+                              </span>
+                            )}
                           </Pill>
                         ))}
                       </div>

@@ -2,7 +2,7 @@ import { currentUser } from '@clerk/nextjs/server'
 import { plaid, plaidEnabled, plaidErrorCode } from '@/lib/plaid'
 import { requirePro } from '@/lib/planGate'
 import { checkWriteLimit } from '@/lib/rateLimit'
-import { createPlaidItem, upsertPlaidAccounts } from '@/lib/plaidItemStorage'
+import { createPlaidItem, upsertPlaidAccounts, plaidAccountsToRows } from '@/lib/plaidItemStorage'
 
 // POST /api/plaid/exchange — exchanges a Link `public_token` (short-lived,
 // safe to have touched the browser) for a long-lived `access_token` (never
@@ -47,18 +47,7 @@ export async function POST(request) {
     // details fails, since the accessToken is what matters for syncing.
     try {
       const { data: accountsData } = await plaid.accountsGet({ access_token: accessToken })
-      await upsertPlaidAccounts(
-        user.id,
-        itemRowId,
-        (accountsData.accounts || []).map(a => ({
-          account_id: a.account_id,
-          name: a.name,
-          official_name: a.official_name,
-          mask: a.mask,
-          type: a.type,
-          subtype: a.subtype,
-        }))
-      )
+      await upsertPlaidAccounts(user.id, itemRowId, plaidAccountsToRows(accountsData.accounts))
     } catch (error) {
       console.error('Error fetching Plaid accounts after link:', plaidErrorCode(error) || error)
     }

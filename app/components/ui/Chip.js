@@ -40,10 +40,13 @@ const PILL_TONES = {
   danger:   'bg-danger-50 text-danger-600',
 }
 
-export function Pill({ tone = 'neutral', className = '', children }) {
+export function Pill({ tone = 'neutral', className = '', children, ...props }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium
-      ${PILL_TONES[tone] || PILL_TONES.neutral} ${className}`}>
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium
+      ${PILL_TONES[tone] || PILL_TONES.neutral} ${className}`}
+      {...props}
+    >
       {children}
     </span>
   )
