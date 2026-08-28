@@ -298,7 +298,7 @@ export default function ConnectedAccounts() {
                           >
                             {a.name}{a.mask ? ` •••• ${a.mask}` : ''}
                             {a.currentBalance != null && (
-                              <span className="ml-1 font-semibold">
+                              <span className="ml-1 rounded-full bg-surface px-2 py-0.5 text-sm font-bold tnum text-ink shadow-xs">
                                 {moneyExact(Math.abs(a.currentBalance))}
                                 {a.type === 'credit' ? ' owed' : ''}
                               </span>
