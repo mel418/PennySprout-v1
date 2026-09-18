@@ -5,14 +5,17 @@ import { getPlaidItems } from '@/lib/plaidItemStorage'
 import { findDuplicateCandidatesForItem } from '@/lib/transactionStorage'
 
 // GET /api/plaid/items/[id]/duplicates — scans this connection's ENTIRE
-// synced history against manually uploaded transactions for likely
-// duplicates (same date + amount). A regular sync only auto-hides matches
-// against transactions newly added by THAT sync (see
-// lib/plaidSyncEngine.js syncItem) — this full-history scan is the catch-all
-// for anything that predates that (an old backfill from before auto-hide
-// existed, or an upload added after the last sync). Returns candidate pairs
-// only; nothing is hidden here — the client immediately follows up with
-// POST /api/transactions/hide for every candidate found.
+// synced history for likely duplicates (same date + amount) against either
+// manually uploaded transactions or orphaned Plaid rows from a previous,
+// now-disconnected item (see lib/transactionStorage.js findDuplicateCandidates).
+// A regular sync only auto-hides matches against transactions newly added by
+// THAT sync (see lib/plaidSyncEngine.js syncItem) — this full-history scan is
+// the catch-all for anything that predates that (an old backfill from before
+// auto-hide existed, an upload added after the last sync, or reconnecting a
+// bank that was previously disconnected without deleting its history).
+// Returns candidate pairs only; nothing is hidden here — the client
+// immediately follows up with POST /api/transactions/hide for every
+// candidate found.
 export async function GET(request, { params }) {
   try {
     const user = await currentUser()

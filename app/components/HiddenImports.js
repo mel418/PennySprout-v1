@@ -37,10 +37,11 @@ export default function HiddenImports() {
   useEffect(() => { load() }, [load])
 
   // Grouped by source file — the natural unit for "restore a whole
-  // statement," since UserFiles.js's "Hide all transactions" and the
-  // duplicate-matching auto-hide both only ever hide upload rows, which
-  // always carry a fileId. A row without one (shouldn't happen today, but
-  // stays defensive) falls into its own "Other hidden transactions" bucket.
+  // statement." Most hidden rows are uploads and carry a fileId, but the
+  // duplicate-matching auto-hide can also hide an orphaned Plaid row left
+  // over from disconnecting-then-reconnecting the same bank (see
+  // lib/transactionStorage.js findDuplicateCandidates) — those have no
+  // fileId and fall into the "Other hidden transactions" bucket.
   const groups = useMemo(() => {
     if (!transactions) return []
     const map = new Map()

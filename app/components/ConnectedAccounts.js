@@ -150,12 +150,15 @@ export default function ConnectedAccounts() {
     }
   }
 
-  // Scans this connection's whole synced history for likely duplicates of
-  // manually uploaded transactions, then immediately hides every match — the
-  // catch-all for anything a regular sync's own auto-hide didn't cover (an
-  // old backfill from before auto-hide existed, or an upload added after the
-  // last sync). Reversible: hidden transactions can be restored from the
-  // "Hidden imports" panel in Settings.
+  // Scans this connection's whole synced history for likely duplicates —
+  // either manually uploaded transactions or orphaned rows from a bank that
+  // was disconnected and later reconnected (see
+  // lib/transactionStorage.js findDuplicateCandidates) — then immediately
+  // hides every match. The catch-all for anything a regular sync's own
+  // auto-hide didn't cover (an old backfill from before auto-hide existed,
+  // an upload added after the last sync, or a reconnect that predates this
+  // scan matching orphaned Plaid rows). Reversible: hidden transactions can
+  // be restored from the "Hidden imports" panel in Settings.
   // Chunked well under POST /api/transactions/hide's own MAX_IDS (1000) — a
   // full-history scan across a connection's whole synced range can turn up
   // more matches than that in one pass.
