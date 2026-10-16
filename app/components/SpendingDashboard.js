@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, ChevronLeft, ChevronRight } from 'lucide-react'
 import { normalizeCategory, spendAmount, categoryColor, calcSpending, calcIncome, categoryTotals, EXCLUDED_FROM_TOTALS } from '@/lib/categories'
 import { parseDate, periodRange, monthKey, monthKeyLabel, monthKeyToDate } from '@/lib/date'
 import { moneyExact } from '@/lib/format'
@@ -65,6 +65,17 @@ export default function SpendingDashboard() {
     }
     return [...set].sort().reverse()
   }, [allTxns])
+
+  // Months are newest-first, so "previous" is the next index. Neighbours skip
+  // months with no activity, since `months` only lists months that have data.
+  const monthIndex = months.indexOf(selectedMonth)
+  const prevMonth = monthIndex >= 0 ? months[monthIndex + 1] : undefined
+  const nextMonth = monthIndex > 0 ? months[monthIndex - 1] : undefined
+
+  // Years that have activity, newest first; jumping to a year lands on its
+  // most recent active month.
+  const years = useMemo(() => [...new Set(months.map(m => m.slice(0, 4)))], [months])
+  const selectedYear = selectedMonth?.slice(0, 4)
 
   // Default to the most recent month once data arrives (or if the selection
   // no longer exists, e.g. after deletions).
@@ -136,16 +147,55 @@ export default function SpendingDashboard() {
         <label htmlFor="analysis-month" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-ink-faint">
           Analyzing month
         </label>
-        <select
-          id="analysis-month"
-          value={selectedMonth || ''}
-          onChange={e => setSelectedMonth(e.target.value)}
-          className={selectClass('max-w-xs text-base font-semibold sm:text-base')}
-        >
-          {months.map(m => (
-            <option key={m} value={m}>{monthKeyLabel(m)}</option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSelectedMonth(prevMonth)}
+            disabled={!prevMonth}
+            aria-label="Previous month"
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-line text-ink transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+          </button>
+          <select
+            id="analysis-month"
+            value={selectedMonth || ''}
+            onChange={e => setSelectedMonth(e.target.value)}
+            className={selectClass('max-w-xs text-base font-semibold sm:text-base')}
+          >
+            {months.map(m => (
+              <option key={m} value={m}>{monthKeyLabel(m)}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setSelectedMonth(nextMonth)}
+            disabled={!nextMonth}
+            aria-label="Next month"
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-line text-ink transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ChevronRight className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+        {years.length > 1 && (
+          <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Jump to year">
+            {years.map(y => (
+              <button
+                key={y}
+                type="button"
+                onClick={() => setSelectedMonth(months.find(m => m.startsWith(y)))}
+                aria-pressed={y === selectedYear}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold tnum transition-colors ${
+                  y === selectedYear
+                    ? 'border-transparent bg-sage-600 text-white'
+                    : 'border-line text-ink-soft hover:bg-surface-hover'
+                }`}
+              >
+                {y}
+              </button>
+            ))}
+          </div>
+        )}
         <p className="mt-2 text-sm text-ink-faint tnum">
           {monthTxns.length} transaction{monthTxns.length !== 1 ? 's' : ''} this month
         </p>
