@@ -102,7 +102,7 @@ export default function TargetImportsList() {
                 </>
               ) : (
                 <>
-                  <Button size="sm" onClick={() => openReview(imp)}>Review</Button>
+                  <Button variant="soft" size="sm" onClick={() => openReview(imp)}>Review</Button>
                   <IconButton label={`Delete ${imp.fileName}`} tone="danger" onClick={() => setConfirmingDeleteId(imp.id)}>
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
                   </IconButton>

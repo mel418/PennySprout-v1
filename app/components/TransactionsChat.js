@@ -145,7 +145,7 @@ export default function TransactionsChat() {
           maxLength={2000}
           disabled={isStreaming}
           aria-label="Ask a question about all your transactions"
-          className="min-h-10 min-w-0 flex-1 rounded-full border border-line bg-surface-2 px-4 text-sm text-ink
+          className="min-h-11 min-w-0 flex-1 rounded-full border border-line bg-surface-2 px-4 text-sm text-ink
             placeholder:text-ink-faint transition-colors focus:border-sage-500 focus:outline-none
             disabled:opacity-60"
         />

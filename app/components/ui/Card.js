@@ -1,15 +1,14 @@
 'use client'
-import Doodle, { WashiTape } from './Doodle'
+import Doodle from './Doodle'
 
 // ─── The surface card ────────────────────────────────────────────────────────
 //
-// Warm ivory paper, a 1px line border, 20px radius, and a very soft warm
-// shadow (all from the .card-soft token in globals.css). Optional header row
-// with a doodle or icon, title, right-aligned hint, and an action.
+// A borderless white card floating on a diffuse shadow, 24px radius (all from
+// the .card-soft token in globals.css). Optional header row with an icon (or
+// doodle) in a tinted badge, title, right-aligned hint, and an action.
 //
-// Decoration is OPT-IN and used sparingly — a `tape` accent or a `doodle` in
-// the header, never both, and never on the cards carrying the densest
-// financial data. Everything decorative here is aria-hidden.
+// `tape` is accepted for backwards compatibility but no longer rendered — the
+// washi-tape accent belonged to the retired stationery theme.
 //
 // `accent` tints the header strip with a pastel from the semantic palette;
 // use it to reinforce meaning that's already stated in the title (savings,
@@ -33,23 +32,26 @@ export default function Card({
   doodle,
   action,
   accent = 'none',
-  tape,          // 'sage' | 'blush' | 'peach' | 'butter' | 'lavender' | 'blue'
+  tape,          // retired; accepted so old callers don't leak it onto the DOM
   as: Tag = 'div',
   ...props
 }) {
   const hasHeader = Boolean(title)
   return (
-    <Tag className={`card-soft relative ${tape ? 'mt-3' : ''} ${className}`} {...props}>
-      {tape && <WashiTape tone={tape} className="-top-2 left-6 -rotate-3" />}
+    <Tag className={`card-soft relative ${className}`} {...props}>
 
       {hasHeader && (
-        <div className={`flex items-center justify-between gap-3 px-5 sm:px-6 pt-4 pb-3
+        <div className={`flex items-center justify-between gap-3 px-5 sm:px-6 pt-5 pb-3
           ${accent !== 'none' ? `${ACCENTS[accent]} rounded-t-[var(--radius-lg)]` : ''}`}>
-          <div className="flex items-center gap-2 min-w-0">
-            {doodle
-              ? <Doodle name={doodle} className="h-4 w-4 text-sage-500 flex-shrink-0" />
-              : Icon && <Icon className="h-4 w-4 text-sage-500 flex-shrink-0" aria-hidden="true" />}
-            <h3 className="text-sm font-semibold text-ink truncate">{title}</h3>
+          <div className="flex items-center gap-2.5 min-w-0">
+            {(doodle || Icon) && (
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-sage-50">
+                {doodle
+                  ? <Doodle name={doodle} className="h-4 w-4 text-sage-600" />
+                  : <Icon className="h-4 w-4 text-sage-600" aria-hidden="true" />}
+              </span>
+            )}
+            <h3 className="text-[15px] font-semibold tracking-tight text-ink truncate">{title}</h3>
           </div>
           {(hint || action) && (
             <div className="flex items-center gap-3 flex-shrink-0">

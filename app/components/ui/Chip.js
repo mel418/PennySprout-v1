@@ -59,8 +59,8 @@ export function ActionChip({ onClick, disabled, className = '', children }) {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex items-center gap-1.5 rounded-full border border-sage-200 bg-surface
-        px-3.5 py-2 min-h-9 text-sm text-ink-soft text-left
+      className={`inline-flex items-center gap-1.5 rounded-full border border-line bg-surface
+        px-3.5 py-2 min-h-11 text-sm text-ink-soft text-left
         hover:bg-sage-50 hover:border-sage-300 hover:text-ink
         transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
     >

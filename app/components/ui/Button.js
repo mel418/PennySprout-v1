@@ -7,15 +7,17 @@
 // That keeps radius, padding, touch target, focus ring, and disabled behaviour
 // identical everywhere instead of drifting per screen.
 //
-// Touch targets: `md` is 44px tall and `sm` is 36px with generous horizontal
+// Touch targets: `md` is 44px tall and `sm` is also 44px, just tighter horizontal
 // padding — comfortable one-handed on a phone. Icon-only buttons should use
 // IconButton, which guarantees a 44px hit area even around a 16px glyph.
 
 const VARIANTS = {
-  // Deep Sprout fill — the single primary action on a screen
+  // Forest fill — the single primary action on a screen
   primary:   'bg-sage-600 hover:bg-sage-700 active:bg-sage-800 text-white shadow-xs',
+  // Lime fill — the one celebratory CTA (landing hero, upgrade). Use rarely.
+  lime:      'bg-lime text-lime-ink hover:brightness-95 active:brightness-90 shadow-xs',
   // Outlined — secondary actions that still deserve a border
-  secondary: 'bg-surface border border-sage-300 text-sage-700 hover:bg-sage-50',
+  secondary: 'bg-surface border border-line text-ink hover:bg-surface-hover hover:border-sage-300',
   // Pastel wash — tertiary actions inside cards
   soft:      'bg-sage-50 text-sage-700 hover:bg-sage-100',
   // No chrome until hover — dense toolbars, inline links
@@ -27,9 +29,9 @@ const VARIANTS = {
 }
 
 const SIZES = {
-  sm: 'text-sm px-3.5 py-2 min-h-9 gap-1.5 rounded-[var(--radius-sm)]',
-  md: 'text-sm px-5 py-2.5 min-h-11 gap-2 rounded-[var(--radius-md)]',
-  lg: 'text-base px-6 py-3 min-h-12 gap-2 rounded-[var(--radius-md)]',
+  sm: 'text-sm px-4 py-2 min-h-11 gap-1.5 rounded-full',
+  md: 'text-sm px-5 py-2.5 min-h-11 gap-2 rounded-full',
+  lg: 'text-base px-7 py-3 min-h-13 gap-2 rounded-full',
 }
 
 export function buttonClass({ variant = 'primary', size = 'md', full = false, className = '' } = {}) {
@@ -73,8 +75,8 @@ export function IconButton({ label, tone = 'default', className = '', children, 
       type="button"
       aria-label={label}
       title={label}
-      className={`inline-flex items-center justify-center h-11 w-11 sm:h-9 sm:w-9 flex-shrink-0
-        rounded-[var(--radius-sm)] transition-colors ${TONES[tone] || TONES.default} ${className}`}
+      className={`inline-flex items-center justify-center h-11 w-11 flex-shrink-0
+        rounded-full transition-colors ${TONES[tone] || TONES.default} ${className}`}
       {...props}
     >
       {children}

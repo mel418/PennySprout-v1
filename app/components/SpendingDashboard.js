@@ -324,7 +324,7 @@ export default function SpendingDashboard() {
                 <li key={d.category}>
                   <button
                     onClick={() => setSelectedCategory(d.category)}
-                    className="inline-flex min-h-9 items-center gap-2 rounded-full px-3 text-sm text-ink-soft transition-colors hover:bg-surface-hover hover:text-ink"
+                    className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm text-ink-soft transition-colors hover:bg-surface-hover hover:text-ink"
                   >
                     <span
                       className="h-2.5 w-2.5 flex-shrink-0 rounded-full"

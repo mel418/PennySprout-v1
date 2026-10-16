@@ -15,15 +15,15 @@ import EmptyState from './ui/EmptyState'
 import Button from './ui/Button'
 import Doodle from './ui/Doodle'
 import ProgressBar from './ui/Progress'
-import { PageHeader, SectionHeader, StatTile } from './ui/SectionHeader'
+import { PageHeader, SectionHeader } from './ui/SectionHeader'
 import { TOOLTIP_PROPS } from './ui/chartTheme'
 
 // Overview is deliberately narrow in scope: net flow (the headline), spending
 // pace against a typical month (soft budgeting), and where this month's money
 // went. Deeper history lives on Calendar; per-month analysis on Analysis.
 //
-// Design ratio here is ~30% aesthetic / 70% fintech: one warm line of framing
-// at the top, then the numbers take over. Decoration stays at the card edges.
+// Layout: one dark hero card carries the headline number (the only lime on the
+// screen), then plain white cards carry pace, bills, and categories.
 export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis, onOpenBudgets }) {
   // Shared hook distinguishes a failed load (expired session, server error)
   // from a genuinely empty account — see useTransactions.js.
@@ -143,63 +143,67 @@ export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis,
       <PageHeader
         title="Overview"
         subtitle={`${monthKeyLabel(currentKey)} · your money at a glance`}
-        doodle="sprig"
         action={
-          <Button variant="soft" size="sm" onClick={onOpenCalendar}>
+          <Button variant="secondary" size="sm" onClick={onOpenCalendar}>
             <CalendarDays className="h-4 w-4" aria-hidden="true" /> Open calendar
           </Button>
         }
       />
 
-      {/* ── Net flow hero: the number, its history, and the month's breakdown ── */}
-      <Card className="overflow-hidden">
+      {/* ── Net flow hero: the dark balance card. The number, its history, and
+             the month's breakdown — the one place the lime accent leads. ── */}
+      <section aria-label="Net flow" className="hero-card">
         <div className="lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-          <div className="p-5 sm:p-6">
-            <p className="flex items-center gap-1.5 text-sm font-medium text-ink-soft">
-              <Doodle name={headline.doodle} className="h-4 w-4 flex-shrink-0 text-sage-500" />
+          <div className="p-6 sm:p-7">
+            <p className="flex items-center gap-1.5 text-sm font-medium text-hero-soft">
+              <Doodle name={headline.doodle} className="h-4 w-4 flex-shrink-0 text-lime" />
               {headline.text}
             </p>
 
-            <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-ink-faint">
+            <p className="mt-5 text-sm font-medium text-hero-soft">
               Net flow · {monthKeyLabel(currentKey)}
             </p>
-            <p className={`mt-1 text-4xl sm:text-5xl font-bold tracking-tight tnum ${net >= 0 ? 'text-sage-600' : 'text-spend-600'}`}>
+            <p className="mt-1 font-display text-5xl sm:text-6xl font-bold tnum text-hero">
               {net >= 0 ? '+' : '−'}{money(net)}
             </p>
             {delta !== null && (
-              <p className={`mt-2 flex items-center gap-1.5 text-sm font-medium ${delta >= 0 ? 'text-sage-600' : 'text-spend-600'}`}>
-                {delta >= 0
-                  ? <TrendingUp className="h-4 w-4" aria-hidden="true" />
-                  : <TrendingDown className="h-4 w-4" aria-hidden="true" />}
-                <span className="tnum">{delta >= 0 ? '+' : '−'}{money(delta)}</span>
-                <span className="font-normal text-ink-soft">vs {monthKeyLabel(prevKey)}</span>
+              <p className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-bold ${
+                  delta >= 0 ? 'bg-lime text-lime-ink' : 'bg-spend-200 text-spend-600'
+                }`}>
+                  {delta >= 0
+                    ? <TrendingUp className="h-4 w-4" aria-hidden="true" />
+                    : <TrendingDown className="h-4 w-4" aria-hidden="true" />}
+                  <span className="tnum">{delta >= 0 ? '+' : '−'}{money(delta)}</span>
+                </span>
+                <span className="text-hero-soft">vs {monthKeyLabel(prevKey)}</span>
               </p>
             )}
 
-            <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-line pt-5 sm:grid-cols-4 lg:grid-cols-2">
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Income</dt>
-                <dd className="mt-0.5 text-base font-bold tnum text-sage-600">+{money(cur.income)}</dd>
+            <dl className="mt-7 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2">
+              <div className="rounded-[var(--radius-md)] bg-hero-tile px-4 py-3">
+                <dt className="text-xs font-medium text-hero-soft">Income</dt>
+                <dd className="mt-0.5 text-base font-bold tnum text-hero">+{money(cur.income)}</dd>
               </div>
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Spending</dt>
-                <dd className="mt-0.5 text-base font-bold tnum text-spend-600">−{money(cur.spending)}</dd>
+              <div className="rounded-[var(--radius-md)] bg-hero-tile px-4 py-3">
+                <dt className="text-xs font-medium text-hero-soft">Spending</dt>
+                <dd className="mt-0.5 text-base font-bold tnum text-hero">−{money(cur.spending)}</dd>
               </div>
-              <div>
-                <dt className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Bills</dt>
-                <dd className="mt-0.5 text-base font-bold tnum text-peach-600">−{money(cur.bills)}</dd>
+              <div className="rounded-[var(--radius-md)] bg-hero-tile px-4 py-3">
+                <dt className="text-xs font-medium text-hero-soft">Bills</dt>
+                <dd className="mt-0.5 text-base font-bold tnum text-hero">−{money(cur.bills)}</dd>
               </div>
               {savingsRate !== null && (
-                <div>
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Saved</dt>
-                  <dd className="mt-0.5 text-base font-bold tnum text-ink">{savingsRate}%</dd>
+                <div className="rounded-[var(--radius-md)] bg-hero-tile px-4 py-3">
+                  <dt className="text-xs font-medium text-hero-soft">Saved</dt>
+                  <dd className="mt-0.5 text-base font-bold tnum text-lime">{savingsRate}%</dd>
                 </div>
               )}
             </dl>
           </div>
 
-          <div className="flex flex-col border-t border-line px-2 pb-2 pt-4 lg:border-l lg:border-t-0 lg:p-5">
-            <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-ink-faint lg:px-0">
+          <div className="flex flex-col border-t border-hero px-2 pb-3 pt-5 lg:border-l lg:border-t-0 lg:p-7">
+            <p className="mb-1 px-4 text-sm font-medium text-hero-soft lg:px-0">
               Net flow by month
             </p>
             {trendData.length > 1 ? (
@@ -207,38 +211,47 @@ export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis,
               // definite height, so the chart's height="100%" resolves to 0
               // and it silently renders nothing. On lg+ the grid stretches
               // the column, so flex-1 gives a real height to fill.
-              <div className="h-[160px] lg:h-auto lg:min-h-[170px] lg:flex-1">
+              <div className="h-[170px] lg:h-auto lg:min-h-[190px] lg:flex-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={trendData} margin={{ top: 8, right: 8, left: 8, bottom: 4 }}>
                     <defs>
                       <linearGradient id="netFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--chart-net)" stopOpacity={0.32} />
-                        <stop offset="100%" stopColor="var(--chart-net)" stopOpacity={0.02} />
+                        <stop offset="0%" stopColor="var(--lime)" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="var(--lime)" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     {/* hidden axis so the tooltip label is the month, not the row index */}
                     <XAxis dataKey="month" hide />
                     <Tooltip
                       {...TOOLTIP_PROPS}
-                      cursor={{ stroke: 'var(--line)', strokeWidth: 1 }}
+                      cursor={{ stroke: 'var(--hero-line)', strokeWidth: 1 }}
                       formatter={(v) => [`${v >= 0 ? '+' : '−'}${moneyExact(v)}`, 'Net']}
                       labelFormatter={(l) => {
                         const [y, m] = String(l).split('-')
                         return m ? `${MONTHS_SHORT[+m - 1]} ${y}` : String(l)
                       }}
                     />
-                    <Area type="monotone" dataKey="net" stroke="var(--chart-net)" strokeWidth={2.5} fill="url(#netFill)" dot={false} />
+                    <Area
+                      type="monotone"
+                      dataKey="net"
+                      baseValue="dataMin"
+                      stroke="var(--lime)"
+                      strokeWidth={2.5}
+                      fill="url(#netFill)"
+                      dot={false}
+                      activeDot={{ r: 5, fill: 'var(--lime)', stroke: 'var(--hero-bg)', strokeWidth: 2 }}
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             ) : (
-              <p className="flex flex-1 items-center justify-center px-4 py-10 text-center text-sm text-ink-soft">
+              <p className="flex flex-1 items-center justify-center px-4 py-10 text-center text-sm text-hero-soft">
                 More months of history will reveal your trend.
               </p>
             )}
           </div>
         </div>
-      </Card>
+      </section>
 
       {/* ── Spending pace (soft budget) + upcoming bills ── */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -250,7 +263,7 @@ export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis,
         >
           <div className={CARD_BODY}>
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-              <p className="text-3xl font-bold tnum text-ink">{money(cur.spending)}</p>
+              <p className="font-display text-4xl font-bold tnum text-ink">{money(cur.spending)}</p>
               {pace.typical !== null && (
                 <span className="text-sm text-ink-soft">of {money(pace.typical)} in a typical month</span>
               )}
@@ -274,7 +287,7 @@ export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis,
                 {onOpenBudgets && (
                   <button
                     onClick={onOpenBudgets}
-                    className="mt-3 inline-flex min-h-9 items-center gap-1 text-sm font-semibold text-sage-700 transition-colors hover:text-sage-800"
+                    className="mt-3 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-sage-700 transition-colors hover:text-sage-800"
                   >
                     Set category budgets <ChevronRight className="h-4 w-4" aria-hidden="true" />
                   </button>
@@ -329,7 +342,7 @@ export default function Overview({ onOpenCalendar, onOpenUpload, onOpenAnalysis,
           action={onOpenAnalysis && (
             <button
               onClick={onOpenAnalysis}
-              className="inline-flex min-h-9 items-center gap-1 text-sm font-semibold text-sage-700 transition-colors hover:text-sage-800"
+              className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-sage-700 transition-colors hover:text-sage-800"
             >
               Full analysis <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>

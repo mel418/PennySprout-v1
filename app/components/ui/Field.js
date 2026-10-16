@@ -12,23 +12,23 @@
 
 export const inputClass = (className = '') =>
   [
-    'w-full min-h-11 rounded-[var(--radius-sm)] border border-line bg-surface',
-    'px-3.5 py-2.5 text-base sm:text-sm text-ink placeholder:text-ink-faint',
-    'transition-colors hover:border-sage-300 focus:border-sage-500 focus:outline-none',
+    'w-full min-h-11 rounded-[var(--radius-md)] border border-line bg-surface-2',
+    'px-4 py-2.5 text-base sm:text-sm text-ink placeholder:text-ink-faint',
+    'transition-colors hover:border-sage-300 focus:border-sage-500 focus:bg-surface focus:outline-none',
     'disabled:opacity-60 disabled:cursor-not-allowed',
     className,
   ].filter(Boolean).join(' ')
 
 export const selectClass = (className = '') =>
   [
-    'w-full min-h-11 rounded-[var(--radius-sm)] border border-line bg-surface',
-    'px-3 py-2.5 text-base sm:text-sm text-ink cursor-pointer',
-    'transition-colors hover:border-sage-300 focus:border-sage-500 focus:outline-none',
+    'w-full min-h-11 rounded-[var(--radius-md)] border border-line bg-surface-2',
+    'px-3.5 py-2.5 text-base sm:text-sm text-ink cursor-pointer',
+    'transition-colors hover:border-sage-300 focus:border-sage-500 focus:bg-surface focus:outline-none',
     'disabled:opacity-60 disabled:cursor-not-allowed',
     className,
   ].filter(Boolean).join(' ')
 
-export const labelClass = 'block text-xs font-semibold uppercase tracking-wide text-ink-faint mb-1.5'
+export const labelClass = 'block text-xs font-semibold text-ink-soft mb-1.5'
 
 // Label + control + optional hint, wired together. `htmlFor` is required so
 // the label is always programmatically associated with its input.

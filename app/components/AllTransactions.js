@@ -191,7 +191,7 @@ export default function AllTransactions() {
         <div className="mt-3 grid grid-cols-2 gap-2.5">
           <div>
             <label htmlFor="txn-category" className={labelClass}>Category</label>
-            <select id="txn-category" value={category} onChange={e => setCategory(e.target.value)} className={selectClass('min-h-9 py-1.5 text-sm')}>
+            <select id="txn-category" value={category} onChange={e => setCategory(e.target.value)} className={selectClass('min-h-11 py-1.5 text-sm')}>
               <option value="all">All categories</option>
               {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -200,7 +200,7 @@ export default function AllTransactions() {
           {accountOptions.length > 0 && (
             <div>
               <label htmlFor="txn-account" className={labelClass}>Account</label>
-              <select id="txn-account" value={account} onChange={e => setAccount(e.target.value)} className={selectClass('min-h-9 py-1.5 text-sm')}>
+              <select id="txn-account" value={account} onChange={e => setAccount(e.target.value)} className={selectClass('min-h-11 py-1.5 text-sm')}>
                 <option value="all">All accounts</option>
                 {accountOptions.map(a => <option key={a} value={a}>{a}</option>)}
               </select>
@@ -209,12 +209,12 @@ export default function AllTransactions() {
 
           <div>
             <label htmlFor="txn-from" className={labelClass}>From</label>
-            <input id="txn-from" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={inputClass('min-h-9 py-1.5 text-sm')} />
+            <input id="txn-from" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={inputClass('min-h-11 py-1.5 text-sm')} />
           </div>
 
           <div>
             <label htmlFor="txn-to" className={labelClass}>To</label>
-            <input id="txn-to" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={inputClass('min-h-9 py-1.5 text-sm')} />
+            <input id="txn-to" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={inputClass('min-h-11 py-1.5 text-sm')} />
           </div>
 
           <div>
@@ -222,7 +222,7 @@ export default function AllTransactions() {
             <input
               id="txn-min" type="number" min="0" step="0.01" inputMode="decimal"
               value={amountMin} onChange={e => setAmountMin(e.target.value)}
-              placeholder="0" className={inputClass('min-h-9 py-1.5 text-sm')}
+              placeholder="0" className={inputClass('min-h-11 py-1.5 text-sm')}
             />
           </div>
 
@@ -231,7 +231,7 @@ export default function AllTransactions() {
             <input
               id="txn-max" type="number" min="0" step="0.01" inputMode="decimal"
               value={amountMax} onChange={e => setAmountMax(e.target.value)}
-              placeholder="Any" className={inputClass('min-h-9 py-1.5 text-sm')}
+              placeholder="Any" className={inputClass('min-h-11 py-1.5 text-sm')}
             />
           </div>
         </div>
@@ -240,7 +240,7 @@ export default function AllTransactions() {
           <select
             id="txn-sort" value={sort} onChange={e => setSort(e.target.value)}
             aria-label="Sort transactions"
-            className={selectClass('min-h-9 max-w-[10rem] py-1.5 text-xs')}
+            className={selectClass('min-h-11 max-w-[10rem] py-1.5 text-xs')}
           >
             <option value="date-desc">Newest first</option>
             <option value="date-asc">Oldest first</option>
@@ -291,7 +291,7 @@ export default function AllTransactions() {
                       value={cat}
                       onChange={e => changeCategory(t, e.target.value)}
                       aria-label={`Category for ${t.Description || 'transaction'}`}
-                      className={selectClass('min-h-8 max-w-[9.5rem] py-1 text-xs')}
+                      className={selectClass('min-h-11 max-w-[9.5rem] py-1 text-xs')}
                     >
                       {editOptions.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
