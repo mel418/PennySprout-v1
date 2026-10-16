@@ -71,6 +71,13 @@ const cspDirectives = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // With billing hidden (NEXT_PUBLIC_BILLING_ENABLED=false) the pricing page
+  // doesn't exist as far as visitors are concerned.
+  async redirects() {
+    return process.env.NEXT_PUBLIC_BILLING_ENABLED === 'false'
+      ? [{ source: '/pricing', destination: '/', permanent: false }]
+      : []
+  },
   async headers() {
     return [
       {

@@ -9,7 +9,7 @@ import { inputClass, selectClass, Banner } from '../../components/ui/Field'
 // Admin: set any user's plan by hand (family and friends, no Stripe). The
 // page is only a convenience — /api/admin/plans enforces the admin role, so a
 // non-admin who finds this URL just sees a "not available" message.
-const OVERRIDE_LABELS = { '': 'Follow Stripe', pro: 'Pro (granted)', free: 'Free (forced)' }
+const OVERRIDE_LABELS = { '': 'Standard (Free)', pro: 'Pro (granted)', free: 'Free (forced)' }
 
 export default function AdminPlansPage() {
   const { isSignedIn, isLoaded } = useUser()
@@ -81,8 +81,9 @@ export default function AdminPlansPage() {
         ) : (
           <>
             <p className="mb-6 text-sm text-ink-soft">
-              &ldquo;Pro (granted)&rdquo; and &ldquo;Free (forced)&rdquo; override Stripe.
-              &ldquo;Follow Stripe&rdquo; removes the override.
+              &ldquo;Standard&rdquo; means no override: the user is Free unless they have a paid
+              Stripe subscription. &ldquo;Pro (granted)&rdquo; gives Pro for free;
+              &ldquo;Free (forced)&rdquo; blocks Pro even for a paying subscriber.
             </p>
 
             <label htmlFor="user-search" className="sr-only">Search users</label>

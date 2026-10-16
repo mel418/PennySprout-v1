@@ -70,6 +70,9 @@ NEXT_PUBLIC_SENTRY_DSN=your_sentry_dsn
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_PRICE_ID=price_...
 STRIPE_WEBHOOK_SECRET=whsec_...
+# Set to false to hide pricing/Pro UI and disable checkout (rebuild/restart
+# after changing — it's inlined at build time).
+# NEXT_PUBLIC_BILLING_ENABLED=false
 
 # Optional — bank connections via Plaid (Sprout Pro feature). Set all four
 # or none. PLAID_ENCRYPTION_KEY encrypts stored access tokens — generate
