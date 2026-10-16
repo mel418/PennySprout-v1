@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
 import { Search, X } from 'lucide-react'
-import { normalizeCategory } from '@/lib/categories'
+import { normalizeCategory, STANDARD_CATEGORIES } from '@/lib/categories'
 import { parseDate } from '@/lib/date'
 import { moneyExact } from '@/lib/format'
 import { useTransactions } from './useTransactions'
@@ -9,7 +9,7 @@ import LoadError from './LoadError'
 import { ListSkeleton } from './ui/Skeletons'
 import EmptyState from './ui/EmptyState'
 import Card from './ui/Card'
-import { CategoryChip, Pill } from './ui/Chip'
+import { Pill } from './ui/Chip'
 import Button from './ui/Button'
 import { inputClass, selectClass, labelClass } from './ui/Field'
 
@@ -26,7 +26,8 @@ const PAGE_SIZE = 50
 // counts rather than Tailwind's viewport-based sm:/lg: breakpoints, which
 // would key off the *window* size, not this panel's actual rendered width.
 export default function AllTransactions() {
-  const { transactions: allTxns, isLoading, error, retry } = useTransactions()
+  const { transactions: allTxns, isLoading, error, retry, patchLocal } = useTransactions()
+  const [editError, setEditError] = useState(null)
 
   // File metadata is only needed for the account name filter/badge — a
   // lightweight side-fetch, not routed through useTransactions.
@@ -61,6 +62,34 @@ export default function AllTransactions() {
     allTxns.forEach(t => set.add(normalizeCategory(t.Category, t.Amount)))
     return [...set].sort()
   }, [allTxns])
+
+  // Options for the per-row editor: the standard set plus any custom
+  // categories already in use, so changing one row never loses a category.
+  const editOptions = useMemo(() => [...new Set([
+    ...STANDARD_CATEGORIES,
+    ...allTxns.map(t => t.Category).filter(Boolean),
+    ...allTxns.map(t => normalizeCategory(t.Category, t.Amount)),
+  ])].sort(), [allTxns])
+
+  // Optimistic category change (works for Plaid and uploaded rows alike —
+  // PATCH /api/transactions/:id addresses any row by id); rolls back on failure.
+  const changeCategory = async (txn, newCategory) => {
+    setEditError(null)
+    const previous = txn.Category
+    patchLocal(txn.id, { Category: newCategory })
+    try {
+      const res = await fetch(`/api/transactions/${txn.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: newCategory }),
+      })
+      if (!res.ok) throw new Error('save failed')
+    } catch (err) {
+      console.error('Error updating transaction:', err)
+      patchLocal(txn.id, { Category: previous })
+      setEditError("Couldn't save the change. Please try again.")
+    }
+  }
 
   const accountOptions = useMemo(() => {
     const set = new Set()
@@ -226,6 +255,8 @@ export default function AllTransactions() {
         </div>
       </Card>
 
+      {editError && <p role="alert" className="px-1 text-sm text-red-600">{editError}</p>}
+
       <p className="px-1 text-sm text-ink-soft tnum">
         {filtered.length} transaction{filtered.length !== 1 ? 's' : ''} · {moneyExact(totalAmount)} total
       </p>
@@ -256,7 +287,14 @@ export default function AllTransactions() {
                   </div>
                   <div className="flex flex-shrink-0 flex-col items-end gap-1.5">
                     <span className="text-sm font-bold tnum text-ink">{moneyExact(amount)}</span>
-                    <CategoryChip category={cat} size="sm" />
+                    <select
+                      value={cat}
+                      onChange={e => changeCategory(t, e.target.value)}
+                      aria-label={`Category for ${t.Description || 'transaction'}`}
+                      className={selectClass('min-h-8 max-w-[9.5rem] py-1 text-xs')}
+                    >
+                      {editOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
                   </div>
                 </div>
                 {t.Note && <p className="mt-2.5 text-xs italic text-ink-soft">{t.Note}</p>}
