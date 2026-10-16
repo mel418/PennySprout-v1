@@ -79,6 +79,8 @@ PLAID_CLIENT_ID=your_plaid_client_id
 PLAID_SECRET=your_plaid_sandbox_or_production_secret
 PLAID_ENV=sandbox
 PLAID_ENCRYPTION_KEY=base64_32_byte_key
+# Set to false to park Plaid without removing the credentials above.
+# PLAID_ENABLED=false
 
 # If NEXT_PUBLIC_APP_URL (above) is set, it's also sent to Plaid as the
 # OAuth redirect_uri — required for Chase and other large US banks in

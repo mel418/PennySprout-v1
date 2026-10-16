@@ -28,7 +28,9 @@ const sentryHost = sentryIngestHost(process.env.NEXT_PUBLIC_SENTRY_DSN)
 // lib/plaid.js plaidEnabled): only widen the CSP for Plaid when it's
 // actually configured, so a deployment that never sets these vars doesn't
 // carry a third-party allowance it has no use for.
-const plaidConfigured = Boolean(process.env.PLAID_CLIENT_ID && process.env.PLAID_SECRET)
+const plaidConfigured = Boolean(
+  process.env.PLAID_ENABLED !== 'false' && process.env.PLAID_CLIENT_ID && process.env.PLAID_SECRET
+)
 
 // Report-Only, not enforced: Clerk's login flow (its script, XHR calls, and
 // the Cloudflare Turnstile bot-check frame it embeds), the Target

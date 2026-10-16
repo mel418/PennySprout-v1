@@ -171,6 +171,8 @@ export default function PricingPage() {
               <SignInButton mode="modal">
                 <button className={buttonClass({ full: true })}>Sign in to upgrade</button>
               </SignInButton>
+            ) : isPro && billing?.granted ? (
+              <p className="py-2.5 text-center text-sm font-medium text-ink-faint">Pro access granted to your account</p>
             ) : isPro ? (
               <Button variant="secondary" full onClick={openPortal} disabled={busy}>
                 <CreditCard className="h-4 w-4" aria-hidden="true" /> Manage billing
