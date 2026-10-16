@@ -21,7 +21,7 @@ export default function TermsPage() {
   return (
     <main className="min-h-screen bg-app">
       <div className="mx-auto max-w-2xl px-5 py-12 sm:py-16">
-        <Link href="/" className="inline-flex min-h-10 items-center text-sm font-medium text-sage-600 hover:text-sage-700">
+        <Link href="/" className="inline-flex min-h-11 items-center text-sm font-medium text-sage-600 hover:text-sage-700">
           ← Back to Penny Sprout
         </Link>
 

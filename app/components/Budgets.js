@@ -459,7 +459,7 @@ export default function Budgets() {
                           onKeyDown={e => { if (e.key === 'Enter') addContribution(g) }}
                           className={inputClass('min-w-0 flex-1 tnum')}
                         />
-                        <Button onClick={() => addContribution(g)} className="flex-shrink-0">Log</Button>
+                        <Button variant="soft" onClick={() => addContribution(g)} className="flex-shrink-0">Log</Button>
                       </div>
                     )}
                   </li>

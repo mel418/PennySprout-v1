@@ -397,7 +397,7 @@ export default function UserFiles({ userId }) {
                 key={value}
                 onClick={() => setGroupBy(value)}
                 aria-pressed={groupBy === value}
-                className={`min-h-8 rounded-full px-3 font-semibold transition-colors ${
+                className={`min-h-11 rounded-full px-3 font-semibold transition-colors ${
                   groupBy === value ? 'bg-surface text-ink shadow-xs' : 'text-ink-faint hover:text-ink-soft'
                 }`}
               >
@@ -547,7 +547,7 @@ export default function UserFiles({ userId }) {
                       </>
                     ) : (
                       <>
-                        <Button size="sm" onClick={() => setReviewFile(file)}>Review</Button>
+                        <Button variant="soft" size="sm" onClick={() => setReviewFile(file)}>Review</Button>
                         {fileTxns.length > 0 && (
                           <IconButton
                             label={`Hide all transactions in ${file.name} — this account is now covered by a connected bank`}
@@ -629,7 +629,7 @@ export default function UserFiles({ userId }) {
                             value={category}
                             onChange={e => updateTransaction(t, { Category: e.target.value })}
                             aria-label={`Category for ${description}`}
-                            className={selectClass('min-h-9 max-w-[9.5rem] flex-shrink py-1.5 text-sm')}
+                            className={selectClass('min-h-11 max-w-[9.5rem] flex-shrink py-1.5 text-sm')}
                           >
                             {/* Keep an unlabeled option when the transaction has no category yet */}
                             {!category && <option value="">—</option>}
@@ -704,7 +704,7 @@ export default function UserFiles({ userId }) {
                               }}
                               placeholder="e.g. split with roommate, reimbursed by work"
                               aria-label={`Note for ${description}`}
-                              className={inputClass('min-h-9 flex-1 py-1.5 text-sm')}
+                              className={inputClass('min-h-11 flex-1 py-1.5 text-sm')}
                             />
                             <IconButton label="Save note" tone="sage" onClick={() => saveNote(t)}>
                               <Check className="h-4 w-4" />

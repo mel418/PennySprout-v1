@@ -38,9 +38,9 @@ export default function TransactionSearchWidget() {
   }, [isOpen, close])
 
   return (
-    // bottom-20 clears the mobile bottom-nav bar (h-14 + safe-area inset);
+    // bottom-24 clears the floating mobile nav dock (h-14 + padding + gap);
     // from sm up that nav disappears, so the widget can sit lower still.
-    <div ref={rootRef} className="fixed bottom-20 right-4 z-50 sm:bottom-4 sm:right-6">
+    <div ref={rootRef} className="fixed bottom-24 right-4 z-50 sm:bottom-4 sm:right-6">
       {isOpen && (
         <div
           role="dialog"
@@ -56,7 +56,7 @@ export default function TransactionSearchWidget() {
                   key={id}
                   onClick={() => setTab(id)}
                   aria-pressed={tab === id}
-                  className={`inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors ${
+                  className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors ${
                     tab === id ? 'bg-sage-600 text-white' : 'text-ink-faint hover:text-ink-soft'
                   }`}
                 >

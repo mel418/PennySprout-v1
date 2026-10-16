@@ -191,7 +191,7 @@ export default function SpendingCalendar() {
             </h2>
             <button
               onClick={jumpToLatest}
-              className="min-h-9 rounded-full px-3 text-sm font-semibold text-sage-700 transition-colors hover:bg-sage-50"
+              className="min-h-11 rounded-full px-3 text-sm font-semibold text-sage-700 transition-colors hover:bg-sage-50"
             >
               Today
             </button>
@@ -205,7 +205,7 @@ export default function SpendingCalendar() {
                   key={s.id}
                   onClick={() => setScaleAndClear(s.id)}
                   aria-pressed={scale === s.id}
-                  className={`min-h-9 rounded-full px-3.5 text-sm font-semibold transition-colors ${
+                  className={`min-h-11 rounded-full px-3.5 text-sm font-semibold transition-colors ${
                     scale === s.id ? 'bg-surface text-ink shadow-xs' : 'text-ink-faint hover:text-ink'
                   }`}
                 >

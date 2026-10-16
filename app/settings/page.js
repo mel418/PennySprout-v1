@@ -58,7 +58,7 @@ export default function SettingsPage() {
 
         <Link
           href="/"
-          className="mb-8 inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-ink-soft transition-colors hover:text-sage-700"
+          className="mb-8 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-ink-soft transition-colors hover:text-sage-700"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to Penny Sprout
         </Link>

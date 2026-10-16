@@ -1,22 +1,21 @@
 import { ClerkProvider } from '@clerk/nextjs'
-import { Nunito_Sans, Quicksand } from 'next/font/google'
+import { Plus_Jakarta_Sans, Bricolage_Grotesque } from 'next/font/google'
 import './globals.css'
 
 // Two faces, two jobs (see the typography rules in globals.css):
-//   Nunito Sans — every piece of real UI. Rounded enough to feel warm, but a
-//     workhorse text face: money, tables, forms, navigation, chart labels.
-//   Quicksand — the playful one. Opt in with `.font-display`, and only for
-//     marketing, onboarding, empty states, and decorative section titles.
-//     Never for amounts, transactions, or anything accessibility-critical.
-const nunito = Nunito_Sans({
+//   Plus Jakarta Sans — every piece of real UI: money, tables, forms,
+//     navigation, chart labels. Geometric, crisp, excellent numerals.
+//   Bricolage Grotesque — the display face. Opt in with `.font-display` for
+//     page titles, marketing, and single headline figures like the hero balance.
+const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
-  variable: '--font-nunito',
+  variable: '--font-jakarta',
   display: 'swap',
 })
 
-const quicksand = Quicksand({
+const bricolage = Bricolage_Grotesque({
   subsets: ['latin'],
-  variable: '--font-quicksand',
+  variable: '--font-bricolage',
   display: 'swap',
 })
 
@@ -28,12 +27,12 @@ export const metadata = {
   },
 }
 
-// Warm cream in light, warm charcoal in dark — keeps the mobile browser chrome
+// Mint canvas in light, green-black in dark — keeps the mobile browser chrome
 // on-palette instead of flashing a stark white bar above the page.
 export const viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#FFF9F1' },
-    { media: '(prefers-color-scheme: dark)',  color: '#1B1714' },
+    { media: '(prefers-color-scheme: light)', color: '#F2F5F1' },
+    { media: '(prefers-color-scheme: dark)',  color: '#090E0B' },
   ],
 }
 
@@ -45,7 +44,7 @@ export default function RootLayout({ children }) {
   return (
     <ClerkProvider telemetry={false}>
       {/* suppressHydrationWarning: the inline script may add .dark before React hydrates */}
-      <html lang="en" className={`${nunito.variable} ${quicksand.variable}`} suppressHydrationWarning>
+      <html lang="en" className={`${jakarta.variable} ${bricolage.variable}`} suppressHydrationWarning>
         <body className="font-sans antialiased">
           <script dangerouslySetInnerHTML={{ __html: themeInit }} />
           {children}
