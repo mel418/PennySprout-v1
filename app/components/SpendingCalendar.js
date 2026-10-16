@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightSm, CalendarDays, X } from 'lucide-react'
-import { normalizeCategory, categoryColor, categoryTint, calcSpending, calcIncome, categoryTotals, EXCLUDED_FROM_TOTALS } from '@/lib/categories'
+import { normalizeCategory, spendAmount, categoryColor, categoryTint, calcSpending, calcIncome, categoryTotals, EXCLUDED_FROM_TOTALS } from '@/lib/categories'
 import {
   parseDate, toKey, fromKey, MONTHS_SHORT,
   periodRange, periodLabel, stepPeriod, startOfWeek, addDays,
@@ -68,7 +68,7 @@ export default function SpendingCalendar() {
       const cat = normalizeCategory(t.Category, t.Amount)
       const amt = Math.abs(parseFloat(t.Amount) || 0)
       if (cat === 'Income') income += amt
-      else if (!EXCLUDED_FROM_TOTALS.has(cat)) spending += amt
+      else if (!EXCLUDED_FROM_TOTALS.has(cat)) spending += spendAmount(t, cat)
     })
     return { spending, income, net: income - spending }
   }, [])
@@ -500,9 +500,9 @@ function WeekGrid({ anchor, byDate, dayTotals, selectedDate, selectDate }) {
         const catMap = {}
         txns.forEach(t => {
           const cat = normalizeCategory(t.Category, t.Amount)
-          catMap[cat] = (catMap[cat] || 0) + Math.abs(parseFloat(t.Amount) || 0)
+          catMap[cat] = (catMap[cat] || 0) + (EXCLUDED_FROM_TOTALS.has(cat) ? Math.abs(parseFloat(t.Amount) || 0) : spendAmount(t, cat))
         })
-        const events = Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 4)
+        const events = Object.entries(catMap).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 4)
         return (
           <button
             key={key}

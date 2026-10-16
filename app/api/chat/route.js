@@ -4,7 +4,7 @@ import { checkRateLimit } from '@/lib/rateLimit'
 import { getPlan } from '@/lib/subscriptionStorage'
 import { getTransactions } from '@/lib/transactionStorage'
 import { getBudgets } from '@/lib/budgetStorage'
-import { normalizeCategory, EXCLUDED_FROM_TOTALS } from '@/lib/categories'
+import { normalizeCategory, spendAmount, EXCLUDED_FROM_TOTALS } from '@/lib/categories'
 import { parseDate, monthKey, monthKeyLabel } from '@/lib/date'
 import { merchantKey } from '@/lib/recurring'
 
@@ -122,16 +122,17 @@ export async function POST(request) {
         bills += amt
         if (byMonth[mKey]) byMonth[mKey].bills += amt
       } else if (!EXCLUDED_FROM_TOTALS.has(cat)) {
-        spending += amt
-        byCategory[cat] = (byCategory[cat] || 0) + amt
+        const sa = spendAmount(t, cat)
+        spending += sa
+        byCategory[cat] = (byCategory[cat] || 0) + sa
         // Per-merchant roll-up of real spending only, so "where does my money
         // go" can be answered by business name rather than just category.
         const mk = merchantKey(t.Description) || String(t.Description || 'unknown').toLowerCase()
         const m = (byMerchant[mk] ||= { name: t.Description || 'Unknown', total: 0, count: 0, cats: {} })
-        m.total += amt
+        m.total += sa
         m.count += 1
-        m.cats[cat] = (m.cats[cat] || 0) + amt
-        if (byMonth[mKey]) byMonth[mKey].spending += amt
+        m.cats[cat] = (m.cats[cat] || 0) + sa
+        if (byMonth[mKey]) byMonth[mKey].spending += sa
       }
     }
     const categoryLines = Object.entries(byCategory)

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Target, PiggyBank, Plus, Pencil, Trash2, X, Check } from 'lucide-react'
-import { normalizeCategory, STANDARD_CATEGORIES, EXCLUDED_FROM_TOTALS } from '@/lib/categories'
+import { normalizeCategory, spendAmount, STANDARD_CATEGORIES, EXCLUDED_FROM_TOTALS } from '@/lib/categories'
 import { parseDate, MONTHS } from '@/lib/date'
 import { money, moneyExact } from '@/lib/format'
 import { useTransactions } from './useTransactions'
@@ -80,7 +80,7 @@ export default function Budgets() {
       if (!d || d.getFullYear() !== y || d.getMonth() !== m) return
       const cat = normalizeCategory(t.Category, t.Amount)
       if (EXCLUDED_FROM_TOTALS.has(cat)) return
-      spend[cat] = (spend[cat] || 0) + Math.abs(parseFloat(t.Amount) || 0)
+      spend[cat] = (spend[cat] || 0) + spendAmount(t, cat)
     })
     return { anchor, monthSpendByCategory: spend, presentCategories: present }
   }, [transactions])
