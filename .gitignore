@@ -45,3 +45,6 @@ data/users.json
 
 # local Claude Code launch config (dev server command, per-machine)
 .claude/launch.json
+
+# personal job-search notes (repo is public)
+/career/
