@@ -30,6 +30,23 @@ const MAX_MONTH_ROWS = 24
 const MAX_MERCHANTS = 40
 const MAX_OTHER_TXNS = 15
 
+// Loading a user's whole history is the slow part of every message, and a
+// conversation asks several questions in a row. Keep each user's rows for a
+// short time per warm server instance so follow-ups skip the database round
+// trip. Short TTL so a just-edited category shows up quickly.
+const TXN_CACHE_TTL_MS = 30_000
+const txnCache = new Map() // `${userId}|${scopeKey}` -> { at, transactions }
+
+async function loadTransactions(userId, scopeKey, range) {
+  const key = `${userId}|${scopeKey}`
+  const hit = txnCache.get(key)
+  if (hit && Date.now() - hit.at < TXN_CACHE_TTL_MS) return hit.transactions
+  const transactions = await getTransactions(userId, range)
+  if (txnCache.size > 200) txnCache.clear()
+  txnCache.set(key, { at: Date.now(), transactions })
+  return transactions
+}
+
 export async function POST(request) {
   try {
     const user = await currentUser()
@@ -73,11 +90,11 @@ export async function POST(request) {
     // ── Build the financial context server-side ──
     let transactions
     if (isAllScope) {
-      transactions = await getTransactions(user.id)
+      transactions = await loadTransactions(user.id, 'all')
     } else {
       const [y, mo] = month.split('-').map(Number)
       const lastDay = new Date(y, mo, 0).getDate()
-      transactions = await getTransactions(user.id, {
+      transactions = await loadTransactions(user.id, month, {
         from: `${month}-01`,
         to: `${month}-${String(lastDay).padStart(2, '0')}`,
       })
@@ -237,7 +254,7 @@ Rules:
     }
 
     const stream = anthropic.messages.stream({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-haiku-5-5',
       max_tokens: 1024,
       system,
       messages: messages.map(m => ({ role: m.role, content: m.content })),
