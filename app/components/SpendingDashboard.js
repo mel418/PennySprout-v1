@@ -17,8 +17,9 @@ import Modal from './ui/Modal'
 import Card, { CARD_BODY, CARD_PAD } from './ui/Card'
 import { PageHeader, SectionHeader, StatTile } from './ui/SectionHeader'
 import GrowthPlant, { STAGES, stageForScore } from './ui/GrowthPlant'
-import { selectClass } from './ui/Field'
 import { TOOLTIP_PROPS, AXIS_TICK, GRID_STROKE } from './ui/chartTheme'
+
+const MONTH_NAMES = Array.from({ length: 12 }, (_, i) => new Date(2000, i, 1).toLocaleString('en-US', { month: 'short' }))
 
 // Health score, computed deterministically from the savings rate — no AI call,
 // so it's instant, free, and the same every time. (AI insight now lives in the
@@ -144,48 +145,40 @@ export default function SpendingDashboard() {
 
       {/* ── Month picker ── */}
       <Card className={CARD_PAD}>
-        <label htmlFor="analysis-month" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-ink-faint">
-          Analyzing month
-        </label>
-        <div className="flex items-center gap-2">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">Analyzing month</p>
+        <div className="flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => setSelectedMonth(prevMonth)}
             disabled={!prevMonth}
             aria-label="Previous month"
-            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-line text-ink transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
           >
             <ChevronLeft className="h-5 w-5" aria-hidden="true" />
           </button>
-          <select
-            id="analysis-month"
-            value={selectedMonth || ''}
-            onChange={e => setSelectedMonth(e.target.value)}
-            className={selectClass('max-w-xs text-base font-semibold sm:text-base')}
-          >
-            {months.map(m => (
-              <option key={m} value={m}>{monthKeyLabel(m)}</option>
-            ))}
-          </select>
+          <h3 className="min-w-0 truncate text-center text-xl font-bold tracking-tight text-ink" aria-live="polite">
+            {selectedMonth ? monthKeyLabel(selectedMonth) : ''}
+          </h3>
           <button
             type="button"
             onClick={() => setSelectedMonth(nextMonth)}
             disabled={!nextMonth}
             aria-label="Next month"
-            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-line text-ink transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
           >
             <ChevronRight className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
+
         {years.length > 1 && (
-          <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Jump to year">
+          <div className="mt-3 flex flex-wrap justify-center gap-1.5" role="group" aria-label="Year">
             {years.map(y => (
               <button
                 key={y}
                 type="button"
                 onClick={() => setSelectedMonth(months.find(m => m.startsWith(y)))}
                 aria-pressed={y === selectedYear}
-                className={`rounded-full border px-3 py-1 text-xs font-semibold tnum transition-colors ${
+                className={`rounded-full border px-3.5 py-1 text-xs font-semibold tnum transition-colors ${
                   y === selectedYear
                     ? 'border-transparent bg-sage-600 text-white'
                     : 'border-line text-ink-soft hover:bg-surface-hover'
@@ -196,7 +189,35 @@ export default function SpendingDashboard() {
             ))}
           </div>
         )}
-        <p className="mt-2 text-sm text-ink-faint tnum">
+
+        {/* Months of the selected year; ones with no activity are disabled. */}
+        <div className="mt-3 grid grid-cols-4 gap-1.5 sm:grid-cols-6" role="group" aria-label="Month">
+          {MONTH_NAMES.map((name, i) => {
+            const key = `${selectedYear}-${String(i + 1).padStart(2, '0')}`
+            const available = months.includes(key)
+            const active = key === selectedMonth
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSelectedMonth(key)}
+                disabled={!available}
+                aria-pressed={active}
+                className={`rounded-[var(--radius-sm)] py-2 text-sm font-semibold transition-colors ${
+                  active
+                    ? 'bg-sage-600 text-white shadow-xs'
+                    : available
+                      ? 'bg-sage-50 text-sage-700 hover:bg-sage-100'
+                      : 'cursor-not-allowed text-ink-faint opacity-40'
+                }`}
+              >
+                {name}
+              </button>
+            )
+          })}
+        </div>
+
+        <p className="mt-3 text-center text-sm text-ink-faint tnum">
           {monthTxns.length} transaction{monthTxns.length !== 1 ? 's' : ''} this month
         </p>
       </Card>
