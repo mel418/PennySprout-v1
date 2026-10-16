@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { Sparkles, ChevronLeft, ChevronRight } from 'lucide-react'
-import { normalizeCategory, categoryColor, calcSpending, calcIncome, categoryTotals, EXCLUDED_FROM_TOTALS } from '@/lib/categories'
+import { normalizeCategory, spendAmount, categoryColor, calcSpending, calcIncome, categoryTotals, EXCLUDED_FROM_TOTALS } from '@/lib/categories'
 import { parseDate, periodRange, monthKey, monthKeyLabel, monthKeyToDate } from '@/lib/date'
 import { moneyExact } from '@/lib/format'
 import { useTransactions } from './useTransactions'
@@ -354,7 +354,7 @@ export default function SpendingDashboard() {
       {/* Category transaction modal */}
       {selectedCategory && (() => {
         const transactions = getCategoryTransactions(selectedCategory)
-        const total = transactions.reduce((sum, t) => sum + Math.abs(parseFloat(t.Amount) || 0), 0)
+        const total = Math.max(0, transactions.reduce((sum, t) => sum + spendAmount(t), 0))
 
         return (
           <Modal
@@ -390,7 +390,9 @@ export default function SpendingDashboard() {
                               onClick={() => toggleTargetItems(t.id)}
                             />
                           )}
-                          <span className="text-sm font-bold tnum text-ink">{moneyExact(amount)}</span>
+                          {spendAmount(t) < 0
+                            ? <span className="text-sm font-bold tnum text-sage-700" title="Credit — reduces spending">−{moneyExact(amount)}</span>
+                            : <span className="text-sm font-bold tnum text-ink">{moneyExact(amount)}</span>}
                         </div>
                       </div>
                       {expandedTargetId === t.id && (
