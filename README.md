@@ -2,6 +2,27 @@
 
 An AI-powered personal finance analyzer: upload statements (or connect a bank on Pro) and see your spending laid out on a calendar, with an AI chat that answers questions grounded in your real transactions.
 
+**[Try the live demo →](https://www.pennysprout.online/demo)** — no sign-up and no bank account needed. It runs the real app on sample data.
+
+| Overview | Calendar |
+|---|---|
+| ![Overview: net flow, income vs spending, upcoming bills](docs/screenshots/overview.png) | ![Calendar: daily spending and income across the month](docs/screenshots/calendar.png) |
+| **Analysis + AI chat** | **Budgets & goals** |
+| ![Analysis: category breakdown, health score and Ask Penny chat](docs/screenshots/analysis.png) | ![Budgets: per-category limits and savings goals](docs/screenshots/budgets.png) |
+
+## Engineering highlights
+
+Solo-built, full-stack, and in production shape: 110+ commits, 19 versioned database migrations, 190+ unit tests.
+
+- **AI that can't be fed fake numbers.** The chat endpoint takes only the conversation from the client. Totals, categories, budgets and transactions are loaded and aggregated server-side, so a tampered request can't inject data, and exact totals are computed in code rather than left to the model.
+- **PII defense in depth.** PDF statements are parsed by Claude, then every extracted row passes through `lib/pii.js`. It keeps only allowlisted fields and redacts account, card, SSN, phone and email patterns, because a prompt instruction is a request, not a guarantee.
+- **Locked-down data layer.** Row Level Security is on for every table with *no* policies, so the public anon key reads nothing. All access goes through a server-only service-role client scoped by the Clerk user id, and middleware default-denies every `/api/*` route.
+- **Bank credentials encrypted at the app layer.** Plaid access tokens get AES-256-GCM encryption with a per-token IV before they reach Postgres (`lib/plaidCrypto.js`). Disk encryption alone doesn't protect against a leaked service key.
+- **Real-world data reconciliation.** Uploaded statements and Plaid syncs describe the same purchase differently ("Target" vs "ACH TARGET DEBIT CRD…") and disagree on dates by a day or two. Duplicate detection matches on exact amount within a date window, and files are fingerprinted by transaction content, so the same statement is caught whether it arrives as a CSV or a PDF.
+- **Cost controls for paid APIs.** Per-user daily rate limits live in Postgres, not memory, because serverless instances don't share memory. Pro-only routes return `402` and fail closed to the free plan on any error.
+- **Production plumbing.** Stripe subscriptions with signed webhooks, Vercel cron jobs for daily bank sync and email nudges, Sentry error monitoring, env validation at boot, and self-serve CSV export and account deletion.
+- **Demo mode without a backend.** `/demo` installs an in-browser fake API (`app/components/demoApi.js`) that answers `/api/*` from generated sample data. Recruiters see the real components rather than a mock-up, and the demo makes zero server or AI calls.
+
 ## Features
 
 - **Multi-format upload**: CSV (parsed in the browser) and PDF bank statements (extracted by Claude) — select multiple files at once
@@ -184,6 +205,12 @@ Category normalization lives in `lib/categories.js`, shared by every view:
 - Everything else is shown as-is
 
 ## Development
+
+### Demo mode
+
+`/demo` renders the full app (`app/components/AppShell.js`) for signed-out visitors on sample data from `lib/demoData.js`: four months of one checking account, deterministic and anchored to today. `installDemoApi()` replaces `window.fetch` for same-origin `/api/*` calls only. Budget, goal and category edits apply in memory and reset on reload. Uploads, bank linking and billing are refused with a sign-up prompt, and the chat streams a canned summary instead of calling Claude.
+
+To refresh the README screenshots, run `npm run dev`, open `/demo` at a desktop width, and save captures of each tab to `docs/screenshots/` (`overview.png`, `calendar.png`, `analysis.png`, `budgets.png`).
 
 ```bash
 npm test          # run the vitest suite (lib/__tests__/ — pure logic, no route/component tests)
