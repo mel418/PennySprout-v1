@@ -6,6 +6,7 @@ import { getTransactions } from '@/lib/transactionStorage'
 import { getBudgets } from '@/lib/budgetStorage'
 import { normalizeCategory, EXCLUDED_FROM_TOTALS } from '@/lib/categories'
 import { parseDate, monthKey, monthKeyLabel } from '@/lib/date'
+import { merchantKey } from '@/lib/recurring'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -26,6 +27,25 @@ const MAX_MESSAGES = 20
 const MAX_MESSAGE_LENGTH = 2000
 const MAX_TOP_TXNS = 60
 const MAX_MONTH_ROWS = 24
+const MAX_MERCHANTS = 40
+const MAX_OTHER_TXNS = 15
+
+// Loading a user's whole history is the slow part of every message, and a
+// conversation asks several questions in a row. Keep each user's rows for a
+// short time per warm server instance so follow-ups skip the database round
+// trip. Short TTL so a just-edited category shows up quickly.
+const TXN_CACHE_TTL_MS = 30_000
+const txnCache = new Map() // `${userId}|${scopeKey}` -> { at, transactions }
+
+async function loadTransactions(userId, scopeKey, range) {
+  const key = `${userId}|${scopeKey}`
+  const hit = txnCache.get(key)
+  if (hit && Date.now() - hit.at < TXN_CACHE_TTL_MS) return hit.transactions
+  const transactions = await getTransactions(userId, range)
+  if (txnCache.size > 200) txnCache.clear()
+  txnCache.set(key, { at: Date.now(), transactions })
+  return transactions
+}
 
 export async function POST(request) {
   try {
@@ -70,11 +90,11 @@ export async function POST(request) {
     // ── Build the financial context server-side ──
     let transactions
     if (isAllScope) {
-      transactions = await getTransactions(user.id)
+      transactions = await loadTransactions(user.id, 'all')
     } else {
       const [y, mo] = month.split('-').map(Number)
       const lastDay = new Date(y, mo, 0).getDate()
-      transactions = await getTransactions(user.id, {
+      transactions = await loadTransactions(user.id, month, {
         from: `${month}-01`,
         to: `${month}-${String(lastDay).padStart(2, '0')}`,
       })
@@ -87,6 +107,7 @@ export async function POST(request) {
     let income = 0, spending = 0, bills = 0
     const byCategory = {}
     const byMonth = {}
+    const byMerchant = {}
     for (const t of transactions) {
       const cat = normalizeCategory(t.Category, t.Amount)
       const amt = Math.abs(parseFloat(t.Amount) || 0)
@@ -103,6 +124,13 @@ export async function POST(request) {
       } else if (!EXCLUDED_FROM_TOTALS.has(cat)) {
         spending += amt
         byCategory[cat] = (byCategory[cat] || 0) + amt
+        // Per-merchant roll-up of real spending only, so "where does my money
+        // go" can be answered by business name rather than just category.
+        const mk = merchantKey(t.Description) || String(t.Description || 'unknown').toLowerCase()
+        const m = (byMerchant[mk] ||= { name: t.Description || 'Unknown', total: 0, count: 0, cats: {} })
+        m.total += amt
+        m.count += 1
+        m.cats[cat] = (m.cats[cat] || 0) + amt
         if (byMonth[mKey]) byMonth[mKey].spending += amt
       }
     }
@@ -111,12 +139,36 @@ export async function POST(request) {
       .map(([c, v]) => `  ${c}: $${v.toFixed(2)}`)
       .join('\n')
 
-    // Largest transactions for texture; totals above are authoritative.
+    const merchantLines = Object.values(byMerchant)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, MAX_MERCHANTS)
+      .map(m => {
+        const topCat = Object.entries(m.cats).sort(([, a], [, b]) => b - a)[0][0]
+        return `  ${m.name} | $${m.total.toFixed(2)} | ${m.count} txn${m.count === 1 ? '' : 's'} | ${topCat}`
+      })
+      .join('\n')
+
+    const fmtTxn = t => `  ${t.Date || '?'} | ${t.Description || '—'} | $${Math.abs(parseFloat(t.Amount) || 0).toFixed(2)} | ${normalizeCategory(t.Category, t.Amount)}`
+    const byAmount = (a, b) => Math.abs(parseFloat(b.Amount) || 0) - Math.abs(parseFloat(a.Amount) || 0)
+
+    // Largest REAL spending transactions (payments, transfers, income and
+    // refunds are excluded — they used to crowd this list, so the model only
+    // saw Discover payments and payroll deposits and couldn't name merchants).
+    const isSpend = t => !EXCLUDED_FROM_TOTALS.has(normalizeCategory(t.Category, t.Amount)) && normalizeCategory(t.Category, t.Amount) !== 'Bills & Payments'
     const topTxns = transactions
-      .slice()
-      .sort((a, b) => Math.abs(parseFloat(b.Amount) || 0) - Math.abs(parseFloat(a.Amount) || 0))
+      .filter(isSpend)
+      .sort(byAmount)
       .slice(0, MAX_TOP_TXNS)
-      .map(t => `  ${t.Date || '?'} | ${t.Description || '—'} | $${Math.abs(parseFloat(t.Amount) || 0).toFixed(2)} | ${normalizeCategory(t.Category, t.Amount)}`)
+      .map(fmtTxn)
+      .join('\n')
+
+    // Largest non-spending movements, listed separately and labeled so the
+    // model can discuss them without mixing them into spending.
+    const otherTxns = transactions
+      .filter(t => !isSpend(t))
+      .sort(byAmount)
+      .slice(0, MAX_OTHER_TXNS)
+      .map(fmtTxn)
       .join('\n')
 
     let system
@@ -145,12 +197,19 @@ ${categoryLines || '  (none)'}
 BY MONTH (most recent ${monthEntries.length} of ${Object.keys(byMonth).length}):
 ${monthLines || '  (none)'}
 
-LARGEST TRANSACTIONS (top ${Math.min(MAX_TOP_TXNS, transactions.length)} of ${transactions.length} by amount):
-${topTxns}
+TOP MERCHANTS BY SPENDING (business | total | count | main category):
+${merchantLines || '  (none)'}
+
+LARGEST SPENDING TRANSACTIONS:
+${topTxns || '  (none)'}
+
+LARGEST NON-SPENDING MOVEMENTS (credit card/bill payments, transfers, income, refunds — NOT spending):
+${otherTxns || '  (none)'}
 
 Rules:
 - Use the exact totals above; never recompute or invent figures.
-- If a question needs a specific transaction not listed above, answer from the aggregates rather than guessing at details you can't see.
+- Spending means money spent at businesses. Credit card payments, bill payments and transfers between accounts move money rather than spend it, and payroll is income — never describe those as spending. When asked where money goes, answer with specific business names from the merchant list.
+- The merchant list covers the top ${MAX_MERCHANTS} businesses; if one isn't listed, say you can only see the top merchants rather than guessing.
 - Keep answers short and conversational — 2-5 sentences unless a breakdown is asked for. Plain text, no markdown headers or tables.
 - You may offer gentle, practical suggestions, but you are not a licensed financial advisor and must not give investment advice.`
     } else {
@@ -177,18 +236,25 @@ ${categoryLines || '  (none)'}
 MONTHLY BUDGETS:
 ${budgetLines}
 
-LARGEST TRANSACTIONS (top ${Math.min(MAX_TOP_TXNS, transactions.length)} of ${transactions.length} by amount):
-${topTxns}
+TOP MERCHANTS BY SPENDING (business | total | count | main category):
+${merchantLines || '  (none)'}
+
+LARGEST SPENDING TRANSACTIONS:
+${topTxns || '  (none)'}
+
+LARGEST NON-SPENDING MOVEMENTS (credit card/bill payments, transfers, income, refunds — NOT spending):
+${otherTxns || '  (none)'}
 
 Rules:
 - Use the exact totals above; never recompute or invent figures.
+- Spending means money spent at businesses. Credit card payments, bill payments and transfers between accounts move money rather than spend it, and payroll is income — never describe those as spending. When asked where money goes, answer with specific business names from the merchant list.
 - If asked about something not in this data (other months, account balances, investments), say you can only see ${monthKeyLabel(month)}'s transactions and suggest switching months.
 - Keep answers short and conversational — 2-5 sentences unless a breakdown is asked for. Plain text, no markdown headers or tables.
 - You may offer gentle, practical suggestions, but you are not a licensed financial advisor and must not give investment advice.`
     }
 
     const stream = anthropic.messages.stream({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-haiku-5-5',
       max_tokens: 1024,
       system,
       messages: messages.map(m => ({ role: m.role, content: m.content })),
