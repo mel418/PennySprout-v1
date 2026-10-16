@@ -16,6 +16,7 @@ import Spinner from './components/ui/Spinner'
 import ThemeToggle from './components/ui/ThemeToggle'
 import Doodle from './components/ui/Doodle'
 import { buttonClass } from './components/ui/Button'
+import { billingHidden } from '@/lib/billingFlag'
 
 // ─── Landing page ─────────────────────────────────────────────────────────────
 // The most decorated surface in the product (~90% aesthetic): this is where
@@ -97,10 +98,14 @@ function LandingPage() {
           <Link href="/privacy" className="underline decoration-sage-300 underline-offset-4 hover:text-sage-700">
             Your data stays private
           </Link>
-          <span aria-hidden="true">·</span>
-          <Link href="/pricing" className="underline decoration-sage-300 underline-offset-4 hover:text-sage-700">
-            Pricing
-          </Link>
+          {!billingHidden && (
+            <>
+              <span aria-hidden="true">·</span>
+              <Link href="/pricing" className="underline decoration-sage-300 underline-offset-4 hover:text-sage-700">
+                Pricing
+              </Link>
+            </>
+          )}
           <span aria-hidden="true">·</span>
           <Link href="/terms" className="underline decoration-sage-300 underline-offset-4 hover:text-sage-700">
             Terms
@@ -177,12 +182,14 @@ export default function Home() {
             <span className="truncate font-display text-lg font-bold text-ink">Penny Sprout</span>
           </div>
           <div className="flex flex-shrink-0 items-center gap-1">
-            <Link
-              href="/pricing"
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-sage-50 px-3 text-xs font-semibold text-sage-700 transition-colors hover:bg-sage-100"
-            >
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Pro
-            </Link>
+            {!billingHidden && (
+              <Link
+                href="/pricing"
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-sage-50 px-3 text-xs font-semibold text-sage-700 transition-colors hover:bg-sage-100"
+              >
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Pro
+              </Link>
+            )}
             <Link
               href="/settings"
               aria-label="Settings"

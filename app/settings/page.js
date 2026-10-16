@@ -2,11 +2,12 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useUser, useClerk } from '@clerk/nextjs'
-import { ArrowLeft, Download, CreditCard, Trash2, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Download, CreditCard, Trash2, AlertTriangle, Users } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import Button, { buttonClass } from '../components/ui/Button'
 import { inputClass, Banner } from '../components/ui/Field'
 import HiddenImports from '../components/HiddenImports'
+import { billingHidden } from '@/lib/billingFlag'
 
 // Settings: data export, billing shortcut, and account deletion. Deletion is
 // self-serve and immediate — the privacy policy's erasure promise, in-product
@@ -85,6 +86,7 @@ export default function SettingsPage() {
           </section>
 
           {/* Billing */}
+          {!billingHidden && (
           <section className="card-soft p-5 sm:p-6">
             <div className="mb-1.5 flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-sage-500" aria-hidden="true" />
@@ -97,6 +99,23 @@ export default function SettingsPage() {
               Open pricing &amp; billing
             </Link>
           </section>
+          )}
+
+          {/* Admin — the link is a convenience; the API enforces the role. */}
+          {user.publicMetadata?.role === 'admin' && (
+            <section className="card-soft p-5 sm:p-6">
+              <div className="mb-1.5 flex items-center gap-2">
+                <Users className="h-4 w-4 text-sage-500" aria-hidden="true" />
+                <h2 className="text-base font-semibold text-ink">Manage plans</h2>
+              </div>
+              <p className="mb-5 text-sm leading-relaxed text-ink-soft">
+                Grant or revoke Pro for family and friends, without Stripe.
+              </p>
+              <Link href="/admin/plans" className={buttonClass({ variant: 'secondary' })}>
+                Open plan manager
+              </Link>
+            </section>
+          )}
 
           <HiddenImports />
 
